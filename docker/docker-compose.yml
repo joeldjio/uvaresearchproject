@@ -1,0 +1,70 @@
+version: "3.9"
+
+# DroneResearch docker-compose
+# Simulates the full heterogeneous swarm stack locally (SITL)
+#
+# Start: docker compose up
+# Stop:  docker compose down
+
+services:
+
+  # Ground station / coordinator (x86)
+  gcs:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.x86
+    image: droneresearch:x86
+    container_name: droneresearch-gcs
+    ports:
+      - "8080:8080"
+    environment:
+      - DRONE_PORT=tcp:host.docker.internal:5760
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    networks:
+      - swarm
+
+  # Generic UAV agent (Pi-style — minimal resources)
+  uav_generic:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.pi
+    image: droneresearch:pi
+    container_name: droneresearch-uav1
+    environment:
+      - DRONE_PORT=tcp:host.docker.internal:5761
+    ports:
+      - "8081:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    networks:
+      - swarm
+
+  # Observation UAV agent (Jetson-style — full stack)
+  uav_observation:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.jetson
+    image: droneresearch:jetson
+    container_name: droneresearch-uav2
+    environment:
+      - DRONE_PORT=tcp:host.docker.internal:5762
+    ports:
+      - "8082:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    networks:
+      - swarm
+    # Uncomment for real Jetson with GPU:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - capabilities: [gpu]
+
+networks:
+  swarm:
+    driver: bridge

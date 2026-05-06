@@ -1,0 +1,25 @@
+# DroneResearch — Nvidia Jetson (AArch64, JetPack 6 / L4T 36)
+# Full stack: MAVLink + ROS2 + OpenCV + DroneResearch
+FROM nvcr.io/nvidia/l4t-pytorch:r36.2.0-pth2.1-py3
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3-pip \
+    libusb-1.0-0 \
+    python3-opencv \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip3 install --no-cache-dir -r requirements.txt
+
+# Optional: OpenCV for camera + vswarm
+RUN pip3 install --no-cache-dir opencv-python-headless || true
+
+COPY . .
+RUN pip3 install --no-cache-dir -e .
+
+ENV PYTHONUNBUFFERED=1
+EXPOSE 8080
+
+CMD ["python3", "pi/server.py", "--port", "/dev/ttyUSB0", "--baud", "57600", "--http", "8080"]

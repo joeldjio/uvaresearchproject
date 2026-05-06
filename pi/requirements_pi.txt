@@ -1,0 +1,5 @@
+# Raspberry Pi 1 — minimal dependencies
+# Everything else uses Python stdlib
+
+pymavlink>=2.4.40
+pyserial>=3.5

@@ -1,0 +1,23 @@
+# DroneResearch — Raspberry Pi (ARMv6/ARMv7/ARMv8)
+# Tested: Pi 1 (ARMv6), Pi 3/4 (ARMv8)
+FROM python:3.11-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    python3-dev \
+    libusb-1.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Pi-minimal requirements only
+COPY pi/requirements_pi.txt .
+RUN pip install --no-cache-dir -r requirements_pi.txt
+
+COPY pi/server.py .
+
+ENV PYTHONUNBUFFERED=1
+EXPOSE 8080
+
+# Default: serial. Override with --port env var.
+CMD ["python3", "server.py", "--port", "/dev/ttyUSB0", "--baud", "57600", "--http", "8080"]

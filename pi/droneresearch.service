@@ -1,0 +1,17 @@
+[Unit]
+Description=DroneResearch Pi Server
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/DroneResearch
+ExecStart=/usr/bin/python3 /home/pi/DroneResearch/pi/server.py --port /dev/ttyUSB0 --baud 57600 --http 8080
+Restart=on-failure
+RestartSec=5
+# Limit RAM and CPU for Pi 1
+MemoryLimit=64M
+CPUQuota=80%
+
+[Install]
+WantedBy=multi-user.target
