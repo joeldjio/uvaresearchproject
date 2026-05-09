@@ -39,6 +39,7 @@ from typing import Callable, Dict, List, Optional, Tuple
 
 from droneresearch.core.fsm import DroneState, StateMachine
 from droneresearch.models.generic_uav import GenericUAVModel
+from droneresearch.safety import APFSafetyFilter, Pose3D
 
 
 # Formation offsets (north_m, east_m) per follower index
@@ -116,6 +117,14 @@ class CoordinatorUAVModel(GenericUAVModel):
         self._following   = False
         self._on_member_change: Optional[Callable] = None
         self._lock        = threading.Lock()
+        self._apf = APFSafetyFilter(
+            min_separation  = 3.0,
+            max_speed       = 5.0,
+            geofence_radius = 200.0,
+            geofence_alt    = (1.0, 120.0),
+            repulsion_gain  = 3.0,
+            obstacle_radius = 5.0,
+        )
 
     # ── Factory ───────────────────────────────────────────────────────────
 
@@ -244,9 +253,27 @@ class CoordinatorUAVModel(GenericUAVModel):
         self._following = False
         print("[coordinator] Formation follow stopped")
 
+    def _uav_pose(self, uav: GenericUAVModel, ref_lat: float, ref_lon: float) -> Optional[Pose3D]:
+        """Convert UAV GPS position to local NED Pose3D relative to ref point."""
+        try:
+            t = uav.telemetry
+            if t.lat == 0.0 and t.lon == 0.0:
+                return None
+            north = (t.lat - ref_lat) * 111320.0
+            east  = (t.lon - ref_lon) * 111320.0 * math.cos(math.radians(ref_lat))
+            return Pose3D(north, east, t.alt_rel)
+        except Exception:
+            return None
+
     def _follow_loop(self, dt: float):
+        _dbg_tick = 0
         while self._following:
+            _dbg_tick += 1
             leader = self.leader
+            if _dbg_tick % 10 == 1:
+                print(f"  [follow] tick={_dbg_tick} leader={leader.id if leader else None} "
+                      f"state={leader.fsm.state.name if leader else 'N/A'} "
+                      f"airborne={leader.fsm.is_airborne if leader else False}")
             if leader and leader.fsm.is_airborne:
                 lt = leader.telemetry
                 with self._lock:
@@ -254,18 +281,58 @@ class CoordinatorUAVModel(GenericUAVModel):
                         uav for uav in self._members.values()
                         if uav.swarm_role == "follower" and uav.fsm.is_airborne
                     ]
+                if _dbg_tick % 10 == 1:
+                    print(f"  [follow] followers={[u.id+':'+u.fsm.state.name for u in followers]}")
+
+                # Alle aktuellen Positionen (lokale NED relativ zu Leader-Home)
+                ref_lat, ref_lon = lt.lat, lt.lon
+                current: Dict[str, Pose3D] = {}
+                for uav in followers:
+                    p = self._uav_pose(uav, ref_lat, ref_lon)
+                    if p:
+                        current[uav.id] = p
+                leader_pose = Pose3D(0.0, 0.0, lt.alt_rel)
+                current[leader.id] = leader_pose
+
+                # Gewünschte Formations-Zielpositionen
+                desired: Dict[str, Pose3D] = {leader.id: leader_pose}
                 for uav in followers:
                     n, e, a = uav.formation_offset
                     yaw_rad = math.radians(lt.yaw)
-                    dlat = (n * math.cos(yaw_rad) - e * math.sin(yaw_rad)) / 111320.0
-                    dlon = (n * math.sin(yaw_rad) + e * math.cos(yaw_rad)) / (
-                        111320.0 * math.cos(math.radians(lt.lat)) + 1e-9
+                    rot_n = n * math.cos(yaw_rad) - e * math.sin(yaw_rad)
+                    rot_e = n * math.sin(yaw_rad) + e * math.cos(yaw_rad)
+                    desired[uav.id] = Pose3D(rot_n, rot_e, lt.alt_rel + a)
+
+                # APF-Filter: sichere Zwischenpositionen berechnen
+                if len(current) >= 2:
+                    safe = self._apf.filter(current, desired)
+                else:
+                    safe = desired
+
+                # Goto-Befehle senden (GUIDED sicherstellen)
+                for uav in followers:
+                    sp = safe.get(uav.id)
+                    if sp is None:
+                        sp = desired.get(uav.id)
+                    if sp is None:
+                        continue
+                    tgt_lat = ref_lat + sp.x / 111320.0
+                    tgt_lon = ref_lon + sp.y / (
+                        111320.0 * math.cos(math.radians(ref_lat)) + 1e-9
                     )
-                    uav._conn.goto(
-                        lt.lat + dlat,
-                        lt.lon + dlon,
-                        lt.alt_rel + a,
-                    )
+                    try:
+                        if uav.telemetry.flight_mode.upper() != "GUIDED":
+                            uav._conn.set_mode("GUIDED")
+                        uav._conn.goto(tgt_lat, tgt_lon, sp.z)
+                    except Exception:
+                        pass
+
+                # APF-Kollisionsprüfung — nur warnen
+                if len(current) >= 2:
+                    viols = self._apf.check_separation(current)
+                    for a_id, b_id, dist in viols:
+                        print(f"  [APF WARNUNG] {a_id} ↔ {b_id}: {dist:.2f}m")
+
             time.sleep(dt)
 
     # ── Status ────────────────────────────────────────────────────────────

@@ -1,7 +1,7 @@
 # DroneResearch — Raspberry Pi Deployment
 
 **Author:** Joel Djio  
-**Repository:** https://github.com/joeldjio/uvaresearchproject  
+**Repository:** https://github.com/joeldjio/uavresearchproject  
 **Version:** 0.2.0
 
 Optimized for: **Raspberry Pi 1 Model B/B+**  
@@ -39,8 +39,8 @@ Compared to PySide6 UI: ~180 MB RAM, unusable on Pi 1.
 
 ```bash
 # On the Pi (Raspberry Pi OS Lite recommended)
-git clone https://github.com/joeldjio/uvaresearchproject ~/DroneResearch
-cd ~/DroneResearch
+git clone https://github.com/joeldjio/uavresearchproject ~/uavresearchproject
+cd ~/uavresearchproject
 bash pi/install.sh
 ```
 

@@ -6,7 +6,7 @@
 
 **Author:** Joel Djio  
 **License:** MIT  
-**Repository:** https://github.com/joeldjio/uvaresearchproject
+**Repository:** https://github.com/joeldjio/uavresearchproject
 
 ---
 
@@ -141,8 +141,8 @@ DroneResearch/
 ## Installation
 
 ```bash
-git clone https://github.com/joeldjio/uvaresearchproject.git
-cd uvaresearchproject
+git clone https://github.com/joeldjio/uavresearchproject.git
+cd uavresearchproject
 pip install -e .
 
 # With ROS2 support (install ROS2 Humble first)
@@ -892,8 +892,8 @@ This platform implements and integrates concepts from recent UAV research:
 This is a research platform. Contributions welcome.
 
 ```bash
-git clone https://github.com/joeldjio/uvaresearchproject.git
-cd uvaresearchproject
+git clone https://github.com/joeldjio/uavresearchproject.git
+cd uavresearchproject
 pip install -e .
 
 # Run a demo to verify setup
