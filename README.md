@@ -34,6 +34,8 @@
 8. [Examples](#examples)
 9. [Research Background](#research-background)
 10. [Hardware](#hardware)
+11. [Testing](#testing)
+12. [Contributing](#contributing)
 
 ---
 
@@ -70,6 +72,10 @@ DroneResearch/
 │   │   ├── fsm.py          Drone Finite State Machine
 │   │   └── telemetry.py    Telemetry state container
 │   │
+│   ├── control/            Mid-level control primitives
+│   │   ├── mission.py      Mission upload + goto-based dispatch
+│   │   └── script_runner.py  Sandboxed in-process script execution
+│   │
 │   ├── models/             UAV model classes (paper architecture)
 │   │   ├── generic_uav.py       GenericUAVModel (base)
 │   │   ├── observation_uav.py   ObservationUAVModel (gimbal/camera)
@@ -92,7 +98,8 @@ DroneResearch/
 │   │
 │   ├── ros/                ROS2 integration
 │   │   ├── px4_bridge.py   PX4 native via uXRCE-DDS
-│   │   └── bridge.py       MAVLink telemetry → ROS2 topics
+│   │   ├── bridge.py       MAVLink telemetry → ROS2 topics
+│   │   └── context.py      Lazy-loaded ROS2 context (rclpy/px4_msgs)
 │   │
 │   ├── exploration/        Autonomous exploration
 │   │   ├── frontier_bridge.py  larics frontier planner bridge
@@ -104,10 +111,22 @@ DroneResearch/
 │   │
 │   ├── sdk/                Public Python API
 │   │   ├── drone.py        Drone class
-│   │   └── swarm_api.py    Swarm class
+│   │   ├── swarm_api.py    Swarm class
+│   │   └── formations.py   Formation primitives (Line/V/Circle/Grid/Letter R/Z)
 │   │
 │   └── cli/                Command-line interface
 │       └── main.py         droneresearch CLI
+│
+├── tests/                  Hardware-free pytest suite
+│   ├── conftest.py         Fake telemetry / MAV / connection fixtures
+│   ├── test_apf.py         APF separation + geofence
+│   ├── test_cli.py         CLI argparse + port resolution
+│   ├── test_fsm.py         FSM transitions + airborne checks
+│   ├── test_mission.py     Mission upload / start / abort
+│   ├── test_formations.py  Formation slot geometry
+│   ├── test_logger.py      CSV / JSON logger
+│   ├── test_telemetry.py   TelemetryState updates
+│   └── test_ros_context.py ROS2 lazy-loader fallbacks
 │
 ├── pi/                     Raspberry Pi 1 optimized server
 │   ├── server.py           Lightweight HTTP REST API (stdlib only)
@@ -147,12 +166,6 @@ pip install -e .
 
 # With ROS2 support (install ROS2 Humble first)
 pip install -e ".[ros]"
-
-# With UI (PySide6)
-pip install -e ".[ui]"
-
-# Full install
-pip install -e ".[full]"
 ```
 
 **Requirements:**
@@ -162,13 +175,24 @@ pip install -e ".[full]"
 - ROS2 Humble/Jazzy (optional, for ROS2 features)
 - `px4_msgs` ROS2 package (optional, for PX4 uXRCE-DDS)
 
+**Graphical GCS (optional):** The QML-based dashboard lives on the
+[`ui-dashboard`](https://github.com/joeldjio/uavresearchproject/tree/ui-dashboard)
+branch under `tools/ui/`. It is intentionally kept off `main` so the
+core platform stays headless and Pi-deployable. To use it:
+```bash
+git checkout ui-dashboard
+pip install PyQt6 PyQt6-WebEngine pyqtgraph
+python -m tools.ui.app
+```
+
 ---
 
 ## Quick Start
 
 ```bash
-# SITL simulation (no hardware needed)
-python examples/hover.py --port tcp:127.0.0.1:5760
+# SITL simulation (no hardware needed). Default port is tcp:127.0.0.1:5762
+# (raw ArduCopter SITL); use 5760 if MAVProxy is in front.
+python examples/hover.py --port tcp:127.0.0.1:5762
 
 # LLM swarm control (offline, no API key)
 python examples/llm_swarm_control.py --backend mock --interactive
@@ -176,11 +200,15 @@ python examples/llm_swarm_control.py --backend mock --interactive
 # Full research pipeline demo
 python examples/full_research_pipeline.py --demo
 
-# CLI
-droneresearch connect --port tcp:127.0.0.1:5760
+# CLI (port defaults to tcp:127.0.0.1:5762; override with --port or
+# the DRONE_PORT environment variable)
+droneresearch connect
 droneresearch arm
 droneresearch takeoff --alt 10
 droneresearch status
+
+# Tests (hardware-free, ~1s)
+pytest tests/
 ```
 
 ---
@@ -747,25 +775,42 @@ swarm.land_all()
 
 ### cli — Command Line
 
+All subcommands share the same connection-resolution: explicit
+`--port` &gt; `$DRONE_PORT` env var &gt; default `tcp:127.0.0.1:5762`
+(raw ArduCopter SITL).
+
 ```bash
-# Connect
-droneresearch connect --port tcp:127.0.0.1:5760
-droneresearch connect --port /dev/ttyUSB0 --baud 57600
+# Connect (one-shot smoke test: connect → snapshot → disconnect)
+droneresearch connect
+droneresearch connect --port tcp:127.0.0.1:5760           # MAVProxy
+droneresearch connect --port udp:127.0.0.1:14550          # PX4 SITL
+droneresearch connect --port serial:/dev/ttyUSB0:57600    # Hardware (Linux)
+droneresearch connect --port serial:COM5:57600            # Hardware (Windows)
 
 # Flight commands
-droneresearch arm
-droneresearch takeoff --alt 10
-droneresearch goto --lat 48.137 --lon 11.575 --alt 15
-droneresearch rtl
+droneresearch arm        [--force]
+droneresearch disarm     [--force]
+droneresearch takeoff    [--alt 10]
 droneresearch land
+droneresearch rtl
+droneresearch mode LOITER
+droneresearch goto --lat 48.137 --lon 11.575 --alt 15
 
-# Status
+# Telemetry snapshot
 droneresearch status
-droneresearch telemetry
 
-# Experiment
-droneresearch experiment run scenarios/hover_test.json
+# Run a Python script with an active drone session
+droneresearch run examples/hover.py
+
+# Run a YAML-defined experiment (grid-search over params)
+droneresearch experiment run scenarios/hover_test.yaml
+
+# Launch the QML GCS (only on the ui-dashboard branch)
+droneresearch ui
 ```
+
+Global options on every subcommand: `--port`, `--id` (drone id used for
+log files), `--timeout` (connect timeout in seconds, default 15).
 
 ---
 
@@ -887,6 +932,34 @@ This platform implements and integrates concepts from recent UAV research:
 
 ---
 
+## Testing
+
+The test suite under `tests/` is intentionally **hardware-free**: no
+MAVLink connections, no SITL spawn, no ROS2 — everything is mocked
+via `conftest.py`. The full suite runs in roughly one second.
+
+```bash
+pip install pytest
+pytest tests/                     # full suite
+pytest tests/test_apf.py -v       # single module
+pytest tests/ -k "not slow"       # skip slow markers
+```
+
+Coverage at a glance:
+
+| File | Scope |
+|---|---|
+| `test_apf.py` | APF separation, geofence, repulsion vectors |
+| `test_fsm.py` | State transitions, airborne checks, invalid jumps |
+| `test_mission.py` | Mission upload / start / abort, goto fallback |
+| `test_formations.py` | Slot geometry for Line/V/Circle/Grid/Letter R/Z |
+| `test_logger.py` | CSV / JSON / event log persistence |
+| `test_telemetry.py` | TelemetryState updates + snapshot semantics |
+| `test_ros_context.py` | rclpy / px4_msgs lazy-loader fallback |
+| `test_cli.py` | Argparse, port-resolution precedence, UI launcher |
+
+---
+
 ## Contributing
 
 This is a research platform. Contributions welcome.
@@ -895,11 +968,15 @@ This is a research platform. Contributions welcome.
 git clone https://github.com/joeldjio/uavresearchproject.git
 cd uavresearchproject
 pip install -e .
+pytest tests/                     # verify setup
 
-# Run a demo to verify setup
+# Run a demo (needs SITL on tcp:127.0.0.1:5762)
 python examples/full_research_pipeline.py --demo
 ```
 
 - See `examples/` for how to write experiments
 - See `droneresearch/experiment/scenario.py` for the Scenario API
 - See `droneresearch/autopilot/base.py` to add a new autopilot backend
+- Graphical dashboard development happens on the
+  [`ui-dashboard`](https://github.com/joeldjio/uavresearchproject/tree/ui-dashboard)
+  branch (PyQt6 + QtQuick under `tools/ui/`)
