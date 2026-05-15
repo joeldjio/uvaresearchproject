@@ -82,27 +82,24 @@ class SwarmCommander:
     positions, then applies APF safety filtering before returning waypoints.
     """
 
-    _SYSTEM_PROMPT = """You are a drone swarm controller. Given a list of drones with their
-current positions (x=North meters, y=East meters, z=altitude meters above ground)
-and a natural language command, you must output a JSON object with the new target
-position for each drone.
+    _SYSTEM_PROMPT = """You are a drone controller. Output ONLY a JSON object, no other text.
 
-Rules:
-- Maintain safe separation (minimum 2m between any two drones)
-- Keep all drones within geofence bounds
-- Prefer smooth, minimal movements
-- For formations, center them around the swarm's current centroid
+The user gives you drone positions and a command. You must output new target positions.
 
-Output ONLY valid JSON in this exact format:
+IMPORTANT RULES:
+- "fly to Xm" or "altitude Xm" means set z=X for all drones (use EXACT number from command)
+- "rise Xm" or "up Xm" means add X to current z
+- "descend Xm" or "down Xm" means subtract X from current z
+- "land" means set z=0
+- Keep x and y the same unless told to move horizontally
+
+Output format (ONLY JSON, nothing else):
 {
   "waypoints": {
-    "<drone_id>": {"x": <float>, "y": <float>, "z": <float>},
-    ...
+    "<drone_id>": {"x": <float>, "y": <float>, "z": <float>}
   },
-  "explanation": "<brief explanation of what you did>"
-}
-
-Do not include any other text outside the JSON."""
+  "explanation": "<one sentence>"
+}"""
 
     def __init__(
         self,
@@ -265,7 +262,7 @@ Do not include any other text outside the JSON."""
             headers={"Content-Type": "application/json"},
             method="POST",
         )
-        with urllib.request.urlopen(req, timeout=30) as r:
+        with urllib.request.urlopen(req, timeout=120) as r:
             data = json.loads(r.read())
         return data.get("response", "{}")
 
@@ -328,6 +325,33 @@ Do not include any other text outside the JSON."""
             for did, p in self._state.items():
                 waypoints[did] = {"x": p.x, "y": p.y, "z": p.z}
             explanation = "Holding position"
+
+        elif "takeoff" in cmd or "take off" in cmd:
+            for did, p in self._state.items():
+                waypoints[did] = {"x": p.x, "y": p.y, "z": max(10.0, p.z + 10.0)}
+            explanation = "Taking off to 10m altitude"
+
+        elif "fly to" in cmd or "go to" in cmd or "altitude" in cmd:
+            # Extract altitude number
+            alt_match = re.search(r"(\d+(?:\.\d+)?)\s*m", cmd)
+            altitude = float(alt_match.group(1)) if alt_match else 50.0
+            for did, p in self._state.items():
+                waypoints[did] = {"x": p.x, "y": p.y, "z": altitude}
+            explanation = f"Flying to {altitude}m altitude"
+
+        elif "rise" in cmd or "climb" in cmd or "up" in cmd:
+            alt_match = re.search(r"(\d+(?:\.\d+)?)\s*m", cmd)
+            amount = float(alt_match.group(1)) if alt_match else 10.0
+            for did, p in self._state.items():
+                waypoints[did] = {"x": p.x, "y": p.y, "z": p.z + amount}
+            explanation = f"Rising {amount}m"
+
+        elif "descend" in cmd or "down" in cmd:
+            alt_match = re.search(r"(\d+(?:\.\d+)?)\s*m", cmd)
+            amount = float(alt_match.group(1)) if alt_match else 10.0
+            for did, p in self._state.items():
+                waypoints[did] = {"x": p.x, "y": p.y, "z": max(0, p.z - amount)}
+            explanation = f"Descending {amount}m"
 
         elif "north" in cmd:
             d_match = re.search(r"(\d+(?:\.\d+)?)\s*m", cmd)

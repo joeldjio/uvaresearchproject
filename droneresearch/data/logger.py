@@ -16,7 +16,7 @@ import threading
 import time
 from datetime import datetime
 from pathlib import Path
-from queue import Empty, Queue
+from queue import Empty, Full, Queue
 from typing import Optional
 
 
@@ -44,6 +44,11 @@ class TelemetryLogger:
         self._session_start = 0.0
         self._drone_id = "unknown"
         self._session_path = ""
+        # Drop accounting — used to surface backpressure that previously
+        # vanished silently into a bare ``except: pass`` block.
+        self._dropped: int       = 0
+        self._last_drop_warn: float = 0.0
+        self._DROP_WARN_EVERY_S: float = 5.0
 
     def start(self, drone_id: str = "drone"):
         if self._running:
@@ -72,8 +77,22 @@ class TelemetryLogger:
         snapshot["drone_id"]  = self._drone_id
         try:
             self._queue.put_nowait(snapshot)
-        except Exception:
-            pass
+        except Full:
+            # Queue is saturated — the writer thread can't keep up. Count
+            # the drop and log at most once every DROP_WARN_EVERY_S so we
+            # don't drown the console while still letting the operator
+            # notice the data loss.
+            self._dropped += 1
+            now = time.time()
+            if now - self._last_drop_warn >= self._DROP_WARN_EVERY_S:
+                self._last_drop_warn = now
+                print(
+                    f"[logger:{self._drone_id}] WARN: queue full — dropped "
+                    f"{self._dropped} samples so far (writer thread too slow?)"
+                )
+        except Exception as e:
+            # Anything other than Full is a real bug — surface it.
+            print(f"[logger:{self._drone_id}] ERROR: log enqueue failed: {e}")
 
     def log_event(self, event: str, data: dict = None):
         entry = {
@@ -88,6 +107,11 @@ class TelemetryLogger:
         self._running = False
         if self._thread:
             self._thread.join(timeout=3.0)
+        if self._dropped:
+            print(
+                f"[logger:{self._drone_id}] Session dropped {self._dropped} "
+                f"telemetry sample(s) due to writer backpressure."
+            )
         # Flush remaining
         while not self._queue.empty():
             try:
@@ -111,6 +135,11 @@ class TelemetryLogger:
                 self._write_row(row)
             except Empty:
                 continue
+
+    @property
+    def dropped_count(self) -> int:
+        """Total samples dropped due to queue backpressure this session."""
+        return self._dropped
 
     def _write_row(self, snapshot: dict):
         if not self._csv_writer:

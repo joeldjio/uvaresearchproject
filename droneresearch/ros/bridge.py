@@ -35,6 +35,8 @@ try:
 except ImportError:
     _ROS2_AVAILABLE = False
 
+from droneresearch.ros.context import acquire_ros, release_ros
+
 
 class ROS2Bridge:
     def __init__(self, drone, node_name: str = None):
@@ -49,6 +51,9 @@ class ROS2Bridge:
         if not _ROS2_AVAILABLE:
             print("[ros2] rclpy not available — bridge running in stub mode")
             return
+        if not acquire_ros():
+            print("[ros2] rclpy init failed — bridge not started")
+            return
         self._running = True
         self._thread  = threading.Thread(
             target=self._run, daemon=True, name="ros2-bridge"
@@ -56,21 +61,28 @@ class ROS2Bridge:
         self._thread.start()
 
     def stop(self):
+        if not self._running:
+            return
         self._running = False
-        if _ROS2_AVAILABLE and rclpy.ok():
-            rclpy.shutdown()
+        try:
+            if self._node is not None:
+                self._node.destroy_node()
+        except Exception as e:
+            print(f"[ros2] destroy_node error: {e}")
+        if self._thread is not None:
+            self._thread.join(timeout=2.0)
+        self._thread = None
+        release_ros()
 
     def _run(self):
-        rclpy.init()
+        # rclpy.init() handled by acquire_ros() in start().
         self._node = _DroneNode(self._node_name, self._drone)
         try:
-            rclpy.spin(self._node)
+            while self._running and rclpy.ok():
+                rclpy.spin_once(self._node, timeout_sec=0.1)
         except Exception as e:
-            print(f"[ros2] node error: {e}")
-        finally:
-            self._node.destroy_node()
-            if rclpy.ok():
-                rclpy.shutdown()
+            print(f"[ros2] spin error: {e}")
+        # Node teardown handled by stop().
 
 
 if _ROS2_AVAILABLE:

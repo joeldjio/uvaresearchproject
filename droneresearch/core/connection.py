@@ -15,7 +15,7 @@ Usage:
 import math
 import threading
 import time
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, List, Optional, Tuple
 
 from droneresearch.core.telemetry import TelemetryState
 
@@ -47,6 +47,28 @@ _PX4_SUB_MODES_AUTO = {
     1: "READY", 2: "TAKEOFF", 3: "LOITER",
     4: "MISSION", 5: "RTL",   6: "LAND",
     8: "FOLLOW_TARGET",
+}
+
+# MAV_CMD identifiers we care about (subset). Used for nicer ACK log lines.
+_MAV_CMD_NAMES = {
+    16:  "NAV_WAYPOINT",
+    20:  "NAV_RETURN_TO_LAUNCH",
+    21:  "NAV_LAND",
+    22:  "NAV_TAKEOFF",
+    176: "DO_SET_MODE",
+    178: "DO_CHANGE_SPEED",
+    400: "COMPONENT_ARM_DISARM",
+}
+
+# MAV_RESULT values — see mavlink/common.xml.
+_MAV_RESULT_NAMES = {
+    0: "ACCEPTED",
+    1: "TEMPORARILY_REJECTED",
+    2: "DENIED",
+    3: "UNSUPPORTED",
+    4: "FAILED",
+    5: "IN_PROGRESS",
+    6: "CANCELLED",
 }
 
 
@@ -86,6 +108,14 @@ class MAVLinkConnection:
         self._connected        = False
         self._listeners: Dict[str, List[Callable]] = {}
         self._lock             = threading.Lock()
+        # Tracks recently-issued commands so incoming COMMAND_ACK messages
+        # can be correlated back to their cmd_id and reported with a name.
+        # Bounded to last 32 entries (MAVLink doesn't carry a sequence id
+        # on COMMAND_ACK so we just remember the most recent send per cmd).
+        self._pending_cmds: Dict[int, float] = {}
+        self._cmd_lock         = threading.Lock()
+        # Last NACK — useful for the UI to surface in a status bar.
+        self.last_nack: Optional[Tuple[str, str]] = None  # (cmd_name, result_name)
 
     # ── Public API ───────────────────────────────────────────────────────────
 
@@ -191,11 +221,22 @@ class MAVLinkConnection:
     def _command_long(self, cmd, p1=0, p2=0, p3=0, p4=0, p5=0, p6=0, p7=0) -> bool:
         if not self._mav:
             return False
-        self._mav.mav.command_long_send(
-            self._mav.target_system,
-            self._mav.target_component,
-            cmd, 0, p1, p2, p3, p4, p5, p6, p7,
-        )
+        try:
+            self._mav.mav.command_long_send(
+                self._mav.target_system,
+                self._mav.target_component,
+                cmd, 0, p1, p2, p3, p4, p5, p6, p7,
+            )
+        except Exception as e:
+            self._emit("statustext", f"command_long send error (cmd {cmd}): {e}", 3)
+            return False
+        with self._cmd_lock:
+            self._pending_cmds[int(cmd)] = time.time()
+            # Keep the dict bounded: drop entries older than 10 s.
+            cutoff = time.time() - 10.0
+            stale = [k for k, t in self._pending_cmds.items() if t < cutoff]
+            for k in stale:
+                self._pending_cmds.pop(k, None)
         return True
 
     def _detect_autopilot(self, heartbeat):
@@ -289,14 +330,20 @@ class MAVLinkConnection:
         elif t == "BATTERY_STATUS":
             if msg.voltages and msg.voltages[0] != 65535:
                 tel.update(battery_v=msg.voltages[0] / 1000.0)
+            bpct = float(msg.battery_remaining) if msg.battery_remaining > 0 else (
+                -1.0 if msg.battery_remaining < 0 else tel.battery_pct
+            )
             tel.update(
                 current_a=msg.current_battery / 100.0 if msg.current_battery >= 0 else 0.0,
-                battery_pct=float(msg.battery_remaining) if msg.battery_remaining >= 0 else -1.0,
+                battery_pct=bpct,
             )
 
         elif t == "SYS_STATUS":
-            if msg.battery_remaining >= 0:
+            # Only update from SYS_STATUS if > 0 (SITL often sends 0 when not simulating battery)
+            if msg.battery_remaining > 0:
                 tel.update(battery_pct=float(msg.battery_remaining))
+            if msg.voltage_battery > 0:
+                tel.update(battery_v=msg.voltage_battery / 1000.0)
 
         elif t == "RAW_IMU":
             tel.update(
@@ -313,6 +360,25 @@ class MAVLinkConnection:
 
         elif t == "STATUSTEXT":
             self._emit("statustext", msg.text, msg.severity)
+
+        elif t == "COMMAND_ACK":
+            cmd_id    = int(getattr(msg, "command", -1))
+            result    = int(getattr(msg, "result", -1))
+            cmd_name  = _MAV_CMD_NAMES.get(cmd_id, f"CMD_{cmd_id}")
+            res_name  = _MAV_RESULT_NAMES.get(result, f"RESULT_{result}")
+            success   = (result == 0)
+            with self._cmd_lock:
+                self._pending_cmds.pop(cmd_id, None)
+            if not success:
+                self.last_nack = (cmd_name, res_name)
+                # IN_PROGRESS is informational, not an error.
+                if result != 5:
+                    self._emit(
+                        "statustext",
+                        f"NACK {cmd_name} → {res_name}",
+                        4,  # MAV_SEVERITY_WARNING
+                    )
+            self._emit("command_ack", cmd_name, result, res_name, success)
 
     def _decode_mode(self, hb) -> str:
         ap = self.telemetry.autopilot

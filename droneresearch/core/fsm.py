@@ -83,6 +83,8 @@ class StateMachine:
         self._lock      = threading.Lock()
         self._history:  List[Tuple[float, DroneState, DroneState]] = []
         self._callbacks: List[Callable[[DroneState, DroneState], None]] = []
+        self._reject_callbacks: List[Callable[[DroneState, DroneState], None]] = []
+        self._rejected: int = 0
 
     @property
     def state(self) -> DroneState:
@@ -117,18 +119,38 @@ class StateMachine:
         Attempt to transition to new_state.
         Returns True if successful, False if transition not allowed.
         Set force=True to bypass validation (emergency use only).
+
+        Rejected transitions are counted, logged once with the offending
+        (current_state, requested_state) pair and dispatched to any
+        callbacks registered via :meth:`on_rejection` so the UI can show
+        a warning without polling.
         """
         with self._lock:
             allowed = _TRANSITIONS.get(self._state, set())
+            current = self._state
             if not force and new_state not in allowed:
-                return False
-            old = self._state
-            self._prev  = old
-            self._state = new_state
-            self._history.append((time.time(), old, new_state))
-            if len(self._history) > 500:
-                self._history = self._history[-500:]
-        # Fire callbacks outside lock
+                self._rejected += 1
+                rejected_from = current
+            else:
+                rejected_from = None
+                old = self._state
+                self._prev  = old
+                self._state = new_state
+                self._history.append((time.time(), old, new_state))
+                if len(self._history) > 500:
+                    self._history = self._history[-500:]
+        # Outside lock
+        if rejected_from is not None:
+            print(
+                f"[fsm:{self.drone_id}] REJECTED {rejected_from.name} \u2192 {new_state.name} "
+                f"(allowed: {sorted(s.name for s in _TRANSITIONS.get(rejected_from, set()))})"
+            )
+            for cb in self._reject_callbacks:
+                try:
+                    cb(rejected_from, new_state)
+                except Exception as e:
+                    print(f"[fsm:{self.drone_id}] reject-callback error: {e}")
+            return False
         for cb in self._callbacks:
             try:
                 cb(old, new_state)
@@ -139,6 +161,17 @@ class StateMachine:
     def on_transition(self, cb: Callable[[DroneState, DroneState], None]):
         """Register callback fired on every state transition."""
         self._callbacks.append(cb)
+
+    def on_rejection(self, cb: Callable[[DroneState, DroneState], None]):
+        """Register callback fired when an invalid transition is rejected.
+
+        Signature: ``cb(current_state, requested_state)``.
+        """
+        self._reject_callbacks.append(cb)
+
+    @property
+    def rejected_count(self) -> int:
+        return self._rejected
 
     def reset(self):
         """Force reset to IDLE (emergency/manual)."""

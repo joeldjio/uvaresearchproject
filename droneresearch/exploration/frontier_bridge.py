@@ -50,6 +50,8 @@ try:
 except ImportError:
     _ROS2_OK = False
 
+from droneresearch.ros.context import acquire_ros, release_ros
+
 
 def _euler_to_quat(roll: float, pitch: float, yaw: float) -> tuple:
     """Roll/pitch/yaw (deg) → quaternion (x,y,z,w)."""
@@ -111,6 +113,10 @@ class FrontierExplorationBridge:
         """Start the ROS2 node and bridge."""
         if self._running:
             return
+        if not _ROS2_OK:
+            raise RuntimeError("ROS2 not available")
+        if not acquire_ros():
+            raise RuntimeError("rclpy.init() failed")
         self._running = True
         self._thread  = threading.Thread(
             target=self._spin, daemon=True, name="frontier-bridge"
@@ -119,10 +125,19 @@ class FrontierExplorationBridge:
         time.sleep(0.5)   # let node initialize
 
     def stop(self):
+        if not self._running:
+            return
         self._running = False
         self.exploration_stop()
-        if rclpy.ok():
-            rclpy.shutdown()
+        try:
+            if self._node is not None:
+                self._node.destroy_node()
+        except Exception as e:
+            print(f"[frontier-bridge] destroy_node error: {e}")
+        if self._thread is not None:
+            self._thread.join(timeout=2.0)
+        self._thread = None
+        release_ros()
 
     # ── Exploration control ───────────────────────────────────────────────
 
@@ -157,7 +172,7 @@ class FrontierExplorationBridge:
     # ── Internal ──────────────────────────────────────────────────────────
 
     def _spin(self):
-        rclpy.init()
+        # rclpy.init() handled by acquire_ros() in start().
         self._node = _FrontierNode(
             ns              = self._ns,
             drone           = self._drone,
@@ -167,13 +182,11 @@ class FrontierExplorationBridge:
             on_volume       = self._on_volume,
         )
         try:
-            rclpy.spin(self._node)
+            while self._running and rclpy.ok():
+                rclpy.spin_once(self._node, timeout_sec=0.1)
         except Exception as e:
-            print(f"[frontier-bridge] ROS error: {e}")
-        finally:
-            self._node.destroy_node()
-            if rclpy.ok():
-                rclpy.shutdown()
+            print(f"[frontier-bridge] ROS spin error: {e}")
+        # Node teardown handled by stop().
 
     def _on_point_reached(self, reached: bool):
         if reached and self._exploring:

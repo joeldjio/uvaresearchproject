@@ -30,6 +30,14 @@ dependencies = [
 ui = ["PySide6>=6.6"]
 ros = []       # rclpy installed separately via apt/pip
 full = ["PySide6>=6.6"]
+dev = ["pytest>=7.0", "pytest-timeout>=2.1"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers --timeout=30"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+]
 
 [project.scripts]
 droneresearch = "droneresearch.cli.main:main"

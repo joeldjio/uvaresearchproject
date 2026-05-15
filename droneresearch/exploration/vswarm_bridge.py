@@ -62,6 +62,8 @@ try:
 except ImportError:
     _ROS2_OK = False
 
+from droneresearch.ros.context import acquire_ros, release_ros
+
 
 def _euler_to_quat(roll, pitch, yaw):
     r, p, y = math.radians(roll), math.radians(pitch), math.radians(yaw)
@@ -136,6 +138,8 @@ class VSwarmBridge:
             return
         if not _ROS2_OK:
             raise RuntimeError("ROS2 not available")
+        if not acquire_ros():
+            raise RuntimeError("rclpy.init() failed")
         self._running = True
         self._thread  = threading.Thread(
             target=self._spin, daemon=True, name="vswarm-bridge"
@@ -144,10 +148,19 @@ class VSwarmBridge:
         time.sleep(0.5)
 
     def stop(self):
+        if not self._running:
+            return
         self._running  = False
         self._flocking = False
-        if rclpy.ok():
-            rclpy.shutdown()
+        try:
+            if self._node is not None:
+                self._node.destroy_node()
+        except Exception as e:
+            print(f"[vswarm-bridge] destroy_node error: {e}")
+        if self._thread is not None:
+            self._thread.join(timeout=2.0)
+        self._thread = None
+        release_ros()
 
     # ── Flocking control ──────────────────────────────────────────────────
 
@@ -222,7 +235,7 @@ class VSwarmBridge:
             self._on_cmd_vel(vx, vy, vz, yaw_rate)
 
     def _spin(self):
-        rclpy.init()
+        # rclpy.init() handled by acquire_ros() in start().
         self._node = _VSwarmNode(
             ns              = self._ns,
             drone           = self._drone,
@@ -232,13 +245,11 @@ class VSwarmBridge:
             on_cmd_vel      = self._on_cmd_vel_received,
         )
         try:
-            rclpy.spin(self._node)
+            while self._running and rclpy.ok():
+                rclpy.spin_once(self._node, timeout_sec=0.1)
         except Exception as e:
-            print(f"[vswarm-bridge] ROS error: {e}")
-        finally:
-            self._node.destroy_node()
-            if rclpy.ok():
-                rclpy.shutdown()
+            print(f"[vswarm-bridge] ROS spin error: {e}")
+        # Node teardown handled by stop().
 
 
 if _ROS2_OK:

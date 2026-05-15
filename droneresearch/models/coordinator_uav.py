@@ -42,34 +42,14 @@ from droneresearch.models.generic_uav import GenericUAVModel
 from droneresearch.safety import APFSafetyFilter, Pose3D
 
 
-# Formation offsets (north_m, east_m) per follower index
+# Formation offsets (north_m, east_m) per follower index — delegated to the
+# canonical implementation in :mod:`droneresearch.sdk.formations` so the SDK,
+# the coordinator and the UI all agree on the geometry.
+from droneresearch.sdk.formations import formation_offsets as _canonical_offsets
+
+
 def _calc_offsets(shape: str, count: int, spacing: float) -> List[Tuple[float, float]]:
-    offsets = []
-    if shape == "line":
-        for i in range(count):
-            offsets.append((0.0, spacing * (i - (count - 1) / 2)))
-    elif shape == "v":
-        for i in range(count):
-            side = 1 if i % 2 == 0 else -1
-            row  = (i + 1) // 2
-            offsets.append((-row * spacing, side * row * spacing * 0.75))
-    elif shape == "grid":
-        cols = math.ceil(math.sqrt(count + 1))
-        for i in range(count):
-            row = (i + 1) // cols
-            col = (i + 1) %  cols
-            offsets.append((row * spacing, (col - cols/2) * spacing))
-    elif shape == "circle":
-        radius = spacing * count / (2 * math.pi) if count > 1 else spacing
-        for i in range(count):
-            angle = 2 * math.pi * i / max(count, 1)
-            offsets.append((radius * math.sin(angle), radius * math.cos(angle)))
-    elif shape == "wedge":
-        for i in range(count):
-            offsets.append((-(i + 1) * spacing * 0.8, (i % 2 * 2 - 1) * (i + 1) * spacing * 0.5))
-    else:
-        offsets = [(0.0, i * spacing) for i in range(count)]
-    return offsets
+    return list(_canonical_offsets(shape, count, spacing))
 
 
 class CoordinatorUAVModel(GenericUAVModel):

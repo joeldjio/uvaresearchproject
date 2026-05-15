@@ -5,5 +5,11 @@ pyserial>=3.5
 # UI (optional — skip on headless Raspberry Pi)
 PySide6>=6.6
 
+# GCS UI (DroneResearch GCS — PyQt6 + QML)
+PyQt6>=6.6
+PyQt6-WebEngine>=6.6
+PyQt6-QML>=6.6
+pyqtgraph>=0.13
+
 # Development
 pytest>=7.0

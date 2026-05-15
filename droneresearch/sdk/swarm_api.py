@@ -153,24 +153,10 @@ class Swarm:
 
     @staticmethod
     def _calc_offsets(shape: str, count: int, spacing: float) -> List[tuple]:
-        offsets = []
-        if shape == "line":
-            for i in range(count):
-                offsets.append((0.0, spacing * (i - count // 2)))
-        elif shape == "v":
-            for i in range(count):
-                side = 1 if i % 2 == 0 else -1
-                row  = (i + 1) // 2
-                offsets.append((-row * spacing, side * row * spacing * 0.7))
-        elif shape == "grid":
-            cols = math.ceil(math.sqrt(count))
-            for i in range(count):
-                row = i // cols
-                col = i %  cols
-                offsets.append((row * spacing, col * spacing))
-        elif shape == "circle":
-            radius = spacing * count / (2 * math.pi) if count > 1 else spacing
-            for i in range(count):
-                angle = 2 * math.pi * i / max(count, 1)
-                offsets.append((radius * math.sin(angle), radius * math.cos(angle)))
-        return offsets
+        # Delegated to the canonical implementation in droneresearch.sdk.formations.
+        # ``count`` here is the *total* drone count (incl. leader) for backwards
+        # compatibility; the canonical function expects follower count, so
+        # subtract 1. The caller in ``formation()`` indexes offsets[i] with i
+        # being the drone index (incl. leader); the leader's slot is unused.
+        from droneresearch.sdk.formations import formation_offsets
+        return list(formation_offsets(shape, max(0, count - 1), spacing))

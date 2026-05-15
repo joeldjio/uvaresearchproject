@@ -60,6 +60,10 @@ class Drone:
         self._conn.on("statustext",   lambda t, s: self._emit("statustext", t, s))
         self._conn.on("connected",    lambda: self._emit("connected"))
         self._conn.on("disconnected", lambda: self._emit("disconnected"))
+        self._conn.on(
+            "command_ack",
+            lambda name, code, res, ok: self._emit("command_ack", name, code, res, ok),
+        )
 
     # ── Connection ────────────────────────────────────────────────────────
 

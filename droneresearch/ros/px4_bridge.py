@@ -56,6 +56,8 @@ try:
 except ImportError:
     _ROS2_OK = False
 
+from droneresearch.ros.context import acquire_ros, release_ros
+
 try:
     from px4_msgs.msg import (
         VehicleOdometry,
@@ -171,6 +173,9 @@ class PX4ROS2Bridge:
     def start(self):
         if self._running:
             return
+        if not acquire_ros():
+            print("[px4-bridge] rclpy not available \u2014 cannot start")
+            return
         self._running = True
         self._thread  = threading.Thread(
             target=self._spin, daemon=True, name="px4-ros2-bridge"
@@ -181,9 +186,19 @@ class PX4ROS2Bridge:
         print(f"[px4-bridge] Listening on {self._ns_prefix}/fmu/out/*")
 
     def stop(self):
+        if not self._running:
+            return
         self._running = False
-        if rclpy.ok():
-            rclpy.shutdown()
+        # Wake spin() so the thread can exit cleanly.
+        try:
+            if self._node is not None:
+                self._node.destroy_node()
+        except Exception as e:
+            print(f"[px4-bridge] destroy_node error: {e}")
+        if self._thread is not None:
+            self._thread.join(timeout=2.0)
+        self._thread = None
+        release_ros()
 
     # ── Vehicle commands (PX4 VehicleCommand) ─────────────────────────────
 
@@ -255,7 +270,7 @@ class PX4ROS2Bridge:
     # ── Internal ──────────────────────────────────────────────────────────
 
     def _spin(self):
-        rclpy.init()
+        # rclpy.init() is handled by acquire_ros() in start().
         self._node = _PX4Node(
             ns_prefix       = self._ns_prefix,
             hz              = self._hz,
@@ -264,13 +279,13 @@ class PX4ROS2Bridge:
             offboard_active = lambda: self._offboard_active,
         )
         try:
-            rclpy.spin(self._node)
+            while self._running and rclpy.ok():
+                rclpy.spin_once(self._node, timeout_sec=0.1)
         except Exception as e:
-            print(f"[px4-bridge] ROS2 error: {e}")
+            print(f"[px4-bridge] ROS2 spin error: {e}")
         finally:
-            self._node.destroy_node()
-            if rclpy.ok():
-                rclpy.shutdown()
+            # Node teardown is handled by stop() to avoid double-destroy.
+            pass
 
     def _send_vehicle_command(self, cmd: int, **params):
         if self._node:
@@ -368,15 +383,29 @@ if _ROS2_OK and _PX4_MSGS_OK:
 
             self._arm_state   = False
             self._flight_mode = 0
+            # Captured on first VehicleGlobalPosition message; used to derive
+            # alt_rel for displays. VehicleLocalPosition already gives a
+            # proper relative-to-launch altitude (handled in _cb_local_pos).
+            self._home_alt: float | None = None
 
         # ── Subscribers ───────────────────────────────────────────────────
 
         def _cb_global_pos(self, msg: VehicleGlobalPosition):
+            # Capture home altitude on the first valid sample so subsequent
+            # alt_rel values are meaningful (PX4 doesn't ship a home msg here).
+            if self._home_alt is None and msg.alt is not None:
+                self._home_alt = float(msg.alt)
+            alt_rel = (
+                float(msg.alt) - self._home_alt
+                if self._home_alt is not None
+                else 0.0
+            )
             self._on_tel({
-                "lat": msg.lat,
-                "lon": msg.lon,
-                "alt": msg.alt,
-                "alt_rel": msg.alt - msg.alt,   # TODO: home alt
+                "lat":      msg.lat,
+                "lon":      msg.lon,
+                "alt":      msg.alt,
+                "alt_rel":  alt_rel,
+                "home_alt": self._home_alt or 0.0,
             })
 
         def _cb_local_pos(self, msg: VehicleLocalPosition):
