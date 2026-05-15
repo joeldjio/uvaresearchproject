@@ -1,0 +1,10 @@
+module components
+singleton Theme 1.0 Theme.qml
+singleton AppState 1.0 AppState.qml
+singleton EventBus 1.0 EventBus.qml
+GlobalLogHandler 1.0 GlobalLogHandler.qml
+Header 1.0 Header.qml
+HudOverlays 1.0 HudOverlays.qml
+InstrBar 1.0 InstrBar.qml
+NavBar 1.0 NavBar.qml
+PanelShell 1.0 PanelShell.qml
