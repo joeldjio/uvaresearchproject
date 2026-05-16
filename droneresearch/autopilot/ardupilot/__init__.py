@@ -8,6 +8,9 @@ ArduPilot-specific features:
     - Fence management
     - Scripting (Lua)
 """
+import time
+from typing import Optional
+
 from droneresearch.autopilot.mavlink.backend import MAVLinkBackend
 
 
@@ -62,11 +65,5 @@ class ArduPilotBackend(MAVLinkBackend):
                 return msg.param_value
         return None
 
-
-try:
-    import time
-    from typing import Optional
-except ImportError:
-    pass
 
 __all__ = ["ArduPilotBackend"]
