@@ -28,3 +28,8 @@ env/
 # OS
 .DS_Store
 Thumbs.db
+
+# Windows installer build outputs (generated)
+tools/installer/assets/
+tools/installer/out/
+*.spec.bak

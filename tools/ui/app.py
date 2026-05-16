@@ -46,7 +46,22 @@ from PyQt6.QtWidgets import QApplication, QSplashScreen
 
 profiler.mark("qt_core_imports")
 
-_QML_ROOT = Path(__file__).parent / "qml" / "main.qml"
+def _resolve_qml_root() -> Path:
+    """
+    Locate ``main.qml`` whether running from source or from a PyInstaller
+    bundle.
+
+    PyInstaller ``--onedir`` extracts data files (declared in the .spec
+    via ``datas=[...]``) under ``sys._MEIPASS``. The path layout we ship
+    is ``<MEIPASS>/tools/ui/qml/main.qml``, mirroring the source tree so
+    the same ``Path(__file__)`` logic works for non-frozen runs.
+    """
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        return Path(sys._MEIPASS) / "tools" / "ui" / "qml" / "main.qml"
+    return Path(__file__).parent / "qml" / "main.qml"
+
+
+_QML_ROOT = _resolve_qml_root()
 
 
 def _make_splash() -> QSplashScreen:

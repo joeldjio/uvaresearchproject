@@ -1,0 +1,18 @@
+# Build-time dependencies for producing the Windows installers.
+# These are NOT needed at runtime — the resulting .exe bundles its
+# own Python interpreter and all libraries.
+
+pyinstaller>=6.0
+pillow>=10.0
+
+# UI runtime libs that PyInstaller must be able to import while
+# analysing tools/ui/*. Same versions as production.
+PyQt6>=6.6
+PyQt6-WebEngine>=6.6
+pyqtgraph>=0.13
+
+# Core platform deps (already in requirements.txt but listed here so
+# `pip install -r tools/installer/requirements_build.txt` is sufficient
+# to build from a clean venv).
+pymavlink>=2.4.40
+pyserial>=3.5
