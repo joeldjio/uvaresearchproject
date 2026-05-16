@@ -752,7 +752,7 @@ Window {
                 Timer {
                     id: clearTimer; interval: 5000
                     onTriggered: {
-                        statusMsg.text = "DroneResearch GCS ready."
+                        statusMsg.text = "RZ GCS ready."
                         statusBar.lastLevel = "INFO"
                     }
                 }
@@ -762,8 +762,11 @@ Window {
                 anchors { right: parent.right; rightMargin: 16; verticalCenter: parent.verticalCenter }
                 spacing: 16
                 Text { text: "PyQt6 + QML"; color: "#2d3748"; font.pixelSize: 9 }
-                Text { text: "DroneResearch v0.2.0"; color: "#2d3748"; font.pixelSize: 9 }
+                Text { text: "RZ GCS v0.2.0"; color: "#2d3748"; font.pixelSize: 9 }
             }
         }
     }
+
+    // -- License overlay (covers everything when trial expired) --
+    Cmp.LicenseOverlay { }
 }

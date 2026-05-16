@@ -1,5 +1,5 @@
 """
-DroneResearch GCS — QML application entry point.
+RZ GCS — QML application entry point (RZ Solutions ground control station).
 
 Architecture
 ------------
@@ -161,9 +161,10 @@ def _make_splash() -> QSplashScreen:
     tag_font.setLetterSpacing(QFont.SpacingType.AbsoluteSpacing, 1.0)
     painter.setFont(tag_font)
     painter.setPen(QColor("#475569"))
+    from tools.ui._version import VERSION as _APP_VERSION
     painter.drawText(QRectF(0, H - 26, W - 16, 18),
                      int(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter),
-                     "v1.0  ·  loading…")
+                     f"v{_APP_VERSION}  ·  loading…")
 
     painter.end()
 
@@ -192,9 +193,13 @@ def _build_contexts():
 
 def run() -> int:
     # QApplication required for QSplashScreen (uses QWidget)
+    from tools.ui._version import VERSION
     app = QApplication(sys.argv)
-    app.setApplicationName("DroneResearch GCS")
-    app.setOrganizationName("DroneResearch")
+    app.setApplicationName("RZ GCS")
+    app.setApplicationDisplayName("RZ GCS")
+    app.setApplicationVersion(VERSION)
+    app.setOrganizationName("RZ Solutions")
+    app.setOrganizationDomain("rzsolutions.local")
     profiler.mark("qapplication_ready")
 
     splash = _make_splash()

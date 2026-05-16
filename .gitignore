@@ -32,4 +32,8 @@ Thumbs.db
 # Windows installer build outputs (generated)
 tools/installer/assets/
 tools/installer/out/
+
+# Editor / migration backups
+*.bak
+*.orig
 *.spec.bak

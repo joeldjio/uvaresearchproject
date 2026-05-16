@@ -104,11 +104,21 @@ def build_default_locator() -> ServiceLocator:
         from tools.ui.context.ros2_context import ROS2Context
         return ROS2Context()
 
+    def _updater():
+        from tools.ui.updater import UpdaterContext
+        return UpdaterContext()
+
+    def _license():
+        from tools.ui.license import LicenseManager
+        return LicenseManager()
+
     loc.register_factory("swarm",          _swarm)
     loc.register_factory("telemetryModel", _telemetry)
     loc.register_factory("experiment",     _experiment)
     loc.register_factory("safety",         _safety)
     loc.register_factory("ros2",           _ros2)
+    loc.register_factory("updater",        _updater)
+    loc.register_factory("licenseManager", _license)
     return loc
 
 

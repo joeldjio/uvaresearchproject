@@ -8,12 +8,12 @@
 
       1. Generate the RZ branding assets (icon + Inno wizard images).
       2. Run PyInstaller for the CLI bundle  → dist\DroneResearchCLI\
-      3. Run PyInstaller for the GCS bundle  → dist\DroneResearchGCS\
+      3. Run PyInstaller for the GCS bundle  → dist\RZGCS\
       4. Compile both Inno Setup scripts     → tools\installer\out\
 
     Output:
       tools\installer\out\DroneResearch-CLI-Setup-0.2.0.exe
-      tools\installer\out\DroneResearch-GCS-Setup-0.2.0.exe
+      tools\installer\out\RZ-GCS-Setup-0.2.0.exe
 
 .PARAMETER Target
     Which installer(s) to build: 'cli', 'gcs', or 'all' (default).
@@ -50,7 +50,7 @@ $ProjectRoot = (Resolve-Path (Join-Path $ScriptDir '..\..')).Path
 
 Set-Location $ProjectRoot
 Write-Host "──────────────────────────────────────────────────" -ForegroundColor Cyan
-Write-Host " DroneResearch Windows Installer Builder" -ForegroundColor Cyan
+Write-Host " RZ Solutions / DroneResearch Installer Builder" -ForegroundColor Cyan
 Write-Host " Project root: $ProjectRoot" -ForegroundColor Cyan
 Write-Host " Target:       $Target" -ForegroundColor Cyan
 Write-Host " Skip bundle:  $SkipBundle" -ForegroundColor Cyan
@@ -95,7 +95,7 @@ if (-not $SkipBundle) {
         Invoke-PyInstaller 'tools\installer\specs\droneresearch_cli.spec' 'CLI bundle'
     }
     if ($Target -in @('gcs', 'all')) {
-        Invoke-PyInstaller 'tools\installer\specs\droneresearch_gcs.spec' 'GCS bundle'
+        Invoke-PyInstaller 'tools\installer\specs\rz_gcs.spec' 'RZ GCS bundle'
     }
 } else {
     Write-Host "[2/4] Skipping PyInstaller (-SkipBundle)" -ForegroundColor DarkGray
@@ -116,7 +116,7 @@ if ($Target -in @('cli', 'all')) {
     Invoke-Inno 'tools\installer\inno\droneresearch_cli.iss' 'CLI installer'
 }
 if ($Target -in @('gcs', 'all')) {
-    Invoke-Inno 'tools\installer\inno\droneresearch_gcs.iss' 'GCS installer'
+    Invoke-Inno 'tools\installer\inno\rz_gcs.iss' 'RZ GCS installer'
 }
 
 # ── Summary ──────────────────────────────────────────────────────────

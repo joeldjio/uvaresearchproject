@@ -62,6 +62,7 @@ a = Analysis(
     win_private_assemblies=False,
     cipher=block_cipher,
     noarchive=False,
+    optimize=2,                  # -OO: strip asserts + docstrings
 )
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)

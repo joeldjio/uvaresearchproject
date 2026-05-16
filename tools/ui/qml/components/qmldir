@@ -8,3 +8,6 @@ HudOverlays 1.0 HudOverlays.qml
 InstrBar 1.0 InstrBar.qml
 NavBar 1.0 NavBar.qml
 PanelShell 1.0 PanelShell.qml
+UpdateBanner 1.0 UpdateBanner.qml
+LicenseOverlay 1.0 LicenseOverlay.qml
+LicenseStatusBanner 1.0 LicenseStatusBanner.qml

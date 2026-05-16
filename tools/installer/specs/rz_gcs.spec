@@ -1,14 +1,14 @@
 # -*- mode: python ; coding: utf-8 -*-
 """
-PyInstaller spec — DroneResearch GCS (DroneResearch.exe).
+PyInstaller spec — RZ GCS (RZ Solutions ground control station).
 
 Full graphical build: PyQt6 + QtQuick + QtWebEngine + pyqtgraph +
 the entire QML tree under tools/ui/qml/ (including 3D mesh assets).
 
 Build with:
-    pyinstaller tools/installer/specs/droneresearch_gcs.spec --noconfirm
+    pyinstaller tools/installer/specs/rz_gcs.spec --noconfirm
 Output:
-    dist/DroneResearchGCS/DroneResearch.exe   (+ _internal/ folder)
+    dist/RZGCS/RZ GCS.exe   (+ _internal/ folder)
 
 Notes
 -----
@@ -19,6 +19,9 @@ Notes
 - QML files are bundled under ``tools/ui/qml/`` to mirror the source
   layout; ``tools/ui/app.py:_resolve_qml_root()`` understands both
   frozen and source layouts.
+- ``optimize=2`` strips ``assert`` statements and ``__doc__`` strings
+  from all bundled .pyc files. Casual code-protection only; bytecode
+  can still be decompiled with public tools.
 """
 import os
 import sys
@@ -95,6 +98,7 @@ a = Analysis(
     win_private_assemblies=False,
     cipher=block_cipher,
     noarchive=False,
+    optimize=2,                  # -OO: strip asserts + docstrings
 )
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
@@ -104,7 +108,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name="DroneResearch",
+    name="RZ GCS",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -127,5 +131,5 @@ coll = COLLECT(
     strip=False,
     upx=False,
     upx_exclude=[],
-    name="DroneResearchGCS",
+    name="RZGCS",
 )

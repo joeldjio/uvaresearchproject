@@ -1,24 +1,35 @@
-; ═══════════════════════════════════════════════════════════════════════
-;  DroneResearch GCS — Windows Installer (Inno Setup 6+)
-; ═══════════════════════════════════════════════════════════════════════
+; ════════════════════════════════════════════════════════════════════════
+;  RZ GCS — Windows Installer (Inno Setup 6+)
+; ════════════════════════════════════════════════════════════════════════
 ;
 ;  Build:
-;     iscc tools\installer\inno\droneresearch_gcs.iss
+;     iscc tools\installer\inno\rz_gcs.iss
 ;  Output:
-;     tools\installer\out\DroneResearch-GCS-Setup-0.2.0.exe
+;     tools\installer\out\RZ-GCS-Setup-0.2.0.exe
 ;
-;  Prerequisite: PyInstaller has produced dist\DroneResearchGCS\.
-; ═══════════════════════════════════════════════════════════════════════
+;  Prerequisite: PyInstaller has produced dist\RZGCS\.
+;
+;  Upgrade semantics
+;  -----------------
+;  - The fixed {#AppId} GUID is what makes Inno Setup treat re-installs
+;    of newer versions as in-place upgrades (uninstalls the old version
+;    silently before copying the new files).
+;  - The in-app updater (tools/ui/updater.py) calls this installer with
+;    /SILENT /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS so users get a
+;    seamless one-click upgrade flow.
+; ════════════════════════════════════════════════════════════════════════
 
-#define AppName        "DroneResearch GCS"
-#define AppPublisher   "RZ Aerospace Research"
+#define AppName        "RZ GCS"
+#define AppPublisher   "RZ Solutions"
 #define AppVersion     "0.2.0"
 #define AppURL         "https://github.com/joeldjio/uavresearchproject"
-#define AppExeName     "DroneResearch.exe"
-#define AppId          "{{C7E2A3B4-1D2E-4F5A-8B9C-DRONERESEARCH-GCS}"
+#define AppExeName     "RZ GCS.exe"
+; Stable, randomly-generated GUID. DO NOT change this once published
+; — it would break upgrade detection on existing installs.
+#define AppId          "{{8F7E2D14-3A6B-4F2C-9B4E-RZGCS00000001}"
 
 #define ProjectRoot    "..\..\.."
-#define DistRoot       ProjectRoot + "\dist\DroneResearchGCS"
+#define DistRoot       ProjectRoot + "\dist\RZGCS"
 #define AssetsDir      "..\assets"
 
 [Setup]
@@ -30,15 +41,22 @@ AppPublisher={#AppPublisher}
 AppPublisherURL={#AppURL}
 AppSupportURL={#AppURL}
 AppUpdatesURL={#AppURL}/releases
-DefaultDirName={autopf}\DroneResearch GCS
-DefaultGroupName=DroneResearch
+DefaultDirName={autopf}\RZ Solutions\RZ GCS
+DefaultGroupName=RZ Solutions
 DisableProgramGroupPage=no
 LicenseFile={#ProjectRoot}\LICENSE
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
 OutputDir=..\out
-OutputBaseFilename=DroneResearch-GCS-Setup-{#AppVersion}
+OutputBaseFilename=RZ-GCS-Setup-{#AppVersion}
 SetupIconFile={#AssetsDir}\rz_icon.ico
+; ── Silent / in-place upgrade support (used by the in-app updater) ──
+; CloseApplications=force lets us replace _internal/ even while the
+; previous RZ GCS.exe was running, and RestartApplications=yes brings
+; it back up after the upgrade finishes.
+CloseApplications=force
+CloseApplicationsFilter=*.exe,*.dll,*.pyd
+RestartApplications=yes
 WizardImageFile={#AssetsDir}\wizard_large.bmp
 WizardSmallImageFile={#AssetsDir}\wizard_small.bmp
 WizardStyle=modern
@@ -63,12 +81,9 @@ Name: "desktopicon"; Description: "Create a &desktop shortcut"; \
     GroupDescription: "Shortcuts:"; Flags: checkedonce
 Name: "quicklaunchicon"; Description: "Create a &Quick Launch shortcut"; \
     GroupDescription: "Shortcuts:"; Flags: unchecked
-Name: "associate";   Description: "Associate &.drscenario files with {#AppName}"; \
-    GroupDescription: "File associations:"; Flags: unchecked
 
 [Files]
 Source: "{#DistRoot}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "{#ProjectRoot}\README.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#ProjectRoot}\LICENSE";   DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
@@ -76,28 +91,12 @@ Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"; \
     IconFilename: "{app}\{#AppExeName}"
 Name: "{group}\{#AppName} (Legacy Widget UI)"; Filename: "{app}\{#AppExeName}"; \
     Parameters: "--legacy"; IconFilename: "{app}\{#AppExeName}"
-Name: "{group}\Documentation"; Filename: "{app}\README.md"
 Name: "{group}\Uninstall {#AppName}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; \
     IconFilename: "{app}\{#AppExeName}"; Tasks: desktopicon
 Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\{#AppName}"; \
     Filename: "{app}\{#AppExeName}"; \
     IconFilename: "{app}\{#AppExeName}"; Tasks: quicklaunchicon
-
-[Registry]
-; .drscenario file association (optional)
-Root: HKCU; Subkey: "Software\Classes\.drscenario"; \
-    ValueType: string; ValueName: ""; ValueData: "DroneResearch.Scenario"; \
-    Tasks: associate; Flags: uninsdeletevalue
-Root: HKCU; Subkey: "Software\Classes\DroneResearch.Scenario"; \
-    ValueType: string; ValueName: ""; ValueData: "DroneResearch Scenario"; \
-    Tasks: associate; Flags: uninsdeletekey
-Root: HKCU; Subkey: "Software\Classes\DroneResearch.Scenario\DefaultIcon"; \
-    ValueType: string; ValueName: ""; ValueData: "{app}\{#AppExeName},0"; \
-    Tasks: associate
-Root: HKCU; Subkey: "Software\Classes\DroneResearch.Scenario\shell\open\command"; \
-    ValueType: string; ValueName: ""; ValueData: """{app}\{#AppExeName}"" ""%1"""; \
-    Tasks: associate
 
 [Run]
 Filename: "{app}\{#AppExeName}"; \
@@ -115,7 +114,7 @@ begin
   GetWindowsVersionEx(Version);
   if Version.NTPlatform and (Version.Major < 10) then
   begin
-    MsgBox('DroneResearch GCS requires Windows 10 or later (uses Qt 6 / WebEngine).',
+    MsgBox('RZ GCS requires Windows 10 or later (uses Qt 6 / WebEngine).',
            mbCriticalError, MB_OK);
     Result := False;
   end

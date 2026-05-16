@@ -125,6 +125,14 @@ Item {
                 }
             }
 
+            // ── License + update banners ────────────────────────────────────
+            Cmp.LicenseStatusBanner {
+                width: parent.width
+            }
+            Cmp.UpdateBanner {
+                width: parent.width
+            }
+
             // ── 1. Quickstart ───────────────────────────────────────────────
             HelpSection {
                 title: "1 · QUICKSTART (5 Schritte zur ersten Mission)"
