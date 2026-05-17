@@ -27,7 +27,7 @@ from tools.ui.safety_tab     import SafetyTab
 from tools.ui.log_tab        import LogTab
 
 _APP_TITLE   = "DroneResearch GCS"
-_APP_VERSION = "v0.2.0"
+_APP_VERSION = "v0.3.0"
 
 
 class MainWindow(QMainWindow):
