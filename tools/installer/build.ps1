@@ -119,11 +119,9 @@ if ($Target -in @('gcs', 'all')) {
     Invoke-Inno 'tools\installer\inno\rz_gcs.iss' 'RZ GCS installer'
 }
 
-# ── Summary ──────────────────────────────────────────────────────────
-Write-Host "──────────────────────────────────────────────────" -ForegroundColor Green
-Write-Host " ✔ Build complete" -ForegroundColor Green
-Write-Host "──────────────────────────────────────────────────" -ForegroundColor Green
+# Summary
+Write-Host 'Build complete' -ForegroundColor Green
 Get-ChildItem 'tools\installer\out\*.exe' | ForEach-Object {
     $sizeMB = [math]::Round($_.Length / 1MB, 1)
-    Write-Host ("   {0,-50} {1,8} MB" -f $_.Name, $sizeMB) -ForegroundColor White
+    Write-Host ($_.Name + ' ' + $sizeMB + ' MB') -ForegroundColor White
 }

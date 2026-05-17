@@ -21,14 +21,14 @@ Update procedure
 """
 from __future__ import annotations
 
-VERSION: str = "0.2.0"
+VERSION: str = "0.3.0"
 
 # Asset-name prefix the in-app updater looks for when scanning a
 # GitHub release. Must match ``OutputBaseFilename`` in the .iss file.
 INSTALLER_ASSET_PREFIX: str = "RZ-GCS-Setup-"
 
 # GitHub repo (owner/name) the updater queries.
-GITHUB_REPO: str = "joeldjio/uavresearchproject"
+GITHUB_REPO: str = "joeldjio/rz-gcs-releases"
 
 # ─────────────────────────────────────────────────────────────────────
 #  Licensing — used by tools/ui/license.py
@@ -47,4 +47,4 @@ TRIAL_DAYS: int = 30
 LICENSE_SECRET: str = "rz-solutions-dev-secret-CHANGE-ME-before-shipping"
 
 # Vendor contact shown in the activation overlay.
-LICENSE_CONTACT: str = "sales@rz-solutions.example"
+LICENSE_CONTACT: str = "djiojoel2@gmail.com"

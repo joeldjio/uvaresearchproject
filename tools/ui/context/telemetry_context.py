@@ -29,6 +29,16 @@ _ROLES = {
     Qt.ItemDataRole.UserRole + 15: b"climb",
     Qt.ItemDataRole.UserRole + 16: b"throttle",
     Qt.ItemDataRole.UserRole + 17: b"connected",
+    Qt.ItemDataRole.UserRole + 18: b"autopilot",
+    Qt.ItemDataRole.UserRole + 19: b"vehicleType",
+    Qt.ItemDataRole.UserRole + 20: b"systemStatus",
+    Qt.ItemDataRole.UserRole + 21: b"firmwareVersion",
+    Qt.ItemDataRole.UserRole + 22: b"boardVersion",
+    Qt.ItemDataRole.UserRole + 23: b"vendorId",
+    Qt.ItemDataRole.UserRole + 24: b"productId",
+    Qt.ItemDataRole.UserRole + 25: b"connectionString",
+    Qt.ItemDataRole.UserRole + 26: b"droneType",
+    Qt.ItemDataRole.UserRole + 27: b"fsmState",
 }
 
 _ROLE_KEYS = {v: k for k, v in _ROLES.items()}
@@ -51,6 +61,16 @@ _SNAP_MAP = {
     b"climb":      "climb",
     b"throttle":   "throttle",
     b"connected":  "connected",
+    b"autopilot":  "autopilot",
+    b"vehicleType": "vehicle_type",
+    b"systemStatus": "system_status",
+    b"firmwareVersion": "firmware_version",
+    b"boardVersion": "board_version",
+    b"vendorId": "vendor_id",
+    b"productId": "product_id",
+    b"connectionString": "connectionString",
+    b"droneType": "droneType",
+    b"fsmState": "fsmState",
 }
 
 
@@ -85,7 +105,7 @@ class TelemetryModel(QAbstractListModel):
             return did
         snap_key = _SNAP_MAP.get(role_name)
         if snap_key:
-            return snap.get(snap_key, 0 if role_name != b"flightMode" else "UNKNOWN")
+            return snap.get(snap_key, 0 if role_name not in (b"flightMode", b"autopilot", b"vehicleType", b"firmwareVersion", b"boardVersion", b"connectionString", b"droneType", b"fsmState") else "UNKNOWN")
         return None
 
     # ── Public API ────────────────────────────────────────────────────────

@@ -14,10 +14,25 @@ Item {
 
     // External (shared) waypoints model — injected from main.qml
     property var globalWaypoints: null
+    property string selectedDroneId: Cmp.AppState.selectedDroneId
     // Local fallback used only when no global model is injected
     ListModel { id: localWaypoints }
     // Effective model
     readonly property var wps: globalWaypoints ? globalWaypoints : localWaypoints
+    property var selectedSnap: ({})
+
+    function refreshSelectedSnap() {
+        selectedSnap = (selectedDroneId && typeof swarm !== "undefined" && swarm) ? swarm.droneSnapshot(selectedDroneId) : ({})
+    }
+
+    Timer {
+        interval: 500
+        running: true
+        repeat: true
+        onTriggered: root.refreshSelectedSnap()
+    }
+
+    onSelectedDroneIdChanged: refreshSelectedSnap()
 
     // ── Helper functions ──────────────────────────────────────────────────
     function _updateDistancePreview() {
@@ -86,6 +101,7 @@ Item {
                             }
                             onCurrentTextChanged: {
                                 Cmp.AppState.selectedDroneId = currentText
+                                root.refreshSelectedSnap()
                                 if (currentText && typeof swarm !== "undefined" && swarm) {
                                     var snap = swarm.droneSnapshot(currentText)
                                     typeRow.currentType = (snap && snap.droneType) ? snap.droneType : "generic"
@@ -214,6 +230,7 @@ Item {
                             onClicked: {
                                 Cmp.AppState.selectedDroneId = model.droneId
                                 droneSelCombo.currentIndex = droneSelCombo.model.indexOf(model.droneId)
+                                root.refreshSelectedSnap()
                             }
                         }
 
@@ -257,6 +274,75 @@ Item {
                     }
 
                     Text { anchors.centerIn: parent; text: "Keine Drones verbunden"; color: "#374151"; font.pixelSize: 10; visible: !telemetryModel || telemetryModel.count === 0 }
+                }
+
+                Text { text: "SYSTEM INFO"; color: "#64748b"; font.pixelSize: 9; font.weight: Font.Bold; font.letterSpacing: 1 }
+
+                Rectangle {
+                    width: parent.width; height: sysInfoCol.implicitHeight + 20; radius: 8
+                    color: "#1a2035"; border.color: "#2d3748"; border.width: 1
+
+                    Column {
+                        id: sysInfoCol
+                        anchors { left: parent.left; right: parent.right; top: parent.top; margins: 10 }
+                        spacing: 7
+
+                        Row {
+                            width: parent.width; spacing: 8
+                            Rectangle {
+                                width: 10; height: 10; radius: 5
+                                color: (root.selectedSnap && root.selectedSnap.connected) ? "#22c55e" : "#ef4444"
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+                            Text {
+                                text: selectedDroneId || "Keine Drone ausgewählt"
+                                color: selectedDroneId ? "#e2e8f0" : "#64748b"
+                                font.pixelSize: 12; font.weight: Font.Bold
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+                        }
+
+                        GridLayout {
+                            width: parent.width
+                            columns: 2
+                            columnSpacing: 10
+                            rowSpacing: 6
+
+                            Repeater {
+                                model: [
+                                    ["Autopilot", root.selectedSnap.autopilot || "UNKNOWN"],
+                                    ["Copter Art", root.selectedSnap.vehicle_type || "UNKNOWN"],
+                                    ["Firmware", root.selectedSnap.firmware_version || "Noch nicht gemeldet"],
+                                    ["Board", root.selectedSnap.board_version || "Noch nicht gemeldet"],
+                                    ["Vendor/Product", ((root.selectedSnap.vendor_id || 0) + " / " + (root.selectedSnap.product_id || 0))],
+                                    ["System Status", root.selectedSnap.system_status !== undefined ? root.selectedSnap.system_status : "UNKNOWN"],
+                                    ["Flight Mode", root.selectedSnap.flight_mode || "UNKNOWN"],
+                                    ["FSM", root.selectedSnap.fsmState || "UNKNOWN"],
+                                    ["Verbindung", root.selectedSnap.connectionString || "—"],
+                                    ["App-Typ", root.selectedSnap.droneType || "generic"]
+                                ]
+                                delegate: Column {
+                                    Layout.fillWidth: true
+                                    spacing: 2
+                                    Text { text: modelData[0]; color: "#475569"; font.pixelSize: 8; font.weight: Font.Bold }
+                                    Text {
+                                        width: parent.width
+                                        text: modelData[1]
+                                        color: "#cbd5e1"
+                                        font.pixelSize: 10
+                                        font.family: modelData[0] === "Verbindung" ? "Consolas" : ""
+                                        elide: Text.ElideRight
+                                    }
+                                }
+                            }
+                        }
+
+                        Text {
+                            width: parent.width
+                            text: "Hinweis: Firmware/Board erscheint erst, wenn der Flight Controller AUTOPILOT_VERSION beantwortet."
+                            color: "#64748b"; font.pixelSize: 9; wrapMode: Text.WordWrap
+                        }
+                    }
                 }
             }
         }

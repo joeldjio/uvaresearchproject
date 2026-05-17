@@ -21,8 +21,8 @@
 
 #define AppName        "RZ GCS"
 #define AppPublisher   "RZ Solutions"
-#define AppVersion     "0.2.0"
-#define AppURL         "https://github.com/joeldjio/uavresearchproject"
+#define AppVersion     "0.3.0"
+#define AppURL         "https://github.com/joeldjio/rz-gcs-releases"
 #define AppExeName     "RZ GCS.exe"
 ; Stable, randomly-generated GUID. DO NOT change this once published
 ; — it would break upgrade detection on existing installs.

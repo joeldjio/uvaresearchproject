@@ -71,6 +71,20 @@ _MAV_RESULT_NAMES = {
     6: "CANCELLED",
 }
 
+_MAV_TYPE_NAMES = {
+    0: "GENERIC", 1: "FIXED_WING", 2: "QUADROTOR", 3: "COAXIAL",
+    4: "HELICOPTER", 5: "ANTENNA_TRACKER", 6: "GCS", 7: "AIRSHIP",
+    8: "FREE_BALLOON", 9: "ROCKET", 10: "GROUND_ROVER",
+    11: "SURFACE_BOAT", 12: "SUBMARINE", 13: "HEXAROTOR",
+    14: "OCTOROTOR", 15: "TRICOPTER", 16: "FLAPPING_WING",
+    17: "KITE", 18: "ONBOARD_CONTROLLER", 19: "VTOL_DUOROTOR",
+    20: "VTOL_QUADROTOR", 21: "VTOL_TILTROTOR", 26: "GIMBAL",
+    27: "ADSB", 28: "PARAFOIL", 29: "DODECAROTOR", 30: "CAMERA",
+    31: "CHARGING_STATION", 32: "FLARM", 33: "SERVO", 34: "ODID",
+    35: "DECAROTOR", 36: "BATTERY", 37: "PARACHUTE", 38: "LOG",
+    39: "OSD", 40: "IMU", 41: "GPS", 42: "WINCH",
+}
+
 
 class MAVLinkConnection:
     """
@@ -139,6 +153,7 @@ class MAVLinkConnection:
         self._detect_autopilot(hb)
         self._connected = True
         self._request_streams()
+        self._request_autopilot_version()
         self._thread = threading.Thread(target=self._loop, daemon=True, name="mav-rx")
         self._thread.start()
         self._emit("connected")
@@ -247,6 +262,8 @@ class MAVLinkConnection:
             self.telemetry.update(autopilot="px4")
         else:
             self.telemetry.update(autopilot="unknown")
+        vehicle_type = _MAV_TYPE_NAMES.get(getattr(heartbeat, "type", -1), f"TYPE_{getattr(heartbeat, 'type', -1)}")
+        self.telemetry.update(vehicle_type=vehicle_type)
 
     def _request_streams(self):
         if not self._mav:
@@ -257,6 +274,18 @@ class MAVLinkConnection:
                 self._mav.target_component,
                 sid, rate, 1,
             )
+
+    def _request_autopilot_version(self):
+        if not self._mav:
+            return
+        try:
+            self._mav.mav.command_long_send(
+                self._mav.target_system,
+                self._mav.target_component,
+                512, 0, 148, 0, 0, 0, 0, 0, 0,
+            )
+        except Exception as e:
+            self._emit("statustext", f"autopilot version request error: {e}", 4)
 
     def _set_mode_ardupilot(self, mode: str) -> bool:
         mode_map = {v: k for k, v in _ARDUPILOT_MODES.items()}
@@ -298,7 +327,8 @@ class MAVLinkConnection:
             if mode != tel.flight_mode:
                 tel.update(flight_mode=mode)
                 self._emit("mode", mode)
-            tel.update(last_heartbeat=time.time(), system_status=msg.system_status)
+            vehicle_type = _MAV_TYPE_NAMES.get(getattr(msg, "type", -1), f"TYPE_{getattr(msg, 'type', -1)}")
+            tel.update(last_heartbeat=time.time(), system_status=msg.system_status, vehicle_type=vehicle_type)
 
         elif t == "GLOBAL_POSITION_INT":
             tel.update(
@@ -379,6 +409,36 @@ class MAVLinkConnection:
                         4,  # MAV_SEVERITY_WARNING
                     )
             self._emit("command_ack", cmd_name, result, res_name, success)
+
+        elif t == "AUTOPILOT_VERSION":
+            def _version_u32(value):
+                try:
+                    value = int(value)
+                except Exception:
+                    return ""
+                major = (value >> 24) & 0xFF
+                minor = (value >> 16) & 0xFF
+                patch = (value >> 8) & 0xFF
+                fw_type = value & 0xFF
+                return f"{major}.{minor}.{patch} ({fw_type})"
+
+            def _bytes_hex(value):
+                if value is None:
+                    return ""
+                try:
+                    return bytes(value).hex()
+                except Exception:
+                    return ""
+
+            tel.update(
+                firmware_version=_version_u32(getattr(msg, "flight_sw_version", 0)),
+                board_version=str(getattr(msg, "board_version", "")),
+                vendor_id=int(getattr(msg, "vendor_id", 0) or 0),
+                product_id=int(getattr(msg, "product_id", 0) or 0),
+                flight_custom_version=_bytes_hex(getattr(msg, "flight_custom_version", None)),
+                middleware_custom_version=_bytes_hex(getattr(msg, "middleware_custom_version", None)),
+                os_custom_version=_bytes_hex(getattr(msg, "os_custom_version", None)),
+            )
 
     def _decode_mode(self, hb) -> str:
         ap = self.telemetry.autopilot

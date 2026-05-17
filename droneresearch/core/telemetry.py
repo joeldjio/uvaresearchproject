@@ -36,7 +36,15 @@ class TelemetryState:
     armed:         bool  = False
     flight_mode:   str   = "UNKNOWN"
     autopilot:     str   = "UNKNOWN"    # "ardupilot" | "px4"
+    vehicle_type:  str   = "UNKNOWN"
     system_status: int   = 0
+    firmware_version: str = ""
+    board_version:    str = ""
+    vendor_id:        int = 0
+    product_id:       int = 0
+    flight_custom_version: str = ""
+    middleware_custom_version: str = ""
+    os_custom_version: str = ""
     # RC
     throttle:      float = 0.0          # 0–100 %
     # IMU raw
