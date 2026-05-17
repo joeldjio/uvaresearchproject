@@ -93,6 +93,7 @@ a = Analysis(
         "test", "unittest",
         # See droneresearch_cli.spec for the rationale.
         "lxml", "cv2", "google", "grpc", "cryptography",
+        "pkg_resources", "setuptools._vendor",
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
