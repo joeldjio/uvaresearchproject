@@ -19,7 +19,7 @@ Notes
 - QML files are bundled under ``tools/ui/qml/`` to mirror the source
   layout; ``tools/ui/app.py:_resolve_qml_root()`` understands both
   frozen and source layouts.
-- ``optimize=2`` strips ``assert`` statements and ``__doc__`` strings
+- ``optimize=1`` strips ``assert`` statements while keeping ``__doc__`` strings
   from all bundled .pyc files. Casual code-protection only; bytecode
   can still be decompiled with public tools.
 """
@@ -99,7 +99,7 @@ a = Analysis(
     win_private_assemblies=False,
     cipher=block_cipher,
     noarchive=False,
-    optimize=2,                  # -OO: strip asserts + docstrings
+    optimize=1,                  # -O: strip asserts, keep docstrings for legacy widgets
 )
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
