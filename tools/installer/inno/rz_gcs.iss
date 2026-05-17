@@ -89,8 +89,6 @@ Source: "{#ProjectRoot}\LICENSE";   DestDir: "{app}"; Flags: ignoreversion
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"; \
     IconFilename: "{app}\{#AppExeName}"
-Name: "{group}\{#AppName} (Legacy Widget UI)"; Filename: "{app}\{#AppExeName}"; \
-    Parameters: "--legacy"; IconFilename: "{app}\{#AppExeName}"
 Name: "{group}\Uninstall {#AppName}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; \
     IconFilename: "{app}\{#AppExeName}"; Tasks: desktopicon
