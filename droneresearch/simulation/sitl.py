@@ -32,9 +32,11 @@ Usage:
     cluster.start()
     connections = cluster.connection_strings  # list of 3 strings
 """
+
 import os
 import shutil
 import subprocess
+import threading
 import time
 from dataclasses import dataclass, field
 from typing import List, Optional
@@ -42,16 +44,16 @@ from typing import List, Optional
 
 @dataclass
 class SITLConfig:
-    autopilot:  str   = "ardupilot"    # "ardupilot" | "px4"
-    vehicle:    str   = "copter"       # "copter" | "plane" | "rover"
-    instance:   int   = 0
-    home_lat:   float = 48.1374        # Munich default
-    home_lon:   float = 11.5754
-    home_alt:   float = 519.0          # meters MSL
-    home_yaw:   float = 0.0
-    speedup:    float = 1.0            # simulation speed multiplier
-    base_port:  int   = 5760           # ArduPilot TCP base port
-    udp_port:   int   = 14550          # PX4 UDP base port
+    autopilot: str = "ardupilot"  # "ardupilot" | "px4"
+    vehicle: str = "copter"  # "copter" | "plane" | "rover"
+    instance: int = 0
+    home_lat: float = 48.1374  # Munich default
+    home_lon: float = 11.5754
+    home_alt: float = 519.0  # meters MSL
+    home_yaw: float = 0.0
+    speedup: float = 1.0  # simulation speed multiplier
+    base_port: int = 5760  # ArduPilot TCP base port
+    udp_port: int = 14550  # PX4 UDP base port
     extra_args: List[str] = field(default_factory=list)
 
 
@@ -97,15 +99,18 @@ class SITLInstance:
     def wait_ready(self, timeout: float = 30.0) -> bool:
         """Wait until SITL is accepting connections."""
         import socket
+
         if self.config.autopilot == "ardupilot":
             host, port = "127.0.0.1", self.config.base_port + self.config.instance * 10
         else:
-            return True   # PX4 UDP doesn't need port check
+            return True  # PX4 UDP doesn't need port check
         t0 = time.time()
         while time.time() - t0 < timeout:
             try:
                 with socket.create_connection((host, port), timeout=1.0):
-                    print(f"[sitl:{self.config.instance}] Ready on {self.connection_string}")
+                    print(
+                        f"[sitl:{self.config.instance}] Ready on {self.connection_string}"
+                    )
                     return True
             except (ConnectionRefusedError, OSError):
                 time.sleep(0.5)
@@ -128,13 +133,18 @@ class SITLInstance:
 
         home = f"{self.config.home_lat},{self.config.home_lon},{self.config.home_alt},{self.config.home_yaw}"
         port = self.config.base_port + self.config.instance * 10
-        cmd  = [
+        cmd = [
             sitl_bin,
-            "--home",    home,
-            "--model",   "+",
-            "--speedup", str(self.config.speedup),
-            "--port",    str(port),
-            "--instance",str(self.config.instance),
+            "--home",
+            home,
+            "--model",
+            "+",
+            "--speedup",
+            str(self.config.speedup),
+            "--port",
+            str(port),
+            "--instance",
+            str(self.config.instance),
         ] + self.config.extra_args
 
         print(f"[sitl:{self.config.instance}] Starting ArduPilot SITL on port {port}")
@@ -149,7 +159,9 @@ class SITLInstance:
         px4_dir = os.environ.get("PX4_DIR", os.path.expanduser("~/PX4-Autopilot"))
         if not os.path.isdir(px4_dir):
             print(f"[sitl] PX4-Autopilot not found at {px4_dir}")
-            print("  Set PX4_DIR env var or clone: https://github.com/PX4/PX4-Autopilot")
+            print(
+                "  Set PX4_DIR env var or clone: https://github.com/PX4/PX4-Autopilot"
+            )
             return False
 
         env = os.environ.copy()
@@ -160,7 +172,9 @@ class SITLInstance:
         cmd = ["make", "px4_sitl", "gz_x500"]
         print(f"[sitl:{self.config.instance}] Starting PX4 SITL (Gazebo)")
         self._proc = subprocess.Popen(
-            cmd, cwd=px4_dir, env=env,
+            cmd,
+            cwd=px4_dir,
+            env=env,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
@@ -188,15 +202,16 @@ class SITLCluster:
 
     def __init__(
         self,
-        count:      int   = 3,
-        autopilot:  str   = "ardupilot",
-        vehicle:    str   = "copter",
-        home_lat:   float = 48.1374,
-        home_lon:   float = 11.5754,
-        spacing_m:  float = 5.0,
-        speedup:    float = 1.0,
+        count: int = 3,
+        autopilot: str = "ardupilot",
+        vehicle: str = "copter",
+        home_lat: float = 48.1374,
+        home_lon: float = 11.5754,
+        spacing_m: float = 5.0,
+        speedup: float = 1.0,
     ):
         import math
+
         self.instances = []
         for i in range(count):
             # Offset each drone slightly east
@@ -215,10 +230,28 @@ class SITLCluster:
     def connection_strings(self) -> List[str]:
         return [inst.connection_string for inst in self.instances]
 
-    def start(self, stagger_s: float = 2.0):
-        for inst in self.instances:
-            inst.start()
-            time.sleep(stagger_s)
+    def start(self, stagger_s: float = 0.5):
+        """Start all SITL instances in parallel with minimal stagger.
+
+        Each instance is launched in its own daemon thread with a short
+        per-instance delay so they don't compete for the same port at
+        the exact same moment.
+        """
+        threads = []
+        for i, inst in enumerate(self.instances):
+            delay = i * stagger_s
+
+            def _start(instance=inst, d=delay):
+                if d > 0:
+                    time.sleep(d)
+                instance.start()
+
+            t = threading.Thread(target=_start, daemon=True)
+            threads.append(t)
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join(timeout=15.0)
 
     def wait_ready(self, timeout: float = 60.0):
         for inst in self.instances:

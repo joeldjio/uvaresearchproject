@@ -14,6 +14,7 @@ Usage:
 """
 
 import math
+import re
 import threading
 import time
 from typing import Callable, Dict, List, Optional, Tuple
@@ -165,7 +166,12 @@ class MAVLinkConnection:
         12: 2,  # EXTRA3 (AHRS, wind)
     }
 
-    def __init__(self, connection_string: str, source_system: int = 255):
+    def __init__(
+        self,
+        connection_string: str,
+        source_system: int = 255,
+        auto_reconnect: bool = True,
+    ):
         if not _MAVLINK_OK:
             raise ImportError("pymavlink not installed: pip install pymavlink")
         self.connection_string = connection_string
@@ -185,12 +191,57 @@ class MAVLinkConnection:
         self._cmd_lock = threading.Lock()
         # Last NACK — useful for the UI to surface in a status bar.
         self.last_nack: Optional[Tuple[str, str]] = None  # (cmd_name, result_name)
+        self._auto_reconnect = auto_reconnect
 
     # ── Public API ───────────────────────────────────────────────────────────
+
+    @staticmethod
+    def validate_connection_string(s: str) -> str:
+        """Validate a MAVLink connection string.
+
+        Returns the (possibly stripped) string on success, raises
+        ``ValueError`` with a descriptive message on failure.
+
+        Accepted formats:
+          tcp:HOST:PORT    e.g. tcp:127.0.0.1:5760
+          udp:HOST:PORT    e.g. udp:0.0.0.0:14550
+          /dev/ttyUSBx     Linux serial device (optionally :BAUD)
+          serial:/dev/…    pymavlink serial prefix form
+          COMx             Windows serial port (optionally :BAUD)
+        """
+        if not s or not s.strip():
+            raise ValueError("Connection string must not be empty")
+        s = s.strip()
+        # tcp:HOST:PORT  or  udp:HOST:PORT
+        m = re.match(r"^(tcp|udp):([^:]+):(\d+)$", s, re.IGNORECASE)
+        if m:
+            port = int(m.group(3))
+            if not (1 <= port <= 65535):
+                raise ValueError(f"Port {port} is out of range (1-65535)")
+            return s
+        # Linux serial: /dev/tty* (bare or with :BAUD suffix)
+        if re.match(r"^/dev/", s):
+            return s
+        # pymavlink serial: prefix form
+        if re.match(r"^serial:/dev/", s):
+            return s
+        # Windows COM port: COMx or COMx:BAUD
+        if re.match(r"^COM\d+(?::\d+)?$", s, re.IGNORECASE):
+            return s
+        raise ValueError(
+            f"Unrecognized connection string {s!r}. "
+            "Expected tcp:HOST:PORT, udp:HOST:PORT, "
+            "/dev/ttyUSBx[:BAUD], serial:/dev/..., or COMx[:BAUD]"
+        )
 
     def connect(self, timeout: float = 15.0) -> bool:
         if self._connected:
             return True
+        try:
+            self.validate_connection_string(self.connection_string)
+        except ValueError as e:
+            self._emit("statustext", str(e), 3)
+            return False
         self._stop.clear()
         try:
             self._mav = mavutil.mavlink_connection(
@@ -409,16 +460,62 @@ class MAVLinkConnection:
         return False
 
     def _loop(self):
+        """Outer receive loop with optional exponential-backoff reconnect."""
         while not self._stop.is_set():
-            if not self._mav:
-                break
             try:
-                msg = self._mav.recv_match(blocking=True, timeout=1.0)
+                self._recv_loop()
             except Exception:
+                pass
+            if self._stop.is_set() or not self._auto_reconnect:
                 break
+            # Connection lost — notify and attempt reconnect.
+            self._connected = False
+            self._emit("disconnected")
+            self._reconnect_loop()
+
+    def _recv_loop(self):
+        """Inner loop: receive and dispatch MAVLink messages."""
+        while not self._stop.is_set() and self._mav:
+            msg = self._mav.recv_match(blocking=True, timeout=1.0)
             if msg is None:
                 continue
             self._parse(msg)
+
+    def _reconnect_loop(self):
+        """Try to re-establish the connection with exponential backoff.
+
+        Blocks until either a successful reconnect or ``_stop`` is set.
+        Backoff sequence: 1s, 2s, 4s, 8s, 16s, capped at 30s.
+        """
+        backoff = 1.0
+        attempt = 0
+        while not self._stop.is_set():
+            attempt += 1
+            print(f"[mav] Reconnect attempt {attempt}, waiting {backoff:.0f}s...")
+            self._stop.wait(backoff)
+            if self._stop.is_set():
+                return
+            try:
+                self._mav = mavutil.mavlink_connection(
+                    self.connection_string,
+                    source_system=self.source_system,
+                    autoreconnect=True,
+                )
+                hb = self._mav.wait_heartbeat(timeout=10.0)
+                if hb is None:
+                    raise ConnectionError("No heartbeat received")
+            except Exception as e:
+                print(f"[mav] Reconnect failed: {e}")
+                backoff = min(backoff * 2, 30.0)
+                continue
+            # Reconnect successful.
+            self._detect_autopilot(hb)
+            self._connected = True
+            self._request_streams()
+            self._request_autopilot_version()
+            print(f"[mav] Reconnected after {attempt} attempt(s)")
+            self._emit("connected")
+            return
 
     def _parse(self, msg):
         t = msg.get_type()
