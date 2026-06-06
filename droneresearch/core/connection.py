@@ -12,6 +12,7 @@ Usage:
     print(conn.telemetry.lat, conn.telemetry.lon)
     conn.disconnect()
 """
+
 import math
 import threading
 import time
@@ -20,7 +21,8 @@ from typing import Callable, Dict, List, Optional, Tuple
 from droneresearch.core.telemetry import TelemetryState
 
 try:
-    from pymavlink import mavutil, mavextra
+    from pymavlink import mavextra, mavutil
+
     _MAVLINK_OK = True
 except ImportError:
     _MAVLINK_OK = False
@@ -28,33 +30,58 @@ except ImportError:
 
 # ArduPilot custom mode map
 _ARDUPILOT_MODES = {
-    0: "STABILIZE", 1: "ACRO", 2: "ALT_HOLD", 3: "AUTO",
-    4: "GUIDED",    5: "LOITER", 6: "RTL",     7: "CIRCLE",
-    9: "LAND",     11: "DRIFT", 13: "SPORT",  14: "FLIP",
-    15: "AUTOTUNE",16: "POSHOLD",17: "BRAKE", 18: "THROW",
-    19: "AVOID_ADSB",20: "GUIDED_NOGPS",21: "SMART_RTL",
-    22: "FLOWHOLD", 23: "FOLLOW", 24: "ZIGZAG",
+    0: "STABILIZE",
+    1: "ACRO",
+    2: "ALT_HOLD",
+    3: "AUTO",
+    4: "GUIDED",
+    5: "LOITER",
+    6: "RTL",
+    7: "CIRCLE",
+    9: "LAND",
+    11: "DRIFT",
+    13: "SPORT",
+    14: "FLIP",
+    15: "AUTOTUNE",
+    16: "POSHOLD",
+    17: "BRAKE",
+    18: "THROW",
+    19: "AVOID_ADSB",
+    20: "GUIDED_NOGPS",
+    21: "SMART_RTL",
+    22: "FLOWHOLD",
+    23: "FOLLOW",
+    24: "ZIGZAG",
 }
 
 # PX4 main mode map
 _PX4_MAIN_MODES = {
-    1: "MANUAL", 2: "ALTCTL", 3: "POSCTL",
-    4: "AUTO",   5: "ACRO",  6: "OFFBOARD",
-    7: "STABILIZED", 8: "RATTITUDE",
+    1: "MANUAL",
+    2: "ALTCTL",
+    3: "POSCTL",
+    4: "AUTO",
+    5: "ACRO",
+    6: "OFFBOARD",
+    7: "STABILIZED",
+    8: "RATTITUDE",
 }
 
 _PX4_SUB_MODES_AUTO = {
-    1: "READY", 2: "TAKEOFF", 3: "LOITER",
-    4: "MISSION", 5: "RTL",   6: "LAND",
+    1: "READY",
+    2: "TAKEOFF",
+    3: "LOITER",
+    4: "MISSION",
+    5: "RTL",
+    6: "LAND",
     8: "FOLLOW_TARGET",
 }
 
 # MAV_CMD identifiers we care about (subset). Used for nicer ACK log lines.
 _MAV_CMD_NAMES = {
-    16:  "NAV_WAYPOINT",
-    20:  "NAV_RETURN_TO_LAUNCH",
-    21:  "NAV_LAND",
-    22:  "NAV_TAKEOFF",
+    16: "NAV_WAYPOINT",
+    20: "NAV_RETURN_TO_LAUNCH",
+    21: "NAV_LAND",
+    22: "NAV_TAKEOFF",
     176: "DO_SET_MODE",
     178: "DO_CHANGE_SPEED",
     400: "COMPONENT_ARM_DISARM",
@@ -72,17 +99,45 @@ _MAV_RESULT_NAMES = {
 }
 
 _MAV_TYPE_NAMES = {
-    0: "GENERIC", 1: "FIXED_WING", 2: "QUADROTOR", 3: "COAXIAL",
-    4: "HELICOPTER", 5: "ANTENNA_TRACKER", 6: "GCS", 7: "AIRSHIP",
-    8: "FREE_BALLOON", 9: "ROCKET", 10: "GROUND_ROVER",
-    11: "SURFACE_BOAT", 12: "SUBMARINE", 13: "HEXAROTOR",
-    14: "OCTOROTOR", 15: "TRICOPTER", 16: "FLAPPING_WING",
-    17: "KITE", 18: "ONBOARD_CONTROLLER", 19: "VTOL_DUOROTOR",
-    20: "VTOL_QUADROTOR", 21: "VTOL_TILTROTOR", 26: "GIMBAL",
-    27: "ADSB", 28: "PARAFOIL", 29: "DODECAROTOR", 30: "CAMERA",
-    31: "CHARGING_STATION", 32: "FLARM", 33: "SERVO", 34: "ODID",
-    35: "DECAROTOR", 36: "BATTERY", 37: "PARACHUTE", 38: "LOG",
-    39: "OSD", 40: "IMU", 41: "GPS", 42: "WINCH",
+    0: "GENERIC",
+    1: "FIXED_WING",
+    2: "QUADROTOR",
+    3: "COAXIAL",
+    4: "HELICOPTER",
+    5: "ANTENNA_TRACKER",
+    6: "GCS",
+    7: "AIRSHIP",
+    8: "FREE_BALLOON",
+    9: "ROCKET",
+    10: "GROUND_ROVER",
+    11: "SURFACE_BOAT",
+    12: "SUBMARINE",
+    13: "HEXAROTOR",
+    14: "OCTOROTOR",
+    15: "TRICOPTER",
+    16: "FLAPPING_WING",
+    17: "KITE",
+    18: "ONBOARD_CONTROLLER",
+    19: "VTOL_DUOROTOR",
+    20: "VTOL_QUADROTOR",
+    21: "VTOL_TILTROTOR",
+    26: "GIMBAL",
+    27: "ADSB",
+    28: "PARAFOIL",
+    29: "DODECAROTOR",
+    30: "CAMERA",
+    31: "CHARGING_STATION",
+    32: "FLARM",
+    33: "SERVO",
+    34: "ODID",
+    35: "DECAROTOR",
+    36: "BATTERY",
+    37: "PARACHUTE",
+    38: "LOG",
+    39: "OSD",
+    40: "IMU",
+    41: "GPS",
+    42: "WINCH",
 }
 
 
@@ -101,33 +156,33 @@ class MAVLinkConnection:
     """
 
     STREAM_RATES = {
-        1:  4,   # RAW_SENSORS
-        2:  4,   # EXTENDED_STATUS (battery, etc.)
-        3:  2,   # RC_CHANNELS
-        6:  4,   # POSITION (GPS)
+        1: 4,  # RAW_SENSORS
+        2: 4,  # EXTENDED_STATUS (battery, etc.)
+        3: 2,  # RC_CHANNELS
+        6: 4,  # POSITION (GPS)
         10: 10,  # EXTRA1 (attitude)
-        11: 4,   # EXTRA2 (VFR_HUD)
-        12: 2,   # EXTRA3 (AHRS, wind)
+        11: 4,  # EXTRA2 (VFR_HUD)
+        12: 2,  # EXTRA3 (AHRS, wind)
     }
 
     def __init__(self, connection_string: str, source_system: int = 255):
         if not _MAVLINK_OK:
             raise ImportError("pymavlink not installed: pip install pymavlink")
         self.connection_string = connection_string
-        self.source_system     = source_system
-        self.telemetry         = TelemetryState()
-        self._mav              = None
-        self._thread           = None
-        self._stop             = threading.Event()
-        self._connected        = False
+        self.source_system = source_system
+        self.telemetry = TelemetryState()
+        self._mav = None
+        self._thread = None
+        self._stop = threading.Event()
+        self._connected = False
         self._listeners: Dict[str, List[Callable]] = {}
-        self._lock             = threading.Lock()
+        self._lock = threading.Lock()
         # Tracks recently-issued commands so incoming COMMAND_ACK messages
         # can be correlated back to their cmd_id and reported with a name.
         # Bounded to last 32 entries (MAVLink doesn't carry a sequence id
         # on COMMAND_ACK so we just remember the most recent send per cmd).
         self._pending_cmds: Dict[int, float] = {}
-        self._cmd_lock         = threading.Lock()
+        self._cmd_lock = threading.Lock()
         # Last NACK — useful for the UI to surface in a status bar.
         self.last_nack: Optional[Tuple[str, str]] = None  # (cmd_name, result_name)
 
@@ -179,7 +234,9 @@ class MAVLinkConnection:
 
     def off(self, event: str, callback: Callable):
         if event in self._listeners:
-            self._listeners[event] = [c for c in self._listeners[event] if c is not callback]
+            self._listeners[event] = [
+                c for c in self._listeners[event] if c is not callback
+            ]
 
     # ── Commands ─────────────────────────────────────────────────────────────
 
@@ -207,14 +264,44 @@ class MAVLinkConnection:
         return self._command_long(20)
 
     def goto(self, lat: float, lon: float, alt: float) -> bool:
+        """Fly to GPS coordinate using SET_POSITION_TARGET_GLOBAL_INT.
+
+        Works with both ArduPilot (GUIDED mode) and PX4 (OFFBOARD mode).
+        Frame: MAV_FRAME_GLOBAL_RELATIVE_ALT (6) — alt is metres above home.
+        type_mask 0x0FF8: use only position, ignore velocity/accel/yaw.
+        """
         if not self._mav:
             return False
-        self._mav.mav.mission_item_send(
-            self._mav.target_system,
-            self._mav.target_component,
-            0, 3, 16, 2, 1, 0, 0, 0, 0,
-            lat, lon, alt,
-        )
+        try:
+            # MAV_FRAME_GLOBAL_RELATIVE_ALT = 6
+            # type_mask bits: 0=use, 1=ignore
+            #   bits 0-2  → position (clear → use)
+            #   bits 3-5  → velocity (set → ignore)
+            #   bits 6-8  → acceleration (set → ignore)
+            #   bit  10   → yaw (set → ignore)
+            #   bit  11   → yaw_rate (set → ignore)
+            #   0b_1111_1111_1000 = 0x0FF8
+            self._mav.mav.set_position_target_global_int_send(
+                0,  # time_boot_ms (unused)
+                self._mav.target_system,
+                self._mav.target_component,
+                6,  # MAV_FRAME_GLOBAL_RELATIVE_ALT
+                0x0FF8,  # type_mask: position only
+                int(lat * 1e7),  # lat_int  (deg × 1e7)
+                int(lon * 1e7),  # lon_int  (deg × 1e7)
+                float(alt),  # alt (m above home)
+                0.0,
+                0.0,
+                0.0,  # vx, vy, vz  (ignored)
+                0.0,
+                0.0,
+                0.0,  # afx, afy, afz (ignored)
+                0.0,
+                0.0,  # yaw, yaw_rate (ignored)
+            )
+        except Exception as e:
+            self._emit("statustext", f"goto error: {e}", 3)
+            return False
         return True
 
     def set_speed(self, speed_ms: float) -> bool:
@@ -240,7 +327,15 @@ class MAVLinkConnection:
             self._mav.mav.command_long_send(
                 self._mav.target_system,
                 self._mav.target_component,
-                cmd, 0, p1, p2, p3, p4, p5, p6, p7,
+                cmd,
+                0,
+                p1,
+                p2,
+                p3,
+                p4,
+                p5,
+                p6,
+                p7,
             )
         except Exception as e:
             self._emit("statustext", f"command_long send error (cmd {cmd}): {e}", 3)
@@ -262,7 +357,9 @@ class MAVLinkConnection:
             self.telemetry.update(autopilot="px4")
         else:
             self.telemetry.update(autopilot="unknown")
-        vehicle_type = _MAV_TYPE_NAMES.get(getattr(heartbeat, "type", -1), f"TYPE_{getattr(heartbeat, 'type', -1)}")
+        vehicle_type = _MAV_TYPE_NAMES.get(
+            getattr(heartbeat, "type", -1), f"TYPE_{getattr(heartbeat, 'type', -1)}"
+        )
         self.telemetry.update(vehicle_type=vehicle_type)
 
     def _request_streams(self):
@@ -272,7 +369,9 @@ class MAVLinkConnection:
             self._mav.mav.request_data_stream_send(
                 self._mav.target_system,
                 self._mav.target_component,
-                sid, rate, 1,
+                sid,
+                rate,
+                1,
             )
 
     def _request_autopilot_version(self):
@@ -282,7 +381,15 @@ class MAVLinkConnection:
             self._mav.mav.command_long_send(
                 self._mav.target_system,
                 self._mav.target_component,
-                512, 0, 148, 0, 0, 0, 0, 0, 0,
+                512,
+                0,
+                148,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
             )
         except Exception as e:
             self._emit("statustext", f"autopilot version request error: {e}", 4)
@@ -327,14 +434,24 @@ class MAVLinkConnection:
             if mode != tel.flight_mode:
                 tel.update(flight_mode=mode)
                 self._emit("mode", mode)
-            vehicle_type = _MAV_TYPE_NAMES.get(getattr(msg, "type", -1), f"TYPE_{getattr(msg, 'type', -1)}")
-            tel.update(last_heartbeat=time.time(), system_status=msg.system_status, vehicle_type=vehicle_type)
+            vehicle_type = _MAV_TYPE_NAMES.get(
+                getattr(msg, "type", -1), f"TYPE_{getattr(msg, 'type', -1)}"
+            )
+            tel.update(
+                last_heartbeat=time.time(),
+                system_status=msg.system_status,
+                vehicle_type=vehicle_type,
+            )
 
         elif t == "GLOBAL_POSITION_INT":
             tel.update(
-                lat=msg.lat / 1e7, lon=msg.lon / 1e7,
-                alt=msg.alt / 1000.0, alt_rel=msg.relative_alt / 1000.0,
-                vx=msg.vx / 100.0, vy=msg.vy / 100.0, vz=msg.vz / 100.0,
+                lat=msg.lat / 1e7,
+                lon=msg.lon / 1e7,
+                alt=msg.alt / 1000.0,
+                alt_rel=msg.relative_alt / 1000.0,
+                vx=msg.vx / 100.0,
+                vy=msg.vy / 100.0,
+                vz=msg.vz / 100.0,
                 last_gps=time.time(),
             )
             self._emit("telemetry", tel)
@@ -353,18 +470,25 @@ class MAVLinkConnection:
 
         elif t == "VFR_HUD":
             tel.update(
-                airspeed=msg.airspeed, groundspeed=msg.groundspeed,
-                alt=msg.alt, climb=msg.climb, throttle=msg.throttle,
+                airspeed=msg.airspeed,
+                groundspeed=msg.groundspeed,
+                alt=msg.alt,
+                climb=msg.climb,
+                throttle=msg.throttle,
             )
 
         elif t == "BATTERY_STATUS":
             if msg.voltages and msg.voltages[0] != 65535:
                 tel.update(battery_v=msg.voltages[0] / 1000.0)
-            bpct = float(msg.battery_remaining) if msg.battery_remaining > 0 else (
-                -1.0 if msg.battery_remaining < 0 else tel.battery_pct
+            bpct = (
+                float(msg.battery_remaining)
+                if msg.battery_remaining > 0
+                else (-1.0 if msg.battery_remaining < 0 else tel.battery_pct)
             )
             tel.update(
-                current_a=msg.current_battery / 100.0 if msg.current_battery >= 0 else 0.0,
+                current_a=msg.current_battery / 100.0
+                if msg.current_battery >= 0
+                else 0.0,
                 battery_pct=bpct,
             )
 
@@ -377,8 +501,12 @@ class MAVLinkConnection:
 
         elif t == "RAW_IMU":
             tel.update(
-                accel_x=msg.xacc / 1000.0, accel_y=msg.yacc / 1000.0, accel_z=msg.zacc / 1000.0,
-                gyro_x=msg.xgyro / 1000.0, gyro_y=msg.ygyro / 1000.0, gyro_z=msg.zgyro / 1000.0,
+                accel_x=msg.xacc / 1000.0,
+                accel_y=msg.yacc / 1000.0,
+                accel_z=msg.zacc / 1000.0,
+                gyro_x=msg.xgyro / 1000.0,
+                gyro_y=msg.ygyro / 1000.0,
+                gyro_z=msg.zgyro / 1000.0,
             )
 
         elif t == "HOME_POSITION":
@@ -392,11 +520,11 @@ class MAVLinkConnection:
             self._emit("statustext", msg.text, msg.severity)
 
         elif t == "COMMAND_ACK":
-            cmd_id    = int(getattr(msg, "command", -1))
-            result    = int(getattr(msg, "result", -1))
-            cmd_name  = _MAV_CMD_NAMES.get(cmd_id, f"CMD_{cmd_id}")
-            res_name  = _MAV_RESULT_NAMES.get(result, f"RESULT_{result}")
-            success   = (result == 0)
+            cmd_id = int(getattr(msg, "command", -1))
+            result = int(getattr(msg, "result", -1))
+            cmd_name = _MAV_CMD_NAMES.get(cmd_id, f"CMD_{cmd_id}")
+            res_name = _MAV_RESULT_NAMES.get(result, f"RESULT_{result}")
+            success = result == 0
             with self._cmd_lock:
                 self._pending_cmds.pop(cmd_id, None)
             if not success:
@@ -411,6 +539,7 @@ class MAVLinkConnection:
             self._emit("command_ack", cmd_name, result, res_name, success)
 
         elif t == "AUTOPILOT_VERSION":
+
             def _version_u32(value):
                 try:
                     value = int(value)
@@ -435,8 +564,12 @@ class MAVLinkConnection:
                 board_version=str(getattr(msg, "board_version", "")),
                 vendor_id=int(getattr(msg, "vendor_id", 0) or 0),
                 product_id=int(getattr(msg, "product_id", 0) or 0),
-                flight_custom_version=_bytes_hex(getattr(msg, "flight_custom_version", None)),
-                middleware_custom_version=_bytes_hex(getattr(msg, "middleware_custom_version", None)),
+                flight_custom_version=_bytes_hex(
+                    getattr(msg, "flight_custom_version", None)
+                ),
+                middleware_custom_version=_bytes_hex(
+                    getattr(msg, "middleware_custom_version", None)
+                ),
                 os_custom_version=_bytes_hex(getattr(msg, "os_custom_version", None)),
             )
 
@@ -446,7 +579,7 @@ class MAVLinkConnection:
             return _ARDUPILOT_MODES.get(hb.custom_mode, f"MODE_{hb.custom_mode}")
         elif ap == "px4":
             main = (hb.custom_mode >> 16) & 0xFF
-            sub  = (hb.custom_mode >> 24) & 0xFF
+            sub = (hb.custom_mode >> 24) & 0xFF
             name = _PX4_MAIN_MODES.get(main, f"MAIN_{main}")
             if main == 4:
                 name = _PX4_SUB_MODES_AUTO.get(sub, name)

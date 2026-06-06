@@ -13,6 +13,7 @@ Usage:
     swarm.formation("circle", spacing=5.0, leader="D1")
     swarm.land_all()
 """
+
 import math
 import threading
 import time
@@ -25,17 +26,21 @@ class Swarm:
     FORMATIONS = ("line", "v", "grid", "circle")
 
     def __init__(self, log_dir: str = "logs", auto_log: bool = True):
-        self._drones:   Dict[str, Drone] = {}
-        self._log_dir   = log_dir
-        self._auto_log  = auto_log
-        self._lock      = threading.Lock()
+        self._drones: Dict[str, Drone] = {}
+        self._log_dir = log_dir
+        self._auto_log = auto_log
+        self._lock = threading.Lock()
         self._event_cbs: dict = {}
 
     # ── Drone management ─────────────────────────────────────────────────
 
     def add(self, drone_id: str, connection_string: str) -> Drone:
-        d = Drone(connection_string, drone_id=drone_id,
-                  log_dir=self._log_dir, auto_log=self._auto_log)
+        d = Drone(
+            connection_string,
+            drone_id=drone_id,
+            log_dir=self._log_dir,
+            auto_log=self._auto_log,
+        )
         with self._lock:
             self._drones[drone_id] = d
         return d
@@ -64,8 +69,10 @@ class Swarm:
         results = {}
         threads = []
         for did, drone in list(self._drones.items()):
+
             def _connect(d=drone, did=did):
                 results[did] = d.connect(timeout=timeout)
+
             t = threading.Thread(target=_connect, daemon=True)
             threads.append(t)
             t.start()
@@ -117,10 +124,14 @@ class Swarm:
         offsets = self._calc_offsets(shape, len(drones), spacing)
         lat0, lon0, alt0 = leader_drone.position
 
-        for i, drone in enumerate(drones):
+        # Use a separate follower counter so the leader's list position
+        # does not cause an off-by-one when indexing into ``offsets``.
+        follower_idx = 0
+        for drone in drones:
             if drone is leader_drone:
                 continue
-            off = offsets[i] if i < len(offsets) else (0, 0)
+            off = offsets[follower_idx] if follower_idx < len(offsets) else (0.0, 0.0)
+            follower_idx += 1
             dlat = off[0] / 111320.0
             dlon = off[1] / (111320.0 * math.cos(math.radians(lat0)) + 1e-9)
             target_lat = lat0 + dlat
@@ -159,4 +170,5 @@ class Swarm:
         # subtract 1. The caller in ``formation()`` indexes offsets[i] with i
         # being the drone index (incl. leader); the leader's slot is unused.
         from droneresearch.sdk.formations import formation_offsets
+
         return list(formation_offsets(shape, max(0, count - 1), spacing))

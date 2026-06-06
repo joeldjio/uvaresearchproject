@@ -32,6 +32,7 @@ Usage:
     bridge.wait_until_done()
     bridge.stop()
 """
+
 import math
 import struct
 import threading
@@ -40,12 +41,14 @@ from typing import Callable, Optional
 
 try:
     import rclpy
-    from rclpy.node import Node
+    from geometry_msgs.msg import Point, PoseStamped, Quaternion, Twist, Vector3
     from nav_msgs.msg import Odometry
-    from geometry_msgs.msg import PoseStamped, Point, Quaternion, Twist, Vector3
+    from rclpy.node import Node
     from sensor_msgs.msg import PointCloud2, PointField
     from std_msgs.msg import Bool, Float64MultiArray, Header
-    from std_srvs.srv import SetBool, Empty as EmptySrv
+    from std_srvs.srv import Empty as EmptySrv
+    from std_srvs.srv import SetBool
+
     _ROS2_OK = True
 except ImportError:
     _ROS2_OK = False
@@ -58,14 +61,14 @@ def _euler_to_quat(roll: float, pitch: float, yaw: float) -> tuple:
     r = math.radians(roll)
     p = math.radians(pitch)
     y = math.radians(yaw)
-    cr, sr = math.cos(r/2), math.sin(r/2)
-    cp, sp = math.cos(p/2), math.sin(p/2)
-    cy, sy = math.cos(y/2), math.sin(y/2)
+    cr, sr = math.cos(r / 2), math.sin(r / 2)
+    cp, sp = math.cos(p / 2), math.sin(p / 2)
+    cy, sy = math.cos(y / 2), math.sin(y / 2)
     return (
-        sr*cp*cy - cr*sp*sy,
-        cr*sp*cy + sr*cp*sy,
-        cr*cp*sy - sr*sp*cy,
-        cr*cp*cy + sr*sp*sy,
+        sr * cp * cy - cr * sp * sy,
+        cr * sp * cy + sr * cp * sy,
+        cr * cp * sy - sr * sp * cy,
+        cr * cp * cy + sr * sp * sy,
     )
 
 
@@ -81,9 +84,9 @@ class FrontierExplorationBridge:
     def __init__(
         self,
         drone,
-        ns:              str   = "/exploration",
-        publish_hz:      float = 10.0,
-        point_cloud_topic: Optional[str] = None,   # external topic to forward
+        ns: str = "/exploration",
+        publish_hz: float = 10.0,
+        point_cloud_topic: Optional[str] = None,  # external topic to forward
         on_goal_reached: Optional[Callable] = None,
         on_volume_update: Optional[Callable] = None,
     ):
@@ -93,17 +96,17 @@ class FrontierExplorationBridge:
                 "Install ROS2 and: pip install rclpy\n"
                 "Or build from source: https://docs.ros.org/en/humble/Installation.html"
             )
-        self._drone            = drone
-        self._ns               = ns
-        self._hz               = publish_hz
-        self._pc_topic         = point_cloud_topic
-        self._on_goal_reached  = on_goal_reached
+        self._drone = drone
+        self._ns = ns
+        self._hz = publish_hz
+        self._pc_topic = point_cloud_topic
+        self._on_goal_reached = on_goal_reached
         self._on_volume_update = on_volume_update
         self._node: Optional[Node] = None
         self._thread: Optional[threading.Thread] = None
-        self._running          = False
-        self._exploring        = False
-        self._done_event       = threading.Event()
+        self._running = False
+        self._exploring = False
+        self._done_event = threading.Event()
         self._explored_volume: dict = {}
         self._current_goal: Optional[tuple] = None
 
@@ -118,11 +121,11 @@ class FrontierExplorationBridge:
         if not acquire_ros():
             raise RuntimeError("rclpy.init() failed")
         self._running = True
-        self._thread  = threading.Thread(
+        self._thread = threading.Thread(
             target=self._spin, daemon=True, name="frontier-bridge"
         )
         self._thread.start()
-        time.sleep(0.5)   # let node initialize
+        time.sleep(0.5)  # let node initialize
 
     def stop(self):
         if not self._running:
@@ -174,12 +177,12 @@ class FrontierExplorationBridge:
     def _spin(self):
         # rclpy.init() handled by acquire_ros() in start().
         self._node = _FrontierNode(
-            ns              = self._ns,
-            drone           = self._drone,
-            hz              = self._hz,
-            pc_topic        = self._pc_topic,
-            on_point_reached= self._on_point_reached,
-            on_volume       = self._on_volume,
+            ns=self._ns,
+            drone=self._drone,
+            hz=self._hz,
+            pc_topic=self._pc_topic,
+            on_point_reached=self._on_point_reached,
+            on_volume=self._on_volume,
         )
         try:
             while self._running and rclpy.ok():
@@ -196,8 +199,8 @@ class FrontierExplorationBridge:
     def _on_volume(self, occupied, free, total, unmapped):
         self._explored_volume = {
             "occupied": occupied,
-            "free":     free,
-            "total":    total,
+            "free": free,
+            "total": total,
             "unmapped": unmapped,
             "explored_pct": round((1 - unmapped / max(total, 1)) * 100, 1),
         }
@@ -209,65 +212,113 @@ class FrontierExplorationBridge:
 
 
 if _ROS2_OK:
+
     class _FrontierNode(Node):
         def __init__(self, ns, drone, hz, pc_topic, on_point_reached, on_volume):
             super().__init__("droneresearch_frontier_bridge")
-            self._drone              = drone
-            self._hz                 = hz
-            self._on_point_reached   = on_point_reached
-            self._on_volume          = on_volume
+            self._drone = drone
+            self._hz = hz
+            self._on_point_reached = on_point_reached
+            self._on_volume = on_volume
+
+            # Reference GPS origin for local NED conversion.
+            # Set once on the first valid GPS reading (non-zero lat/lon).
+            self._ref_lat: Optional[float] = None
+            self._ref_lon: Optional[float] = None
 
             # Publishers → Explorer
-            self._pub_odom   = self.create_publisher(Odometry,      f"{ns}/odometry",    10)
-            self._pub_carrot = self.create_publisher(PoseStamped,   f"{ns}/carrot_pose", 10)
+            self._pub_odom = self.create_publisher(Odometry, f"{ns}/odometry", 10)
+            self._pub_carrot = self.create_publisher(
+                PoseStamped, f"{ns}/carrot_pose", 10
+            )
 
             # Subscribers ← Explorer
-            self.create_subscription(Bool,               f"{ns}/point_reached",  self._cb_point_reached,  10)
-            self.create_subscription(Float64MultiArray,  f"{ns}/octomap_volume", self._cb_volume,          10)
+            self.create_subscription(
+                Bool, f"{ns}/point_reached", self._cb_point_reached, 10
+            )
+            self.create_subscription(
+                Float64MultiArray, f"{ns}/octomap_volume", self._cb_volume, 10
+            )
 
             # Service clients
             self._svc_toggle = self.create_client(SetBool, f"{ns}/toggle")
-            self._svc_save   = self.create_client(EmptySrv, f"{ns}/save_octomap")
+            self._svc_save = self.create_client(EmptySrv, f"{ns}/save_octomap")
 
             # Optional: forward external point cloud topic
             if pc_topic:
                 self.create_subscription(PointCloud2, pc_topic, self._cb_cloud, 10)
-                self._pub_cloud = self.create_publisher(PointCloud2, f"{ns}/cloud_in", 10)
+                self._pub_cloud = self.create_publisher(
+                    PointCloud2, f"{ns}/cloud_in", 10
+                )
             else:
                 self._pub_cloud = None
 
             # Publish timer
             self.create_timer(1.0 / self._hz, self._publish_telemetry)
 
+        # ── Coordinate helpers ────────────────────────────────────────────
+
+        def _set_ref_if_needed(self, lat: float, lon: float) -> bool:
+            """Latch reference origin on first valid GPS fix. Returns True once set."""
+            if self._ref_lat is None and lat != 0.0 and lon != 0.0:
+                self._ref_lat = lat
+                self._ref_lon = lon
+                self.get_logger().info(
+                    f"[frontier-bridge] NED origin set: lat={lat:.6f} lon={lon:.6f}"
+                )
+            return self._ref_lat is not None
+
+        def _gps_to_ned(self, lat: float, lon: float) -> tuple:
+            """Convert GPS (degrees) to local NED metres relative to the reference origin.
+
+            Returns (north_m, east_m). Caller must ensure _set_ref_if_needed() has
+            returned True before calling this.
+            """
+            north = (lat - self._ref_lat) * 111_320.0
+            east = (
+                (lon - self._ref_lon)
+                * 111_320.0
+                * math.cos(math.radians(self._ref_lat))
+            )
+            return north, east
+
+        # ── Telemetry publisher ───────────────────────────────────────────
+
         def _publish_telemetry(self):
-            t  = self._drone.telemetry
+            t = self._drone.telemetry
             now = self.get_clock().now().to_msg()
 
-            # Odometry
-            odom = Odometry()
-            odom.header.stamp    = now
-            odom.header.frame_id = "world"
-            odom.child_frame_id  = "base_link"
-            # Position in NED-local (explorer uses local frame — use GPS as fallback)
-            odom.pose.pose.position.x = t.lat   # bridge note: ideally local NED
-            odom.pose.pose.position.y = t.lon
-            odom.pose.pose.position.z = t.alt_rel
+            # Wait until we have a valid GPS fix before publishing.
+            if not self._set_ref_if_needed(t.lat, t.lon):
+                return
+
+            north, east = self._gps_to_ned(t.lat, t.lon)
             qx, qy, qz, qw = _euler_to_quat(t.roll, t.pitch, t.yaw)
+
+            # Odometry — position in local NED metres, velocity in m/s NED
+            odom = Odometry()
+            odom.header.stamp = now
+            odom.header.frame_id = "world"
+            odom.child_frame_id = "base_link"
+            odom.pose.pose.position.x = north
+            odom.pose.pose.position.y = east
+            odom.pose.pose.position.z = t.alt_rel
             odom.pose.pose.orientation.x = qx
             odom.pose.pose.orientation.y = qy
             odom.pose.pose.orientation.z = qz
             odom.pose.pose.orientation.w = qw
-            odom.twist.twist.linear.x  = t.vx
-            odom.twist.twist.linear.y  = t.vy
-            odom.twist.twist.linear.z  = t.vz
+            odom.twist.twist.linear.x = t.vx
+            odom.twist.twist.linear.y = t.vy
+            odom.twist.twist.linear.z = t.vz
             self._pub_odom.publish(odom)
 
-            # Carrot pose (current reference = current position)
+            # Carrot pose — current drone pose in local NED (used by the
+            # carrot-following algorithm inside the explorer node).
             carrot = PoseStamped()
-            carrot.header.stamp    = now
+            carrot.header.stamp = now
             carrot.header.frame_id = "world"
-            carrot.pose.position.x = t.lat
-            carrot.pose.position.y = t.lon
+            carrot.pose.position.x = north
+            carrot.pose.position.y = east
             carrot.pose.position.z = t.alt_rel
             carrot.pose.orientation.x = qx
             carrot.pose.orientation.y = qy

@@ -15,6 +15,7 @@ Usage:
     uav.start()          # arms + takes off based on FSM
     uav.set_role("follower", leader_id="D1")
 """
+
 import math
 import threading
 import time
@@ -37,10 +38,10 @@ class GenericUAVModel(Drone):
 
     def __init__(
         self,
-        drone_id:          str,
+        drone_id: str,
         connection_string: str,
-        log_dir:           str  = "logs",
-        auto_log:          bool = True,
+        log_dir: str = "logs",
+        auto_log: bool = True,
     ):
         super().__init__(
             connection_string,
@@ -53,14 +54,14 @@ class GenericUAVModel(Drone):
         self.fsm.on_transition(self._on_fsm_transition)
 
         # Swarm parameters
-        self.swarm_role:      str           = "none"
-        self.leader_id:       Optional[str] = None
-        self.formation_offset: tuple        = (0.0, 0.0, 0.0)   # (north_m, east_m, alt_m)
-        self.swarm_id:        Optional[str] = None
+        self.swarm_role: str = "none"
+        self.leader_id: Optional[str] = None
+        self.formation_offset: tuple = (0.0, 0.0, 0.0)  # (north_m, east_m, alt_m)
+        self.swarm_id: Optional[str] = None
 
         # Wire MAVLink events → FSM
-        self.on("armed",  self._sync_armed)
-        self.on("mode",   self._sync_mode)
+        self.on("armed", self._sync_armed)
+        self.on("mode", self._sync_mode)
 
         self._mission_thread: Optional[threading.Thread] = None
 
@@ -71,7 +72,7 @@ class GenericUAVModel(Drone):
         if not self.fsm.transition(DroneState.ARMING):
             print(f"[{self.id}] FSM: cannot arm from {self.fsm.state.name}")
             return False
-        time.sleep(1.0)   # brief pause to let SITL EKF stabilize
+        time.sleep(1.0)  # brief pause to let SITL EKF stabilize
         ok = self.arm(timeout=20.0)
         if not ok:
             self.fsm.transition(DroneState.IDLE)
@@ -110,7 +111,9 @@ class GenericUAVModel(Drone):
     def run_mission_fsm(self, waypoints: list, timeout: float = 600.0) -> bool:
         """FSM-aware waypoint navigation using goto (no mission protocol)."""
         if self.fsm.state not in (DroneState.FLYING, DroneState.MISSION):
-            print(f"[{self.id}] FSM: must be FLYING to start mission, is {self.fsm.state.name}")
+            print(
+                f"[{self.id}] FSM: must be FLYING to start mission, is {self.fsm.state.name}"
+            )
             return False
         self.fsm.transition(DroneState.MISSION, force=True)
         try:
@@ -140,7 +143,7 @@ class GenericUAVModel(Drone):
     def set_role(self, role: str, leader_id: Optional[str] = None):
         """Set swarm role. role = 'none' | 'leader' | 'follower' | 'coordinator'"""
         self.swarm_role = role
-        self.leader_id  = leader_id
+        self.leader_id = leader_id
 
     def set_formation_offset(self, north_m: float, east_m: float, alt_m: float = 0.0):
         """Set offset from leader position in NED meters."""
@@ -151,35 +154,72 @@ class GenericUAVModel(Drone):
     def status(self) -> dict:
         t = self.telemetry
         return {
-            "id":       self.id,
-            "state":    self.fsm.state.name,
-            "role":     self.swarm_role,
-            "leader":   self.leader_id,
-            "armed":    t.armed,
-            "mode":     t.flight_mode,
-            "lat":      t.lat,
-            "lon":      t.lon,
-            "alt":      t.alt_rel,
-            "battery":  t.battery_pct,
-            "gps_fix":  t.gps_fix,
+            "id": self.id,
+            "state": self.fsm.state.name,
+            "role": self.swarm_role,
+            "leader": self.leader_id,
+            "armed": t.armed,
+            "mode": t.flight_mode,
+            "lat": t.lat,
+            "lon": t.lon,
+            "alt": t.alt_rel,
+            "battery": t.battery_pct,
+            "gps_fix": t.gps_fix,
         }
 
     # ── FSM sync from MAVLink telemetry ───────────────────────────────────
 
     def _sync_armed(self, armed: bool):
-        """Sync FSM when MAVLink armed state changes."""
-        if armed and self.fsm.state == DroneState.ARMING:
-            self.fsm.transition(DroneState.ARMED)
-        elif not armed:
-            # Ignore armed=false during ARMING/TAKEOFF/FLYING — those states handle
-            # their own transitions; only land/disarm should trigger IDLE
+        """Sync FSM when MAVLink armed state changes.
+
+        Handles normal arm/disarm sequences AND the reconnect case where
+        the drone is already armed (or even airborne) when we connect.
+        """
+        if armed:
+            if self.fsm.state == DroneState.ARMING:
+                # Normal arm sequence: ARMING -> ARMED
+                self.fsm.transition(DroneState.ARMED)
+            elif self.fsm.state == DroneState.IDLE:
+                # Reconnected to an already-armed drone — advance FSM without
+                # going through the ARMING intermediate step.
+                self.fsm.transition(DroneState.ARMED, force=True)
+                # If the drone is also airborne, push directly to FLYING.
+                if self.altitude > 1.0:
+                    self.fsm.transition(DroneState.FLYING, force=True)
+        else:
+            # Ignore armed=false during ARMING/TAKEOFF/FLYING — those states
+            # handle their own transitions; only a landed disarm triggers IDLE.
             if self.fsm.state in (DroneState.LANDING, DroneState.RTL):
                 if self.altitude < 1.0:
                     self.fsm.transition(DroneState.IDLE, force=True)
 
     def _sync_mode(self, mode: str):
-        """Sync FSM on mode change."""
+        """Sync FSM on mode change.
+
+        Handles normal mode transitions AND reconnect scenarios where
+        the drone is already flying in a specific mode on connect.
+        """
         mode = mode.upper()
+
+        # Reconnect recovery: drone is already flying but FSM is at rest.
+        _airborne_modes = (
+            "GUIDED",
+            "LOITER",
+            "AUTO",
+            "POSHOLD",
+            "OFFBOARD",
+            "ALTCTL",
+            "POSCTL",
+        )
+        if (
+            mode in _airborne_modes
+            and self.fsm.state in (DroneState.IDLE, DroneState.ARMED)
+            and self.telemetry.armed
+            and self.altitude > 1.0
+        ):
+            self.fsm.transition(DroneState.FLYING, force=True)
+
+        # Normal transitions
         if mode == "RTL" and self.fsm.is_airborne:
             self.fsm.transition(DroneState.RTL, force=True)
         elif mode == "LAND" and self.fsm.is_airborne:
