@@ -25,6 +25,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from tools.ui._version import VERSION
 from tools.ui.backend import SwarmBackend
 from tools.ui.dashboard_tab import DashboardTab
 from tools.ui.experiment_tab import ExperimentTab
@@ -35,7 +36,7 @@ from tools.ui.style import DARK_THEME, STATUSBAR_STYLESHEET, TAB_STYLESHEET, Col
 from tools.ui.swarm_tab import SwarmTab
 
 _APP_TITLE = "uavresearch gcs"
-_APP_VERSION = "v0.3.0"
+_APP_VERSION = f"v{VERSION}"
 
 
 class MainWindow(QMainWindow):

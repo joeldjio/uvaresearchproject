@@ -77,6 +77,12 @@ class SwarmContext(QObject):
     def addDroneTyped(
         self, drone_id: str, connection_string: str, drone_type: str
     ) -> None:
+        if self._backend.get_backend(drone_id) is not None:
+            self.logMessage.emit(
+                "WARN",
+                f"[{drone_id}] duplicate drone id refused — remove it first before re-adding",
+            )
+            return
         self.logMessage.emit(
             "INFO",
             f"[{drone_id}] 🔄 Connecting ({drone_type}) to {connection_string}...",
@@ -94,10 +100,24 @@ class SwarmContext(QObject):
         else:
             self.logMessage.emit("ERROR", f"[{drone_id}] ❌ Connection lost or failed")
 
+    def _clear_drone_runtime_state(self, drone_id: str) -> None:
+        """Forget mission/formation bookkeeping for a drone being removed."""
+        with self._state_lock:
+            ev = self._mission_active.pop(drone_id, None)
+            if ev is not None:
+                ev.set()
+            self._mission_threads.pop(drone_id, None)
+            self._formation_launched.discard(drone_id)
+            self._formation_cmd_ts.pop(drone_id, None)
+            if self._leader_drone_id == drone_id:
+                self._leader_drone_id = ""
+
     @pyqtSlot(str)
     def removeDrone(self, drone_id: str) -> None:
         self.logMessage.emit("INFO", f"[{drone_id}] 🗑 Removing drone from swarm")
+        self._clear_drone_runtime_state(drone_id)
         self._backend.remove_drone(drone_id)
+        self.countsChanged.emit()
 
     @pyqtSlot(str)
     def disconnectDrone(self, drone_id: str) -> None:
@@ -247,6 +267,74 @@ class SwarmContext(QObject):
     def changeAltitude(self, drone_id: str, alt: float) -> None:
         self._backend.change_altitude(drone_id, alt)
 
+    def _is_drone_mission_controlled(self, drone_id: str) -> bool:
+        """True while a drone is being navigated by a mission controller.
+
+        Covers both the UI's sequential-GOTO mission thread and native AUTO/
+        MISSION states reported by the backend telemetry.
+        """
+        with self._state_lock:
+            ev = self._mission_active.get(drone_id)
+            if ev is not None and not ev.is_set():
+                return True
+        b = self._backend.get_backend(drone_id)
+        if not b:
+            return False
+        snap = (
+            b.get_telemetry_snapshot() if hasattr(b, "get_telemetry_snapshot") else {}
+        )
+        flight_mode = str((snap or {}).get("flight_mode") or "").upper()
+        fsm_state = str(
+            (snap or {}).get("fsmState") or getattr(b, "fsm_state", "")
+        ).upper()
+        return flight_mode == "AUTO" or fsm_state == "MISSION"
+
+    def _offset_waypoints_for_lane(
+        self, wps: list, lane_index: int, lane_count: int, spacing_m: float = 6.0
+    ) -> list:
+        """Return a copy of ``wps`` laterally offset for one drone lane.
+
+        This prevents multiple drones dispatched with the same mission from
+        sitting on top of the exact same waypoint coordinates.
+        """
+        if lane_count <= 1:
+            return [dict(wp) for wp in wps]
+
+        lane_offset_m = (lane_index - (lane_count - 1) / 2.0) * spacing_m
+        if abs(lane_offset_m) < 1e-9:
+            return [dict(wp) for wp in wps]
+
+        import math
+
+        perp_n, perp_e = 0.0, 1.0
+        if len(wps) >= 2:
+            for i in range(len(wps) - 1):
+                a = wps[i]
+                b = wps[i + 1]
+                lat1 = float(a.get("lat", 0.0))
+                lon1 = float(a.get("lon", 0.0))
+                lat2 = float(b.get("lat", 0.0))
+                lon2 = float(b.get("lon", 0.0))
+                dn = (lat2 - lat1) * 111_320.0
+                de = (lon2 - lon1) * 111_320.0 * math.cos(math.radians(lat1))
+                norm = math.hypot(dn, de)
+                if norm > 1e-6:
+                    perp_n = -de / norm
+                    perp_e = dn / norm
+                    break
+
+        out = []
+        for wp in wps:
+            lat = float(wp.get("lat", 0.0))
+            lon = float(wp.get("lon", 0.0))
+            alt = float(wp.get("alt", 10.0))
+            dlat = (perp_n * lane_offset_m) / 111_320.0
+            dlon = (perp_e * lane_offset_m) / (
+                111_320.0 * max(0.1, math.cos(math.radians(lat)))
+            )
+            out.append({"lat": lat + dlat, "lon": lon + dlon, "alt": alt})
+        return out
+
     @pyqtSlot(str, str)
     def runMission(self, drone_id: str, waypoints_json: str) -> None:
         """Upload a JSON waypoints list and start AUTO mission on one drone.
@@ -258,6 +346,15 @@ class SwarmContext(QObject):
         import math
         import threading
         import time
+
+        if self._swarm_algorithms_active and (
+            self._boids_enabled or self._leader_follower_enabled
+        ):
+            self.logMessage.emit(
+                "WARN",
+                "[SWARM] Mission start detected — stopping active swarm algorithms to avoid goto conflicts",
+            )
+            self.stopSwarmAlgorithms()
 
         b = self._backend.get_backend(drone_id)
         if not b:
@@ -502,15 +599,41 @@ class SwarmContext(QObject):
                 "ERROR", f"runMissionMulti: invalid drone list — {exc}"
             )
             return
+        try:
+            wps = json.loads(waypoints_json)
+        except Exception as exc:
+            self.logMessage.emit(
+                "ERROR", f"runMissionMulti: invalid waypoint JSON — {exc}"
+            )
+            return
         if not ids:
             self.logMessage.emit("WARN", "runMissionMulti: no drones selected")
             return
+        if not wps:
+            self.logMessage.emit("WARN", "runMissionMulti: empty waypoint list")
+            return
+
+        if self._swarm_algorithms_active and (
+            self._boids_enabled or self._leader_follower_enabled
+        ):
+            self.logMessage.emit(
+                "WARN",
+                "[SWARM] Multi-mission start detected — stopping active swarm algorithms to avoid goto conflicts",
+            )
+            self.stopSwarmAlgorithms()
+
         self.logMessage.emit(
             "INFO",
             f"runMissionMulti: dispatching to {len(ids)} drone(s): {', '.join(ids)}",
         )
-        for did in ids:
-            self.runMission(did, waypoints_json)
+        if len(ids) > 1:
+            self.logMessage.emit(
+                "INFO",
+                "runMissionMulti: applying 6m lateral lane spacing to avoid waypoint stacking",
+            )
+        for lane_index, did in enumerate(ids):
+            drone_wps = self._offset_waypoints_for_lane(wps, lane_index, len(ids))
+            self.runMission(did, json.dumps(drone_wps))
 
     @pyqtSlot(str, str)
     def setMode(self, drone_id: str, mode: str) -> None:
@@ -1136,6 +1259,8 @@ class SwarmContext(QObject):
         }
 
         for drone_id in ids:
+            if self._is_drone_mission_controlled(drone_id):
+                continue
             my_n, my_e, my_alt = ned[drone_id]
             sep_n, sep_e = 0.0, 0.0
             ali_n, ali_e = 0.0, 0.0
@@ -1213,6 +1338,8 @@ class SwarmContext(QObject):
 
         if not self._leader_drone_id or self._leader_drone_id not in drone_positions:
             return
+        if self._is_drone_mission_controlled(self._leader_drone_id):
+            return
 
         leader_pos = drone_positions[self._leader_drone_id]
         formation_positions = self._calculate_formation_positions(
@@ -1239,6 +1366,8 @@ class SwarmContext(QObject):
         skipped_disconnected = []
         for drone_id, target_pos in formation_positions.items():
             if drone_id == self._leader_drone_id:
+                continue
+            if self._is_drone_mission_controlled(drone_id):
                 continue
             if drone_id not in drone_positions:
                 skipped_disconnected.append(drone_id)

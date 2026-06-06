@@ -685,6 +685,7 @@ Item {
                             var ids = Cmp.AppState.effectiveMissionTargets()
                             if (ids.length === 0) return
                             swarm.runMissionMulti(JSON.stringify(ids), JSON.stringify(arr))
+                            Cmp.AppState.clearMissionTargets()
                         }
                     }
                 }

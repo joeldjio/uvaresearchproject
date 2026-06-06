@@ -277,7 +277,8 @@ def _parse_ns(spec: str) -> List[int]:
 
 
 def main(argv: List[str] | None = None) -> int:
-    p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    desc = (__doc__ or "Swarm scaling benchmark").splitlines()[0]
+    p = argparse.ArgumentParser(description=desc)
     p.add_argument(
         "--ns",
         default="1,5,10,15,25,50,100",

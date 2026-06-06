@@ -88,6 +88,7 @@ Window {
         var ids = Cmp.AppState.effectiveMissionTargets()
         if (ids.length === 0) return
         swarm.runMissionMulti(JSON.stringify(ids), JSON.stringify(arr))
+        Cmp.AppState.clearMissionTargets()
         // ── One-shot semantics: snapshot the dispatched waypoints into the
         //    map's persistent "dispatched" layer (green markers + dashed
         //    polyline) so the user can still see the mission path, then

@@ -22,11 +22,12 @@ def main():
         from PyQt6.QtGui import QFont
         from PyQt6.QtWidgets import QApplication, QMessageBox
 
+        from tools.ui._version import VERSION
         from tools.ui.main_window import MainWindow
 
         app = QApplication(sys.argv)
         app.setApplicationName("uavresearch gcs")
-        app.setApplicationVersion("0.3.0")
+        app.setApplicationVersion(VERSION)
         app.setFont(QFont("Segoe UI", 10))
 
         # Show deprecation notice in UI

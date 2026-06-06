@@ -25,6 +25,7 @@ Usage
     for name, obj in locator.items():
         qml_ctx.setContextProperty(name, obj)
 """
+
 from __future__ import annotations
 
 from typing import Any, Callable, Dict, Iterator, Optional, Tuple
@@ -86,38 +87,45 @@ def build_default_locator() -> ServiceLocator:
 
     def _swarm():
         from tools.ui.context.swarm_context import SwarmContext
+
         return SwarmContext()
 
     def _telemetry():
         from tools.ui.context.telemetry_context import TelemetryModel
+
         return TelemetryModel()
 
     def _experiment():
         from tools.ui.context.experiment_context import ExperimentContext
+
         return ExperimentContext()
 
     def _safety():
         from tools.ui.context.safety_context import SafetyContext
+
         return SafetyContext()
 
     def _ros2():
         from tools.ui.context.ros2_context import ROS2Context
+
         return ROS2Context()
 
     def _updater():
         from tools.ui.updater import UpdaterContext
+
         return UpdaterContext()
 
     def _license():
         from tools.ui.license import LicenseManager
+
         return LicenseManager()
 
-    loc.register_factory("swarm",          _swarm)
+    loc.register_factory("swarm", _swarm)
     loc.register_factory("telemetryModel", _telemetry)
-    loc.register_factory("experiment",     _experiment)
-    loc.register_factory("safety",         _safety)
-    loc.register_factory("ros2",           _ros2)
-    loc.register_factory("updater",        _updater)
+    loc.register_factory("experiment", _experiment)
+    loc.register_factory("safety", _safety)
+    loc.register_factory("ros2", _ros2)
+    loc.register_factory("updater", _updater)
     loc.register_factory("licenseManager", _license)
     return loc
 
@@ -127,11 +135,11 @@ def wire(locator: ServiceLocator) -> None:
     Connect cross-context signals. Idempotent — safe to call once.
     All connections previously living in `app.py:run()` live here now.
     """
-    swarm      = locator["swarm"]
+    swarm = locator["swarm"]
     tele_model = locator["telemetryModel"]
     experiment = locator["experiment"]
-    safety     = locator["safety"]
-    ros2       = locator["ros2"]
+    safety = locator["safety"]
+    ros2 = locator["ros2"]
 
     # Telemetry → models
     swarm.telemetryUpdated.connect(
@@ -171,8 +179,10 @@ def wire(locator: ServiceLocator) -> None:
     safety.logMessage.connect(swarm.logMessage)
     safety.apfLogMessage.connect(
         lambda text: swarm.logMessage.emit(
-            "ERROR" if "VIOLATION" in text or "ERROR" in text
-            else "WARN" if "WARN" in text
+            "ERROR"
+            if "VIOLATION" in text or "ERROR" in text
+            else "WARN"
+            if "WARN" in text
             else "INFO",
             f"[SAFETY] {text}",
         )
@@ -190,20 +200,39 @@ def wire(locator: ServiceLocator) -> None:
             b = swarm.backend.get_backend(drone_id)
             if not b or not hasattr(b, "goto"):
                 return
-            # Never override an active mission — the drone is already
-            # executing a waypoint plan; an APF push would derail it.
-            mission_active = getattr(swarm, "_mission_active", set())
-            if drone_id in mission_active:
+            # Never override an active or native AUTO mission.
+            if hasattr(swarm, "_is_drone_mission_controlled"):
+                if swarm._is_drone_mission_controlled(drone_id):
+                    return
+            else:
+                mission_active = getattr(swarm, "_mission_active", ())
+                try:
+                    if drone_id in mission_active:
+                        return
+                except TypeError:
+                    pass
+            # Boids owns all drone goto commands while active.
+            if getattr(swarm, "_swarm_algorithms_active", False) and getattr(
+                swarm, "_boids_enabled", False
+            ):
                 return
-            # Skip if the drone is currently following a Leader-Follower
-            # formation (the formation update loop owns the goto commands).
-            if (getattr(swarm, "_swarm_algorithms_active", False)
-                    and getattr(swarm, "_leader_follower_enabled", False)
-                    and drone_id != getattr(swarm, "_leader_drone_id", "")):
+            # In Leader-Follower only followers are protected; the leader may
+            # still receive an APF push if needed.
+            if (
+                getattr(swarm, "_swarm_algorithms_active", False)
+                and getattr(swarm, "_leader_follower_enabled", False)
+                and drone_id != getattr(swarm, "_leader_drone_id", "")
+            ):
                 return
             # Only push armed/airborne drones — pushing an unarmed drone is a no-op
-            snap = b.get_telemetry_snapshot() if hasattr(b, "get_telemetry_snapshot") else {}
-            if not (snap and snap.get("armed", False) and snap.get("alt_rel", 0.0) > 0.5):
+            snap = (
+                b.get_telemetry_snapshot()
+                if hasattr(b, "get_telemetry_snapshot")
+                else {}
+            )
+            if not (
+                snap and snap.get("armed", False) and snap.get("alt_rel", 0.0) > 0.5
+            ):
                 return
             b.goto(lat, lon, alt)
             swarm.logMessage.emit(
