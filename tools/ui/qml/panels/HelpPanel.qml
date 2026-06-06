@@ -502,16 +502,75 @@ Item {
 
             // ── 15. Tastatur ───────────────────────────────────────────────
             HelpSection {
-                title: "TASTATUR & MAUS"
+                title: "TASTATUR & MAUS — SHORTCUTS"
                 accent: "#fbbf24"
                 body:
-                    "<b>ESC</b> &mdash; Waypoint-Modus / Map-Pick abbrechen<br>" +
-                    "<b>Klick auf Drohne in Sidebar</b> &mdash; Selected-Drone setzen<br>" +
-                    "<b>Klick auf Häkchen ☑</b> &mdash; Mission-Target toggeln (multi-select)<br>" +
-                    "<b>Linksklick Map (im WP-Modus)</b> &mdash; Wegpunkt setzen<br>" +
-                    "<b>Mausrad auf Map</b> &mdash; Zoom<br>" +
-                    "<b>Rechtsklick + Drag auf Map</b> &mdash; Pan<br>" +
-                    "<b>Strg+S in Script-Editor</b> &mdash; Save&amp;Run (Experiment-Tab)"
+                    // ─── Flug-Befehle ───────────────────────────────────────
+                    "<b style='color:#fbbf24;letter-spacing:1px;'>FLUG-BEFEHLE</b><br>" +
+                    "<table cellspacing='0' cellpadding='0' style='margin-top:4px;margin-bottom:10px;'>" +
+                    "<tr><td style='width:180px'><b style='color:#93c5fd;font-family:Consolas'>Strg + A</b></td>" +
+                        "<td style='color:#cbd5e1'>ARM &mdash; alle Mission-Targets armen (fällt auf Selected zurück)</td></tr>" +
+                    "<tr><td><b style='color:#93c5fd;font-family:Consolas'>Strg + D</b></td>" +
+                        "<td style='color:#cbd5e1'>DISARM &mdash; alle Mission-Targets disarmen</td></tr>" +
+                    "<tr><td><b style='color:#93c5fd;font-family:Consolas'>Strg + T</b></td>" +
+                        "<td style='color:#cbd5e1'>TAKEOFF auf 10 m AGL</td></tr>" +
+                    "<tr><td><b style='color:#93c5fd;font-family:Consolas'>Strg + L</b></td>" +
+                        "<td style='color:#cbd5e1'>LAND &mdash; in-place landen</td></tr>" +
+                    "<tr><td><b style='color:#93c5fd;font-family:Consolas'>Strg + Pos1</b></td>" +
+                        "<td style='color:#cbd5e1'>RTL &mdash; Return to Launch</td></tr>" +
+                    "<tr><td><b style='color:#ef4444;font-family:Consolas'>Strg + E</b></td>" +
+                        "<td style='color:#fca5a5'>EMERGENCY STOP &mdash; alle Drohnen sofort disarmen &#x26A0;</td></tr>" +
+                    "</table>" +
+
+                    // ─── Navigation ─────────────────────────────────────────
+                    "<b style='color:#fbbf24;letter-spacing:1px;'>NAVIGATION</b><br>" +
+                    "<table cellspacing='0' cellpadding='0' style='margin-top:4px;margin-bottom:10px;'>" +
+                    "<tr><td style='width:180px'><b style='color:#93c5fd;font-family:Consolas'>Strg + M</b></td>" +
+                        "<td style='color:#cbd5e1'>Zum Map-Tab springen</td></tr>" +
+                    "<tr><td><b style='color:#93c5fd;font-family:Consolas'>Strg + 1 … 9</b></td>" +
+                        "<td style='color:#cbd5e1'>Tab 1–9 direkt auswählen (1 = Map, 2 = Telemetry, 3 = Swarm, …)</td></tr>" +
+                    "</table>" +
+
+                    // ─── Karte / Mission ─────────────────────────────────────
+                    "<b style='color:#fbbf24;letter-spacing:1px;'>KARTE &amp; MISSION</b><br>" +
+                    "<table cellspacing='0' cellpadding='0' style='margin-top:4px;margin-bottom:10px;'>" +
+                    "<tr><td style='width:180px'><b style='color:#93c5fd;font-family:Consolas'>Strg + W</b></td>" +
+                        "<td style='color:#cbd5e1'>Waypoint-Modus aktivieren / deaktivieren</td></tr>" +
+                    "<tr><td><b style='color:#93c5fd;font-family:Consolas'>ESC</b></td>" +
+                        "<td style='color:#cbd5e1'>Waypoint-Modus / Map-Pick abbrechen (ohne WP zu setzen)</td></tr>" +
+                    "<tr><td><b style='color:#93c5fd;font-family:Consolas'>Linksklick (WP-Modus)</b></td>" +
+                        "<td style='color:#cbd5e1'>Wegpunkt auf Karte setzen</td></tr>" +
+                    "</table>" +
+
+                    // ─── System ──────────────────────────────────────────────
+                    "<b style='color:#fbbf24;letter-spacing:1px;'>SYSTEM</b><br>" +
+                    "<table cellspacing='0' cellpadding='0' style='margin-top:4px;margin-bottom:10px;'>" +
+                    "<tr><td style='width:180px'><b style='color:#93c5fd;font-family:Consolas'>F5</b></td>" +
+                        "<td style='color:#cbd5e1'>Serial-Ports im Header aktualisieren</td></tr>" +
+                    "<tr><td><b style='color:#93c5fd;font-family:Consolas'>Strg + S (Script-Editor)</b></td>" +
+                        "<td style='color:#cbd5e1'>Save &amp; Run im Experiment-Tab</td></tr>" +
+                    "</table>" +
+
+                    // ─── Maus ────────────────────────────────────────────────
+                    "<b style='color:#fbbf24;letter-spacing:1px;'>MAUS</b><br>" +
+                    "<table cellspacing='0' cellpadding='0' style='margin-top:4px;'>" +
+                    "<tr><td style='width:180px'><b style='color:#94a3b8'>Klick auf Drohne (Sidebar)</b></td>" +
+                        "<td style='color:#cbd5e1'>Selected-Drone setzen — Telemetrie-Anzeige folgt</td></tr>" +
+                    "<tr><td><b style='color:#94a3b8'>Klick auf ☑ (Swarm-Tab)</b></td>" +
+                        "<td style='color:#cbd5e1'>Mission-Target toggeln (Multi-Select)</td></tr>" +
+                    "<tr><td><b style='color:#94a3b8'>Mausrad auf Map</b></td>" +
+                        "<td style='color:#cbd5e1'>Zoom</td></tr>" +
+                    "<tr><td><b style='color:#94a3b8'>Rechtsklick + Drag</b></td>" +
+                        "<td style='color:#cbd5e1'>Karte schwenken (Pan)</td></tr>" +
+                    "<tr><td><b style='color:#94a3b8'>Klick auf Drohnen-Marker</b></td>" +
+                        "<td style='color:#cbd5e1'>Selected-Drone setzen + Karte zentrieren</td></tr>" +
+                    "</table>" +
+
+                    // ─── Hinweis ─────────────────────────────────────────────
+                    "<br><span style='color:#475569;font-style:italic;font-size:10px;'>" +
+                    "Alle Strg+-Shortcuts wirken auf die aktiven Mission-Targets (Häkchen-Set im Swarm-Tab). " +
+                    "Leeres Set: fällt auf Selected Drone zurück. Leere Selection: erste Drohne in der Liste." +
+                    "</span>"
             }
 
             // ── Footer ─────────────────────────────────────────────────────
