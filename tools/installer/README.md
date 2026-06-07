@@ -1,11 +1,12 @@
-# Windows Installer Build Pipeline
+# Installer Build Pipeline
 
-End-to-end build of two self-contained Windows installers:
+End-to-end build of self-contained release artifacts for Windows and Linux:
 
-| Installer | Product | What it bundles | Approx. size |
-|---|---|---|---|
-| `DroneResearch-CLI-Setup-X.Y.Z.exe` | DroneResearch (research backend, headless) | `droneresearch.exe` + SDK + safety + experiment runner. No PyQt6, no QtWebEngine. | ~86 MB |
-| `uavresearch-gcs-setup-X.Y.Z.exe` | **uavresearch gcs** (UAVResearch ground control station) | `uavresearch gcs.exe` (QML dashboard) + the DroneResearch backend + PyQt6 + WebEngine + pyqtgraph + 3D mesh assets. | ~450 MB |
+| Artifact | Platform | Product | What it bundles | Approx. size |
+|---|---|---|---|---|
+| `DroneResearch-CLI-Setup-X.Y.Z.exe` | Windows | DroneResearch (research backend, headless) | `droneresearch.exe` + SDK + safety + experiment runner. No PyQt6, no QtWebEngine. | ~86 MB |
+| `uavresearch-gcs-setup-X.Y.Z.exe` | Windows | **uavresearch gcs** | `uavresearch gcs.exe` (QML dashboard) + the DroneResearch backend + PyQt6 + WebEngine + pyqtgraph + 3D mesh assets. | ~450 MB |
+| `uavresearch-gcs_X.Y.Z_amd64_jammy.deb` | Ubuntu 22.04 / Jammy | **uavresearch gcs** | Linux PyInstaller bundle under `/opt/uavresearch-gcs` + desktop entry + icon + launcher. | ~450 MB |
 
 Both installers ship **all** runtime dependencies — end users do **not** need a separate Python install.
 
@@ -16,7 +17,8 @@ Both installers ship **all** runtime dependencies — end users do **not** need 
 ```
 tools/installer/
 ├── README.md                       ← this file
-├── build.ps1                       ← orchestrator (run this)
+├── build.ps1                       ← Windows orchestrator (run this)
+├── build_linux_deb.sh              ← Ubuntu 22.04 / Jammy .deb builder
 ├── requirements_build.txt          ← build-time deps (PyInstaller, Pillow, …)
 │
 ├── icon/
@@ -38,8 +40,9 @@ tools/installer/
 │   └── uavresearch_gcs.iss                  ← Inno Setup script — uavresearch gcs
 │
 └── out/                            ← (generated, gitignored)
-    ├── DroneResearch-CLI-Setup-0.2.0.exe
-    └── uavresearch-gcs-setup-0.2.0.exe
+    ├── DroneResearch-CLI-Setup-X.Y.Z.exe
+    ├── uavresearch-gcs-setup-X.Y.Z.exe
+    └── uavresearch-gcs_X.Y.Z_amd64_jammy.deb
 ```
 
 ---
@@ -58,18 +61,38 @@ tools/installer/
 
 ## One-shot build
 
+### Windows
+
 From the repository root:
 
 ```powershell
 .\tools\installer\build.ps1
 ```
 
-This will:
+### Ubuntu 22.04 / Jammy
+
+From the repository root:
+
+```bash
+chmod +x tools/installer/build_linux_deb.sh
+./tools/installer/build_linux_deb.sh
+```
+
+See also: `tools/installer/LINUX_JAMMY_BUILD.md`
+
+Windows build will:
 
 1. Regenerate `assets/uavresearch_icon.ico`, the wizard BMPs, and the preview PNG.
 2. Run PyInstaller for the CLI bundle  → `dist\DroneResearchCLI\`.
 3. Run PyInstaller for the GCS bundle  → `dist\UAVResearchGCS\`.
 4. Compile both Inno Setup scripts     → `tools\installer\out\*.exe`.
+
+Jammy build will:
+
+1. Regenerate installer assets.
+2. Run PyInstaller for the Linux GCS bundle → `dist/UAVResearchGCS/`.
+3. Assemble a Debian package with launcher, icon, and desktop file.
+4. Write `tools/installer/out/uavresearch-gcs_X.Y.Z_amd64_jammy.deb`.
 
 Typical full build: 4–8 minutes on a modern desktop, dominated by the GCS bundle compression (LZMA2 ultra64).
 
@@ -156,6 +179,17 @@ Verify the path layout under `dist\UAVResearchGCS\_internal\tools\ui\qml\`. If i
 
 ---
 
+## Linux Jammy packaging
+
+The Linux package builder creates a native `.deb` for Ubuntu 22.04:
+
+- App files live under `/opt/uavresearch-gcs`
+- Launcher command: `uavresearch-gcs`
+- Desktop entry: `uavresearch-gcs.desktop`
+- Icon: `/usr/share/icons/hicolor/256x256/apps/uavresearch-gcs.png`
+
+Important: build the Jammy package on Linux (ideally Ubuntu 22.04 itself, or GitHub Actions `ubuntu-22.04`). Do not build the Linux package on Windows if you want a reliable release artifact.
+
 ## Update flow (uavresearch gcs)
 
 The installed uavresearch gcs application can fetch its own updates from GitHub
@@ -180,12 +214,17 @@ What the maintainer (you) needs to do for each release:
 
 1. Bump `VERSION` in `tools/ui/_version.py`.
 2. Mirror it in `tools/installer/inno/uavresearch_gcs.iss` (`#define AppVersion`).
-3. `git tag v0.3.0 && git push --tags`
-4. Run `tools\installer\build.ps1`.
-5. Create a GitHub Release for the tag and upload the produced
-   `tools\installer\out\uavresearch-gcs-setup-0.3.0.exe` as a release asset.
-   The filename **must** start with `uavresearch-gcs-setup-` and end with `.exe`
-   so the updater can find it.
+3. Create and push the tag, for example `git tag v0.3.1 && git push --tags`.
+4. Build the Windows installer with `tools\installer\build.ps1`.
+5. Build the Linux package on Ubuntu 22.04 with `tools/installer/build_linux_deb.sh`.
+6. Create a GitHub Release for the tag and upload:
+   - `tools\installer\out\uavresearch-gcs-setup-0.3.1.exe`
+   - `tools/installer/out/uavresearch-gcs_0.3.1_amd64_jammy.deb`
+   Example:
+   - `gh release create v0.3.1 tools\installer\out\uavresearch-gcs-setup-0.3.1.exe --title "uavresearch gcs 0.3.1" --notes-file tools\installer\RELEASE_NOTES_v0.3.1.md`
+   - `gh release upload v0.3.1 tools/installer/out/uavresearch-gcs_0.3.1_amd64_jammy.deb`
+7. Keep the Windows asset name starting with `uavresearch-gcs-setup-` and ending with `.exe`
+   so the in-app updater can find it.
 
 That's it — every running uavresearch gcs instance picks the update up on the
 next time the user clicks "Nach Updates suchen".
@@ -197,10 +236,11 @@ no analytics, no auto-apply without explicit user click.
 
 ## Distribution to testers / customers
 
-For every person who should try / buy uavresearch gcs you ship **one file**:
+For every person who should try / buy uavresearch gcs you ship the platform-matching file:
 
-```
-tools\installer\out\uavresearch-gcs-setup-X.Y.Z.exe
+```text
+Windows: tools\installer\out\uavresearch-gcs-setup-X.Y.Z.exe
+Linux:   tools/installer/out/uavresearch-gcs_X.Y.Z_amd64_jammy.deb
 ```
 
 Typical channels: WeTransfer, OneDrive / Google Drive share link, USB stick. The recipient:

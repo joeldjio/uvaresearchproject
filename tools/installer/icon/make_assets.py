@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from typing import Any
 
 try:
     from PIL import Image, ImageDraw, ImageFilter, ImageFont
@@ -37,8 +38,13 @@ BLUE_DEEP = (15, 17, 23)  # #0f1117
 WHITE = (255, 255, 255)
 WHITE_SOFT = (226, 232, 240)
 
+if hasattr(Image, "Resampling"):
+    RESAMPLING_LANCZOS = Image.Resampling.LANCZOS
+else:
+    RESAMPLING_LANCZOS = getattr(Image, "LANCZOS")
 
-def _font(size: int) -> ImageFont.FreeTypeFont:
+
+def _font(size: int) -> Any:
     candidates = [
         "segoeuib.ttf",
         "seguibl.ttf",
@@ -54,17 +60,24 @@ def _font(size: int) -> ImageFont.FreeTypeFont:
     return ImageFont.load_default()
 
 
+def _vertical_gradient(
+    size: tuple[int, int], top: tuple[int, int, int], bottom: tuple[int, int, int]
+) -> Image.Image:
+    width, height = size
+    grad = Image.new("RGB", (1, height))
+    for y in range(height):
+        t = y / max(1, height - 1)
+        r = int(top[0] * (1 - t) + bottom[0] * t)
+        g = int(top[1] * (1 - t) + bottom[1] * t)
+        b = int(top[2] * (1 - t) + bottom[2] * t)
+        grad.putpixel((0, y), (r, g, b))
+    return grad.resize((width, height))
+
+
 def _rounded_gradient_square(size: int, radius_frac: float = 0.22) -> Image.Image:
     img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
 
-    grad = Image.new("RGB", (1, size))
-    for y in range(size):
-        t = y / max(1, size - 1)
-        r = int(BLUE[0] * (1 - t) + BLUE_DARK[0] * t)
-        g = int(BLUE[1] * (1 - t) + BLUE_DARK[1] * t)
-        b = int(BLUE[2] * (1 - t) + BLUE_DARK[2] * t)
-        grad.putpixel((0, y), (r, g, b))
-    grad = grad.resize((size, size))
+    grad = _vertical_gradient((size, size), BLUE, BLUE_DARK)
 
     mask = Image.new("L", (size, size), 0)
     radius = int(size * radius_frac)
@@ -153,22 +166,13 @@ def build_icon_png(size: int = 256) -> Image.Image:
 def build_ico(out_path: Path) -> None:
     sizes = [16, 24, 32, 48, 64, 128, 256]
     base = build_icon_png(512)
-    images = [base.resize((s, s), Image.LANCZOS) for s in sizes]
-    images[0].save(out_path, format="ICO", sizes=[(s, s) for s in sizes])
+    base.save(out_path, format="ICO", sizes=[(s, s) for s in sizes])
     print(f"[icon]  wrote {out_path}  ({len(sizes)} resolutions)")
 
 
 def build_wizard_large(out_path: Path) -> None:
     w, h = 164, 314
-    img = Image.new("RGB", (w, h), BLUE_DEEP)
-
-    for y in range(h):
-        t = y / max(1, h - 1)
-        r = int(BLUE_DEEP[0] * (1 - t) + BLUE_DARK[0] * t)
-        g = int(BLUE_DEEP[1] * (1 - t) + BLUE_DARK[1] * t)
-        b = int(BLUE_DEEP[2] * (1 - t) + BLUE_DARK[2] * t)
-        for x in range(w):
-            img.putpixel((x, y), (r, g, b))
+    img = _vertical_gradient((w, h), BLUE_DEEP, BLUE_DARK)
 
     badge = build_icon_png(112)
     img.paste(badge, ((w - 112) // 2, 28), badge)
@@ -192,7 +196,7 @@ def build_wizard_large(out_path: Path) -> None:
 
 
 def build_wizard_small(out_path: Path) -> None:
-    img = build_icon_png(110).convert("RGB").resize((55, 55), Image.LANCZOS)
+    img = build_icon_png(110).convert("RGB").resize((55, 55), RESAMPLING_LANCZOS)
     img.save(out_path, format="BMP")
     print(f"[wizard] wrote {out_path}  (small 55×55)")
 

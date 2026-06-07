@@ -34,21 +34,25 @@ Installers are available under the **Releases** section:
 https://github.com/joeldjio/uavresearch-gcs-releases/releases
 ```
 
-Download the newest Windows installer asset named like:
+Download the newest release assets named like:
 
 ```text
 uavresearch-gcs-setup-X.Y.Z.exe
+uavresearch-gcs_X.Y.Z_amd64_jammy.deb
 ```
 
-Example:
+Examples:
 
 ```text
-uavresearch-gcs-setup-0.3.0.exe
+uavresearch-gcs-setup-0.3.1.exe
+uavresearch-gcs_0.3.1_amd64_jammy.deb
 ```
 
 ## Updates
 
 uavresearch gcs checks this repository for new GitHub Releases.
+
+The in-app updater currently handles the Windows installer only.
 
 The in-app updater looks for installer assets whose file name starts with:
 
@@ -98,8 +102,9 @@ For every release:
 
 1. Build the installer in the private source repository.
 2. Create a new GitHub Release in this repository.
-3. Use a version tag like `v0.3.0`.
-4. Upload `uavresearch-gcs-setup-X.Y.Z.exe` as the release asset.
-5. Add short release notes.
-6. Publish the release.
-7. Test the in-app updater from an installed uavresearch gcs copy.
+3. Use a version tag like `v0.3.1`.
+4. Upload `uavresearch-gcs-setup-X.Y.Z.exe` as the Windows release asset.
+5. Upload `uavresearch-gcs_X.Y.Z_amd64_jammy.deb` as the Linux release asset.
+6. Add short release notes.
+7. Publish the release.
+8. Test the Windows in-app updater from an installed uavresearch gcs copy.

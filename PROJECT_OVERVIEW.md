@@ -355,25 +355,25 @@ git push origin feature/com-port-scan
 
 ```powershell
 # 1. Versionen synchron hochzählen
-#    tools/ui/_version.py            : VERSION = "0.3.0"
-#    tools/installer/inno/uavresearch_gcs.iss  : #define AppVersion "0.3.0"
+#    tools/ui/_version.py            : VERSION = "0.3.1"
+#    tools/installer/inno/uavresearch_gcs.iss  : #define AppVersion "0.3.1"
 
 # 2. Commit + Tag
 git add -A
-git commit -m "release: v0.3.0"
-git tag -a v0.3.0 -m "uavresearch gcs 0.3.0"
+git commit -m "release: v0.3.1"
+git tag -a v0.3.1 -m "uavresearch gcs 0.3.1"
 git push origin ui-dashboard --tags
 
-# 3. Bauen (~5 Min)
+# 3. Windows-Installer bauen (~5 Min)
 .\tools\installer\build.ps1
 
-# 4. Release auf GitHub
-gh release create v0.3.0 `
-  tools\installer\out\uavresearch-gcs-setup-0.3.0.exe `
-  --title "uavresearch gcs 0.3.0" `
-  --notes "Was neu ist..."
+# 4. Release auf GitHub (Windows-Asset)
+gh release create v0.3.1 `
+  tools\installer\out\uavresearch-gcs-setup-0.3.1.exe `
+  --title "uavresearch gcs 0.3.1" `
+  --notes-file tools\installer\RELEASE_NOTES_v0.3.1.md
 
-# 5. Bestehende Kunden klicken im Help-Tab auf "Updates suchen" → Update läuft auto.
+# 5. Bestehende Kunden klicken im Help-Tab auf "Updates suchen" → Windows-Update läuft auto.
 ```
 
 ---
@@ -387,7 +387,7 @@ gh release create v0.3.0 `
 Wenn du auf GitHub einen Release mit Asset hochlädst:
 
 ```text
-uavresearch-gcs-setup-0.3.0.exe
+uavresearch-gcs-setup-0.3.1.exe
 ```
 
 dann kann jeder, der Zugriff auf die Release-Seite hat, diese `.exe`
@@ -444,25 +444,61 @@ kein Source-Code und kein `LICENSE_SECRET`.
 
 ```powershell
 # 1. Versionen anpassen:
-# tools/ui/_version.py -> VERSION = "0.3.0"
-# tools/installer/inno/uavresearch_gcs.iss -> AppVersion "0.3.0"
+# tools/ui/_version.py -> VERSION = "0.3.1"
+# tools/installer/inno/uavresearch_gcs.iss -> AppVersion "0.3.1"
 
 # 2. Commit + Tag
 git status
 git add -A
-git commit -m "release: v0.3.0"
-git tag -a v0.3.0 -m "uavresearch gcs 0.3.0"
+git commit -m "release: v0.3.1"
+git tag -a v0.3.1 -m "uavresearch gcs 0.3.1"
 git push origin ui-dashboard --tags
 
-# 3. Installer bauen
+# 3. Windows-Installer bauen
 .\tools\installer\build.ps1
 
 # 4. GitHub Release erstellen
-gh release create v0.3.0 `
-  tools\installer\out\uavresearch-gcs-setup-0.3.0.exe `
-  --title "uavresearch gcs 0.3.0" `
-  --notes "Neue Version mit Bugfixes und Verbesserungen."
+gh release create v0.3.1 `
+  tools\installer\out\uavresearch-gcs-setup-0.3.1.exe `
+  --title "uavresearch gcs 0.3.1" `
+  --notes-file tools\installer\RELEASE_NOTES_v0.3.1.md
+
+# 5. Linux-.deb zusätzlich hochladen
+gh release upload v0.3.1 `
+  tools/installer/out/uavresearch-gcs_0.3.1_amd64_jammy.deb
 ```
+
+### 7A.5b Wie baue ich direkt auf Linux / Ubuntu 22.04 Jammy?
+
+```bash
+sudo apt-get update
+sudo apt-get install -y \
+  python3 python3-pip python3-venv \
+  build-essential dpkg-dev \
+  libegl1 libgl1 libxkbcommon-x11-0 libdbus-1-3 \
+  libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
+  libxcb-randr0 libxcb-render-util0 libxcb-shape0 \
+  libxcb-xinerama0 libxcb-xfixes0
+
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r tools/installer/requirements_build.txt
+python -m pip install . requests
+chmod +x tools/installer/build_linux_deb.sh
+./tools/installer/build_linux_deb.sh
+```
+
+Output:
+
+```text
+tools/installer/out/uavresearch-gcs_0.3.1_amd64_jammy.deb
+```
+
+Wichtig:
+- Linux-Paket auf Linux bauen, idealerweise direkt auf Ubuntu 22.04.
+- Das Windows-Update in der App sucht weiterhin nach der `.exe`.
+- Das `.deb` ist ein zusätzliches Release-Asset für Linux-Nutzer.
 
 Wenn du ein separates Release-Repo verwendest, muss der Release dort erstellt
 werden, nicht im privaten Code-Repo.
@@ -724,9 +760,9 @@ Bei jedem Release muss die Version an mindestens diesen Stellen gleich sein:
 ```text
 tools/ui/_version.py
 tools/installer/inno/uavresearch_gcs.iss
-Git tag, z. B. v0.3.0
-Installer-Datei, z. B. uavresearch-gcs-setup-0.3.0.exe
-GitHub Release, z. B. uavresearch gcs 0.3.0
+Git tag, z. B. v0.3.1
+Installer-Datei, z. B. uavresearch-gcs-setup-0.3.1.exe
+GitHub Release, z. B. uavresearch gcs 0.3.1
 ```
 
 Wenn diese Versionen nicht zusammenpassen, kann der Updater falsche Ergebnisse
@@ -749,7 +785,7 @@ uavresearch-gcs-setup-*.exe
 Beispiel:
 
 ```text
-uavresearch-gcs-setup-0.3.0.exe
+uavresearch-gcs-setup-0.3.1.exe
 ```
 
 Wenn der Asset-Name anders ist, findet die App kein Update.
@@ -889,7 +925,7 @@ Strengere Checkliste:
 2. Neues öffentliches Release-Repo erstellen.
 3. `GITHUB_REPO` auf Release-Repo ändern.
 4. `LICENSE_SECRET` ersetzen.
-5. Version auf `0.3.0` erhöhen.
+5. Version auf `0.3.1` erhöhen.
 6. Tests laufen lassen.
 7. Installer bauen.
 8. Release mit Installer hochladen.
@@ -918,7 +954,8 @@ Kanal für fertige Installer.
 
 Erlaubt:
 - GitHub Releases
-- Installer-Dateien wie `uavresearch-gcs-setup-0.3.0.exe`
+- Installer-Dateien wie `uavresearch-gcs-setup-0.3.1.exe`
+- Linux-Pakete wie `uavresearch-gcs_0.3.1_amd64_jammy.deb`
 - Release Notes
 - README mit Download-/Lizenzhinweisen
 
@@ -972,19 +1009,20 @@ https://github.com/joeldjio/uavresearch-gcs-releases
 5. Tag setzen, z. B.:
 
 ```text
-v0.3.0
+v0.3.1
 ```
 
 6. Titel setzen:
 
 ```text
-uavresearch gcs 0.3.0
+uavresearch gcs 0.3.1
 ```
 
 7. Installer hochladen:
 
 ```text
-tools\installer\out\uavresearch-gcs-setup-0.3.0.exe
+tools\installer\out\uavresearch-gcs-setup-0.3.1.exe
+tools/installer/out/uavresearch-gcs_0.3.1_amd64_jammy.deb
 ```
 
 8. Release Notes schreiben.
@@ -995,7 +1033,7 @@ tools\installer\out\uavresearch-gcs-setup-0.3.0.exe
 Der Tag im Release-Repo ist nur für Veröffentlichungen/Updates. Der private
 Code bleibt im privaten Code-Repo.
 
-Wenn du im Release-Repo einen Tag `v0.3.0` erstellst, sieht die Öffentlichkeit
+Wenn du im Release-Repo einen Tag `v0.3.1` erstellst, sieht die Öffentlichkeit
 nur:
 - Release Name
 - Release Notes
@@ -1122,8 +1160,8 @@ Für einen echten Release immer committen, taggen und pushen:
 
 ```powershell
 git add -A
-git commit -m "release: v0.3.0"
-git tag -a v0.3.0 -m "uavresearch gcs 0.3.0"
+git commit -m "release: v0.3.1"
+git tag -a v0.3.1 -m "uavresearch gcs 0.3.1"
 git push origin ui-dashboard --tags
 ```
 
@@ -1133,10 +1171,11 @@ Dann bauen:
 .\tools\installer\build.ps1
 ```
 
-Dann die Datei hochladen:
+Dann die Dateien hochladen:
 
 ```text
-tools\installer\out\uavresearch-gcs-setup-0.3.0.exe
+tools\installer\out\uavresearch-gcs-setup-0.3.1.exe
+tools/installer/out/uavresearch-gcs_0.3.1_amd64_jammy.deb
 ```
 
-als GitHub Release Asset zum Tag `v0.3.0`.
+als GitHub Release Assets zum Tag `v0.3.1`.

@@ -12,8 +12,8 @@
       4. Compile both Inno Setup scripts     → tools\installer\out\
 
     Output:
-      tools\installer\out\DroneResearch-CLI-Setup-0.2.0.exe
-      tools\installer\out\uavresearch-gcs-setup-0.2.0.exe
+      tools\installer\out\DroneResearch-CLI-Setup-X.Y.Z.exe
+      tools\installer\out\uavresearch-gcs-setup-X.Y.Z.exe
 
 .PARAMETER Target
     Which installer(s) to build: 'cli', 'gcs', or 'all' (default).

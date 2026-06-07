@@ -13,16 +13,18 @@ Update procedure
 ----------------
 1. Bump VERSION here.
 2. Update tools/installer/inno/uavresearch_gcs.iss line ``#define AppVersion``.
-3. Tag the release: ``git tag v0.3.0 && git push --tags``.
-4. Run ``tools/installer/build.ps1``.
-5. Upload the produced installer to the GitHub release as an asset
+3. Tag the release: ``git tag v0.3.1 && git push --tags``.
+4. Build the installers:
+   - Windows: ``tools/installer/build.ps1``
+   - Ubuntu 22.04 / Jammy: ``tools/installer/build_linux_deb.sh``
+5. Upload the produced Windows installer to the GitHub release as an asset
    whose name starts with ``uavresearch-gcs-setup-`` and ends with ``.exe``.
-   (The updater downloads any asset matching that pattern.)
+   (The in-app updater downloads any asset matching that pattern.)
 """
 
 from __future__ import annotations
 
-VERSION: str = "0.3.0"
+VERSION: str = "0.3.1"
 
 # Asset-name prefix the in-app updater looks for when scanning a
 # GitHub release. Must match ``OutputBaseFilename`` in the .iss file.

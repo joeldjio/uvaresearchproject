@@ -16,12 +16,18 @@ on:
 
 jobs:
   build:
-    name: Build ${{ matrix.os }}
+    name: Build ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, macos-latest, ubuntu-latest]
+        include:
+          - name: windows
+            os: windows-latest
+          - name: macos
+            os: macos-latest
+          - name: linux-jammy
+            os: ubuntu-22.04
 
     steps:
       - name: Checkout
@@ -44,32 +50,52 @@ jobs:
           python -m pip install -r tools/installer/requirements_build.txt
           python -m pip install . requests
 
+      - name: Install Inno Setup
+        if: runner.os == 'Windows'
+        run: choco install innosetup --no-progress -y
+
       - name: Generate installer assets
+        if: runner.os != 'Linux'
         run: python tools/installer/icon/make_assets.py
 
       - name: Build uavresearch gcs bundle
+        if: runner.os != 'Linux'
         run: pyinstaller tools/installer/specs/uavresearch_gcs.spec --noconfirm --clean
 
-      - name: Package bundle on Windows
+      - name: Build Jammy Debian package
+        if: runner.os == 'Linux'
+        run: |
+          chmod +x tools/installer/build_linux_deb.sh
+          tools/installer/build_linux_deb.sh
+
+      - name: Build Windows installer
         if: runner.os == 'Windows'
         shell: pwsh
-        run: Compress-Archive -Path dist/UAVResearchGCS -DestinationPath uavresearch-gcs-windows.zip -Force
-
-      - name: Package bundle on macOS/Linux
-        if: runner.os != 'Windows'
         run: |
-          tar -czf "uavresearch-gcs-${{ runner.os }}.tar.gz" -C dist UAVResearchGCS
+          & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' /Q tools\installer\inno\uavresearch_gcs.iss
+
+      - name: Package bundle on macOS
+        if: runner.os == 'macOS'
+        run: |
+          tar -czf "uavresearch-gcs-macos.tar.gz" -C dist UAVResearchGCS
 
       - name: Upload Windows artifact
         if: runner.os == 'Windows'
         uses: actions/upload-artifact@v4
         with:
           name: uavresearch-gcs-windows
-          path: uavresearch-gcs-windows.zip
+          path: tools/installer/out/uavresearch-gcs-setup-*.exe
 
-      - name: Upload macOS/Linux artifact
-        if: runner.os != 'Windows'
+      - name: Upload macOS artifact
+        if: runner.os == 'macOS'
         uses: actions/upload-artifact@v4
         with:
-          name: uavresearch-gcs-${{ runner.os }}
-          path: uavresearch-gcs-${{ runner.os }}.tar.gz
+          name: uavresearch-gcs-macos
+          path: uavresearch-gcs-macos.tar.gz
+
+      - name: Upload Jammy Debian artifact
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: uavresearch-gcs-linux-jammy
+          path: tools/installer/out/*.deb

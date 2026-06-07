@@ -15,16 +15,25 @@ QML Slots:
   - clearObstacles()                     -> Clear all obstacles
   - setGeofence(radius, altMin, altMax)  -> Update geofence
 """
-import math
-from typing import Dict, List, Tuple
 
-from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot, pyqtProperty, QTimer
+import math
+from typing import Any, Dict, List, NamedTuple, Tuple
+
+from PyQt6.QtCore import QObject, QTimer, pyqtProperty, pyqtSignal, pyqtSlot
 
 try:
-    from droneresearch.safety.apf import APFSafetyFilter as _APFSafetyFilter, Pose3D as _Pose3D
+    from droneresearch.safety.apf import APFSafetyFilter as _APFSafetyFilter
+    from droneresearch.safety.apf import Pose3D as _Pose3D
 except ImportError:
     _APFSafetyFilter = None
     _Pose3D = None
+
+
+class _DronePosition(NamedTuple):
+    x: float
+    y: float
+    z: float
+    armed: bool
 
 
 class SafetyContext(QObject):
@@ -36,18 +45,23 @@ class SafetyContext(QObject):
     geofenceBreached = pyqtSignal(str, str, arguments=["droneId", "reason"])
     apfActiveChanged = pyqtSignal()
     safetyStatusChanged = pyqtSignal()
-    logMessage = pyqtSignal(str, str, arguments=["level", "text"])  # For global system integration
+    logMessage = pyqtSignal(
+        str, str, arguments=["level", "text"]
+    )  # For global system integration
     # Active collision-avoidance command: target_lat, target_lon, target_alt
-    avoidanceTriggered = pyqtSignal(str, float, float, float, arguments=["droneId", "lat", "lon", "alt"])
+    avoidanceTriggered = pyqtSignal(
+        str, float, float, float, arguments=["droneId", "lat", "lon", "alt"]
+    )
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self._apf = None
         self._active = False
         self._last_violations: List[Tuple[str, str, float]] = []
-        self._drone_positions: Dict[str, Tuple[float, float, float]] = {}
+        self._drone_positions: Dict[str, _DronePosition] = {}
         self._ref_lat = 0.0
         self._ref_lon = 0.0
+        self._ref_lon_scale = 111_320.0
         self._ref_set = False
 
         # Rate-limit tables: key → last_emit_timestamp (monotonic seconds)
@@ -73,20 +87,22 @@ class SafetyContext(QObject):
     @pyqtSlot("QVariant")
     def configureAPF(self, params=None) -> None:
         """Configure APF with parameters from QML.
-        
+
         params dict keys:
             minSeparation, maxSpeed, repulsionGain, attractionGain,
             geofenceRadius, geofenceAltMin, geofenceAltMax, obstacleRadius
         """
         if _APFSafetyFilter is None:
-            self.apfLogMessage.emit("[APF] ERROR: droneresearch.safety.apf not available")
+            self.apfLogMessage.emit(
+                "[APF] ERROR: droneresearch.safety.apf not available"
+            )
             return
 
         try:
             # QJSValue from QML does not have .get() — convert to plain dict
             if params is None:
                 p = {}
-            elif hasattr(params, 'toVariant'):
+            elif hasattr(params, "toVariant"):
                 p = params.toVariant() or {}
             elif isinstance(params, dict):
                 p = params
@@ -105,14 +121,14 @@ class SafetyContext(QObject):
                     return default
 
             # Extract parameters with defaults
-            min_sep    = _g("minSeparation",  2.0)
-            max_spd    = _g("maxSpeed",        3.0)
-            rep_gain   = _g("repulsionGain",   2.0)
-            att_gain   = _g("attractionGain",  1.0)
-            gf_radius  = _g("geofenceRadius",  50.0)
-            gf_alt_min = _g("geofenceAltMin",  1.0)
-            gf_alt_max = _g("geofenceAltMax",  30.0)
-            obs_radius = _g("obstacleRadius",  4.0)
+            min_sep = _g("minSeparation", 2.0)
+            max_spd = _g("maxSpeed", 3.0)
+            rep_gain = _g("repulsionGain", 2.0)
+            att_gain = _g("attractionGain", 1.0)
+            gf_radius = _g("geofenceRadius", 50.0)
+            gf_alt_min = _g("geofenceAltMin", 1.0)
+            gf_alt_max = _g("geofenceAltMax", 30.0)
+            obs_radius = _g("obstacleRadius", 4.0)
 
             self._apf = _APFSafetyFilter(
                 min_separation=min_sep,
@@ -125,7 +141,9 @@ class SafetyContext(QObject):
             )
             self._active = True
             self.apfActiveChanged.emit()
-            self.apfLogMessage.emit(f"[APF] Configured: min_sep={min_sep}m, gf_r={gf_radius}m")
+            self.apfLogMessage.emit(
+                f"[APF] Configured: min_sep={min_sep}m, gf_r={gf_radius}m"
+            )
 
             # Start monitoring
             if not self._poll_timer.isActive():
@@ -149,7 +167,9 @@ class SafetyContext(QObject):
         """Add static obstacle at local NED position."""
         if self._apf:
             self._apf.add_obstacle(x, y, z)
-            self.apfLogMessage.emit(f"[APF] Obstacle added at ({x:.1f}, {y:.1f}, {z:.1f})")
+            self.apfLogMessage.emit(
+                f"[APF] Obstacle added at ({x:.1f}, {y:.1f}, {z:.1f})"
+            )
 
     @pyqtSlot()
     def clearObstacles(self) -> None:
@@ -166,7 +186,9 @@ class SafetyContext(QObject):
             self._apf.geofence.radius = radius
             self._apf.geofence.alt_min = alt_min
             self._apf.geofence.alt_max = alt_max
-            self.apfLogMessage.emit(f"[APF] Geofence: R={radius}m, Alt=[{alt_min},{alt_max}]m")
+            self.apfLogMessage.emit(
+                f"[APF] Geofence: R={radius}m, Alt=[{alt_min},{alt_max}]m"
+            )
 
     # ── Separation Checking ───────────────────────────────────────────────────
     @pyqtSlot()
@@ -177,7 +199,7 @@ class SafetyContext(QObject):
     @pyqtSlot("QVariant")
     def updateDronePositions(self, positions: dict) -> None:
         """Update drone positions from telemetry.
-        
+
         positions: {droneId: {lat, lon, alt, armed}}
         """
         if not isinstance(positions, dict):
@@ -195,30 +217,36 @@ class SafetyContext(QObject):
             if not self._ref_set and lat != 0.0:
                 self._ref_lat = lat
                 self._ref_lon = lon
+                self._ref_lon_scale = 111_320.0 * math.cos(math.radians(self._ref_lat))
                 self._ref_set = True
 
             # Convert to local NED
             if self._ref_set:
                 x = (lat - self._ref_lat) * 111_320.0
-                y = (lon - self._ref_lon) * 111_320.0 * math.cos(math.radians(self._ref_lat))
-                self._drone_positions[did] = (x, y, alt, armed)
+                y = (lon - self._ref_lon) * self._ref_lon_scale
+                self._drone_positions[did] = _DronePosition(
+                    x=x, y=y, z=alt, armed=bool(armed)
+                )
 
     @pyqtSlot(str, result="QVariant")
     def getSafeWaypoint(self, drone_id: str) -> dict:
         """Get APF-filtered safe waypoint for a drone.
-        
+
         Returns: {x, y, z} in local NED meters or empty dict if not available.
         """
-        if not self._apf or not self._drone_positions:
+        apf = self._apf
+        if apf is None or _Pose3D is None or not self._drone_positions:
             return {}
 
-        # Build Pose3D positions (tuple may be 3 or 4 elements)
-        poses = {did: _Pose3D(t[0], t[1], t[2]) for did, t in self._drone_positions.items()}
+        poses = {
+            did: _Pose3D(pos.x, pos.y, pos.z)
+            for did, pos in self._drone_positions.items()
+        }
 
         # For now, desired = current (hover) - in real use, desired comes from mission
         desired = poses.copy()
 
-        safe = self._apf.filter(poses, desired)
+        safe = apf.filter(poses, desired)
         if drone_id in safe:
             p = safe[drone_id]
             return {"x": p.x, "y": p.y, "z": p.z}
@@ -226,24 +254,30 @@ class SafetyContext(QObject):
 
     # ── Internal ─────────────────────────────────────────────────────────────
     # Rate-limit windows (seconds)
-    _LOG_RATE_LIMIT_S = 2.0          # log a given pair-violation at most every 2 s
-    _GEOFENCE_RATE_LIMIT_S = 3.0     # log geofence breach at most every 3 s per drone+reason
-    _AVOID_RATE_LIMIT_S = 1.0        # send avoidance command at most every 1 s per drone
+    _LOG_RATE_LIMIT_S = 2.0  # log a given pair-violation at most every 2 s
+    _GEOFENCE_RATE_LIMIT_S = (
+        3.0  # log geofence breach at most every 3 s per drone+reason
+    )
+    _AVOID_RATE_LIMIT_S = 1.0  # send avoidance command at most every 1 s per drone
 
     def _check_safety(self) -> None:
         """Periodic safety check — violations, geofence, and active avoidance."""
-        if not self._apf or not self._drone_positions:
+        apf = self._apf
+        if apf is None or _Pose3D is None or not self._drone_positions:
             return
 
         import time
+
         now = time.monotonic()
 
-        # Build Pose3D positions (tuple may be 3 or 4 elements)
-        poses = {did: _Pose3D(t[0], t[1], t[2]) for did, t in self._drone_positions.items()}
-        armed_map = {did: (t[3] if len(t) > 3 else True) for did, t in self._drone_positions.items()}
+        poses = {
+            did: _Pose3D(pos.x, pos.y, pos.z)
+            for did, pos in self._drone_positions.items()
+        }
+        armed_map = {did: pos.armed for did, pos in self._drone_positions.items()}
 
         # Check separations
-        violations = self._apf.check_separation(poses)
+        violations = apf.check_separation(poses)
 
         # Always emit the latest violation list to the UI (cheap), but only
         # change-trigger the safety badge counter when the set actually changes.
@@ -266,7 +300,7 @@ class SafetyContext(QObject):
             if now - last >= self._LOG_RATE_LIMIT_S:
                 self._violation_log_ts[key] = now
                 self.apfLogMessage.emit(
-                    f"[APF] ⚠ VIOLATION: {a} ↔ {b}: {d:.2f}m < {self._apf.min_separation}m"
+                    f"[APF] ⚠ VIOLATION: {a} ↔ {b}: {d:.2f}m < {apf.min_separation}m"
                 )
             # Active push: deterministic — alphabetically larger drone moves away
             mover = b if b > a else a
@@ -276,16 +310,22 @@ class SafetyContext(QObject):
         # Check geofence — skip alt_min for unarmed/on-ground drones
         for did, p in poses.items():
             is_armed = armed_map.get(did, True)
-            if not self._apf.geofence.contains(p):
-                if p.z < self._apf.geofence.alt_min:
+            if not apf.geofence.contains(p):
+                if p.z < apf.geofence.alt_min:
                     if not is_armed:
                         continue
-                    reason = f"below min altitude ({p.z:.1f}m < {self._apf.geofence.alt_min}m)"
-                elif p.z > self._apf.geofence.alt_max:
-                    reason = f"above max altitude ({p.z:.1f}m > {self._apf.geofence.alt_max}m)"
+                    reason = (
+                        f"below min altitude ({p.z:.1f}m < {apf.geofence.alt_min}m)"
+                    )
+                elif p.z > apf.geofence.alt_max:
+                    reason = (
+                        f"above max altitude ({p.z:.1f}m > {apf.geofence.alt_max}m)"
+                    )
                 else:
                     r = math.sqrt(p.x**2 + p.y**2)
-                    reason = f"outside horizontal limit ({r:.1f}m > {self._apf.geofence.radius}m)"
+                    reason = (
+                        f"outside horizontal limit ({r:.1f}m > {apf.geofence.radius}m)"
+                    )
                 # Rate-limit: at most once per (drone, reason-prefix) every 3 s
                 gkey = (did, reason.split("(")[0].strip())
                 last = self._geofence_log_ts.get(gkey, 0.0)
@@ -293,16 +333,19 @@ class SafetyContext(QObject):
                     self._geofence_log_ts[gkey] = now
                     self.geofenceBreached.emit(did, reason)
 
-    def _emit_avoidance(self, mover: str, other: str,
-                        poses: Dict[str, "_Pose3D"], now: float) -> None:
+    def _emit_avoidance(
+        self, mover: str, other: str, poses: Dict[str, Any], now: float
+    ) -> None:
         """Compute & emit a goto target that pushes ``mover`` away from ``other``."""
-        if not self._ref_set:
+        apf = self._apf
+        if not self._ref_set or apf is None:
             return
         last = self._avoidance_cmd_ts.get(mover, 0.0)
         if now - last < self._AVOID_RATE_LIMIT_S:
             return
 
-        pm = poses.get(mover); po = poses.get(other)
+        pm = poses.get(mover)
+        po = poses.get(other)
         if pm is None or po is None:
             return
 
@@ -314,16 +357,16 @@ class SafetyContext(QObject):
             dx, dy, dist = 1.0, 0.0, 1.0
 
         # Push to (min_separation + 0.5 m) away from the other drone
-        push = max(self._apf.min_separation + 0.5, 2.5)
+        push = max(apf.min_separation + 0.5, 2.5)
         ux, uy = dx / dist, dy / dist
         target_x = po.x + ux * push
         target_y = po.y + uy * push
 
         # Convert local NED back to lat/lon
         target_lat = self._ref_lat + target_x / 111_320.0
-        target_lon = self._ref_lon + target_y / (111_320.0 * math.cos(math.radians(self._ref_lat)))
+        target_lon = self._ref_lon + target_y / self._ref_lon_scale
         # Maintain mover's current altitude (or min_alt if it's below)
-        target_alt = max(pm.z, self._apf.geofence.alt_min + 0.5)
+        target_alt = max(pm.z, apf.geofence.alt_min + 0.5)
 
         self._avoidance_cmd_ts[mover] = now
         self.avoidanceTriggered.emit(mover, target_lat, target_lon, target_alt)

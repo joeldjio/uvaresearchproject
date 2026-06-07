@@ -5,7 +5,7 @@
 ;  Build:
 ;     iscc tools\installer\inno\uavresearch_gcs.iss
 ;  Output:
-;     tools\installer\out\uavresearch-gcs-setup-0.2.0.exe
+;     tools\installer\out\uavresearch-gcs-setup-0.3.1.exe
 ;
 ;  Prerequisite: PyInstaller has produced dist\UAVResearchGCS\.
 ;
@@ -21,7 +21,7 @@
 
 #define AppName        "uavresearch gcs"
 #define AppPublisher   "UAVResearch"
-#define AppVersion     "0.3.0"
+#define AppVersion     "0.3.1"
 #define AppURL         "https://github.com/joeldjio/uavresearch-gcs-releases"
 #define AppExeName     "uavresearch gcs.exe"
 ; Stable, randomly-generated GUID. DO NOT change this once published
