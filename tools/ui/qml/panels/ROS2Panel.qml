@@ -9,6 +9,7 @@ Item {
 
     property string selectedDroneId: ""
     property string _nodeStatus: (typeof ros2 !== "undefined" && ros2) ? ros2.nodeStatus() : "no_ros2"
+    property var globalWaypoints: null  // Injected from main.qml
 
     function statusColor(s) {
         if (s === "ok")           return "#22c55e"
@@ -577,9 +578,9 @@ Item {
                                     spacing: 6
                                     Rectangle {
                                         width: 8; height: 8; radius: 4; anchors.verticalCenter: parent.verticalCenter
-                                        color: missionCol.missionStatus.active ? "#22c55e" : "#6b7280"
+                                        color: (missionCol.missionStatus.active || false) ? "#22c55e" : "#6b7280"
                                         SequentialAnimation on opacity {
-                                            running: missionCol.missionStatus.active
+                                            running: missionCol.missionStatus.active || false
                                             loops: Animation.Infinite
                                             NumberAnimation { to: 0.3; duration: 800 }
                                             NumberAnimation { to: 1.0; duration: 800 }
@@ -700,11 +701,30 @@ Item {
             title: "Upload Mission"
             modal: true
             anchors.centerIn: parent
-            width: 400; height: 500
+            width: 500; height: 600
 
             background: Rectangle {
                 color: "#1a2035"; radius: 8
                 border.color: "#2d3748"; border.width: 1
+            }
+
+            // Local waypoint model (copy from global + manual additions)
+            ListModel { id: dialogWaypoints }
+
+            onOpened: {
+                // Load waypoints from map when dialog opens
+                dialogWaypoints.clear()
+                if (root.globalWaypoints && root.globalWaypoints.count > 0) {
+                    for (var i = 0; i < root.globalWaypoints.count; i++) {
+                        var wp = root.globalWaypoints.get(i)
+                        dialogWaypoints.append({
+                            lat: wp.lat,
+                            lon: wp.lon,
+                            alt: wp.alt,
+                            hold_time: 2.0
+                        })
+                    }
+                }
             }
 
             Column {
@@ -712,31 +732,171 @@ Item {
                 spacing: 10
 
                 Text {
-                    text: "Simple 3-waypoint test mission (Zurich area)"
-                    color: "#e2e8f0"; font.pixelSize: 11
+                    text: "Mission Waypoints"
+                    color: "#e2e8f0"; font.pixelSize: 12; font.weight: Font.Bold
                 }
 
-                // Waypoint inputs (simplified for now)
-                Text { text: "This will upload a test mission with 3 waypoints"; color: "#94a3b8"; font.pixelSize: 9; wrapMode: Text.WordWrap; width: parent.width }
+                Text {
+                    text: dialogWaypoints.count > 0 ?
+                          dialogWaypoints.count + " waypoint(s) from map" :
+                          "No waypoints set. Add waypoints on the map first or use test mission."
+                    color: "#94a3b8"; font.pixelSize: 9
+                    wrapMode: Text.WordWrap; width: parent.width
+                }
 
+                // Waypoint list
+                Rectangle {
+                    width: parent.width; height: 300
+                    color: "#0d1117"; radius: 6
+                    border.color: "#2d3748"; border.width: 1
+
+                    ScrollView {
+                        anchors.fill: parent
+                        anchors.margins: 5
+                        clip: true
+
+                        ListView {
+                            id: waypointList
+                            model: dialogWaypoints
+                            spacing: 4
+
+                            delegate: Rectangle {
+                                width: waypointList.width; height: 60; radius: 4
+                                color: "#1e2535"; border.color: "#334155"; border.width: 1
+
+                                Column {
+                                    anchors { fill: parent; margins: 8 }
+                                    spacing: 2
+
+                                    Row {
+                                        spacing: 10
+                                        Text {
+                                            text: "WP" + (index + 1)
+                                            color: "#2563eb"; font.pixelSize: 10; font.weight: Font.Bold
+                                            width: 30
+                                        }
+                                        Text {
+                                            text: "Lat: " + model.lat.toFixed(6) + "  Lon: " + model.lon.toFixed(6)
+                                            color: "#e2e8f0"; font.pixelSize: 9
+                                        }
+                                    }
+                                    Row {
+                                        spacing: 10
+                                        Text { text: "Alt: " + model.alt.toFixed(1) + "m"; color: "#94a3b8"; font.pixelSize: 8; width: 80 }
+                                        Text { text: "Hold: " + model.hold_time.toFixed(1) + "s"; color: "#94a3b8"; font.pixelSize: 8 }
+                                    }
+                                }
+
+                                // Delete button
+                                Rectangle {
+                                    anchors { right: parent.right; top: parent.top; margins: 4 }
+                                    width: 20; height: 20; radius: 3
+                                    color: delMa.containsMouse ? "#7f1d1d" : "#450a0a"
+                                    border.color: "#ef4444"; border.width: 1
+                                    Text { anchors.centerIn: parent; text: "✕"; color: "#fca5a5"; font.pixelSize: 10 }
+                                    MouseArea {
+                                        id: delMa; anchors.fill: parent; hoverEnabled: true
+                                        onClicked: dialogWaypoints.remove(index)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Add waypoint manually
+                Row {
+                    spacing: 5
+                    TextField {
+                        id: newLat; width: 100; height: 28
+                        placeholderText: "Latitude"
+                        background: Rectangle { color: "#1e2535"; radius: 4; border.color: "#2d3748" }
+                        color: "#e2e8f0"; font.pixelSize: 9
+                    }
+                    TextField {
+                        id: newLon; width: 100; height: 28
+                        placeholderText: "Longitude"
+                        background: Rectangle { color: "#1e2535"; radius: 4; border.color: "#2d3748" }
+                        color: "#e2e8f0"; font.pixelSize: 9
+                    }
+                    TextField {
+                        id: newAlt; width: 60; height: 28
+                        placeholderText: "Alt"
+                        text: "15"
+                        background: Rectangle { color: "#1e2535"; radius: 4; border.color: "#2d3748" }
+                        color: "#e2e8f0"; font.pixelSize: 9
+                    }
+                    Button {
+                        text: "+ Add"
+                        height: 28
+                        onClicked: {
+                            var lat = parseFloat(newLat.text)
+                            var lon = parseFloat(newLon.text)
+                            var alt = parseFloat(newAlt.text) || 15.0
+                            if (!isNaN(lat) && !isNaN(lon)) {
+                                dialogWaypoints.append({
+                                    lat: lat, lon: lon, alt: alt, hold_time: 2.0
+                                })
+                                newLat.text = ""
+                                newLon.text = ""
+                            }
+                        }
+                    }
+                }
+
+                // Action buttons
                 Row {
                     spacing: 10
                     Button {
-                        text: "Upload Test Mission"
+                        text: "Upload Mission (" + dialogWaypoints.count + " WP)"
+                        enabled: dialogWaypoints.count > 0
                         onClicked: {
-                            if (typeof ros2 === "undefined" || !ros2 || root.selectedDroneId === "") return
+                            console.log("[Mission Upload] Button clicked")
+                            console.log("[Mission Upload] ros2 defined:", typeof ros2 !== "undefined")
+                            console.log("[Mission Upload] selectedDroneId:", root.selectedDroneId)
+                            console.log("[Mission Upload] waypoint count:", dialogWaypoints.count)
                             
-                            // Test mission waypoints (Zurich area)
-                            var waypoints = [
-                                { "lat": 47.397742, "lon": 8.545594, "alt": 15.0, "hold_time": 2.0 },
-                                { "lat": 47.397842, "lon": 8.545694, "alt": 20.0, "hold_time": 3.0 },
-                                { "lat": 47.397942, "lon": 8.545794, "alt": 15.0, "hold_time": 2.0 }
-                            ]
-                            
-                            var success = ros2.uploadMission(root.selectedDroneId, waypoints)
-                            if (success) {
-                                missionDialog.close()
+                            if (typeof ros2 === "undefined" || !ros2) {
+                                console.log("[Mission Upload] ERROR: ros2 not available")
+                                return
                             }
+                            if (root.selectedDroneId === "") {
+                                console.log("[Mission Upload] ERROR: No drone selected")
+                                return
+                            }
+                            
+                            // Convert to array
+                            var waypoints = []
+                            for (var i = 0; i < dialogWaypoints.count; i++) {
+                                var wp = dialogWaypoints.get(i)
+                                waypoints.push({
+                                    "lat": wp.lat,
+                                    "lon": wp.lon,
+                                    "alt": wp.alt,
+                                    "hold_time": wp.hold_time
+                                })
+                            }
+                            
+                            console.log("[Mission Upload] Calling ros2.uploadMission with", waypoints.length, "waypoints")
+                            var success = ros2.uploadMission(root.selectedDroneId, waypoints)
+                            console.log("[Mission Upload] Upload result:", success)
+                            
+                            if (success) {
+                                console.log("[Mission Upload] Success! Closing dialog")
+                                missionDialog.close()
+                            } else {
+                                console.log("[Mission Upload] Upload failed")
+                            }
+                        }
+                    }
+                    Button {
+                        text: "Load Test Mission"
+                        onClicked: {
+                            dialogWaypoints.clear()
+                            // Test mission waypoints (Zurich area)
+                            dialogWaypoints.append({ "lat": 47.397742, "lon": 8.545594, "alt": 15.0, "hold_time": 2.0 })
+                            dialogWaypoints.append({ "lat": 47.397842, "lon": 8.545694, "alt": 20.0, "hold_time": 3.0 })
+                            dialogWaypoints.append({ "lat": 47.397942, "lon": 8.545794, "alt": 15.0, "hold_time": 2.0 })
                         }
                     }
                     Button {
