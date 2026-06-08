@@ -546,6 +546,178 @@ class ROS2Context(QObject):
             self.ros2LogMessage.emit("INFO", f"[MISSION] ✓ Mission completed on {drone_id}")
         elif status.get("failure"):
             self.ros2LogMessage.emit("WARNING", f"[MISSION] ✗ Mission failed on {drone_id}")
+    # ── Formation Control ──────────────────────────────────────────────────
+    
+    def __init_formation_controller(self):
+        """Initialize formation controller (lazy loading)."""
+        if hasattr(self, '_formation_controller'):
+            return self._formation_controller is not None
+        
+        try:
+            from droneresearch.ros.px4_formation import PX4FormationController
+            self._formation_controller = None
+            self._FormationController = PX4FormationController
+            return True
+        except ImportError:
+            self._formation_controller = None
+            self._FormationController = None
+            return False
+    
+    @pyqtSlot(result=bool)
+    def isFormationActive(self) -> bool:
+        """Check if formation controller is running."""
+        return hasattr(self, '_formation_controller') and self._formation_controller is not None
+    
+    @pyqtSlot(str, "QVariant", str, float)
+    def startFormation(self, leader_id: str, follower_ids: list, shape: str, spacing: float) -> None:
+        """
+        Start formation control.
+        
+        Args:
+            leader_id: Leader drone ID (e.g., "uav_1")
+            follower_ids: List of follower drone IDs (e.g., ["uav_2", "uav_3"])
+            shape: Formation shape (line, v, grid, circle, wedge)
+            spacing: Distance between vehicles in meters
+        """
+        if not self.__init_formation_controller():
+            self.ros2LogMessage.emit("ERROR", "[FORMATION] PX4FormationController not available")
+            return
+        
+        if self.isFormationActive():
+            self.ros2LogMessage.emit("WARN", "[FORMATION] Already running")
+            return
+        
+        def _start():
+            try:
+                # Get namespaces from active bridges
+                leader_ns = self._namespaces.get(leader_id, leader_id)
+                follower_ns = [self._namespaces.get(fid, fid) for fid in follower_ids]
+                
+                self.ros2LogMessage.emit("INFO", f"[FORMATION] Starting controller...")
+                self.ros2LogMessage.emit("INFO", f"[FORMATION] Leader: {leader_ns}")
+                self.ros2LogMessage.emit("INFO", f"[FORMATION] Followers: {', '.join(follower_ns)}")
+                self.ros2LogMessage.emit("INFO", f"[FORMATION] Shape: {shape}, Spacing: {spacing}m")
+                
+                controller = self._FormationController(
+                    leader_ns=leader_ns,
+                    follower_namespaces=follower_ns,
+                    shape=shape,
+                    spacing=spacing,
+                    update_rate_hz=20.0
+                )
+                
+                if controller.start():
+                    self._formation_controller = controller
+                    self.ros2LogMessage.emit("INFO", "[FORMATION] ✓ Controller started")
+                else:
+                    self.ros2LogMessage.emit("ERROR", "[FORMATION] Failed to start controller")
+                    
+            except Exception as e:
+                self.ros2LogMessage.emit("ERROR", f"[FORMATION] Start failed: {e}")
+        
+        threading.Thread(target=_start, daemon=True).start()
+    
+    @pyqtSlot()
+    def stopFormation(self) -> None:
+        """Stop formation controller."""
+        if not self.isFormationActive():
+            self.ros2LogMessage.emit("WARN", "[FORMATION] Not running")
+            return
+        
+        def _stop():
+            try:
+                self.ros2LogMessage.emit("INFO", "[FORMATION] Stopping controller...")
+                self._formation_controller.stop()
+                self._formation_controller = None
+                self.ros2LogMessage.emit("INFO", "[FORMATION] ✓ Controller stopped")
+            except Exception as e:
+                self.ros2LogMessage.emit("ERROR", f"[FORMATION] Stop failed: {e}")
+        
+        threading.Thread(target=_stop, daemon=True).start()
+    
+    @pyqtSlot(float, float, float, float)
+    def setFormationLeaderPosition(self, north: float, east: float, altitude: float, yaw: float) -> None:
+        """
+        Set leader position. Followers maintain formation offsets.
+        
+        Args:
+            north: North position in meters (NED)
+            east: East position in meters (NED)
+            altitude: Altitude above ground in meters (positive up)
+            yaw: Heading in radians (0 = North)
+        """
+        if not self.isFormationActive():
+            self.ros2LogMessage.emit("WARN", "[FORMATION] Controller not running")
+            return
+        
+        try:
+            self._formation_controller.set_leader_position(north, east, altitude, yaw)
+        except Exception as e:
+            self.ros2LogMessage.emit("ERROR", f"[FORMATION] Set position failed: {e}")
+    
+    @pyqtSlot(result="QVariant")
+    def getFormationLeaderPosition(self) -> dict:
+        """Get current leader position."""
+        if not self.isFormationActive():
+            return {"north": 0.0, "east": 0.0, "altitude": 0.0}
+        
+        try:
+            return self._formation_controller.get_leader_position()
+        except Exception as e:
+            self.ros2LogMessage.emit("ERROR", f"[FORMATION] Get position failed: {e}")
+            return {"north": 0.0, "east": 0.0, "altitude": 0.0}
+    
+    @pyqtSlot(result="QVariant")
+    def getFormationFollowerPositions(self) -> dict:
+        """Get current follower positions."""
+        if not self.isFormationActive():
+            return {}
+        
+        try:
+            return self._formation_controller.get_follower_positions()
+        except Exception as e:
+            self.ros2LogMessage.emit("ERROR", f"[FORMATION] Get follower positions failed: {e}")
+            return {}
+    
+    @pyqtSlot()
+    def armFormation(self) -> None:
+        """Arm all vehicles in formation."""
+        if not self.isFormationActive():
+            self.ros2LogMessage.emit("WARN", "[FORMATION] Controller not running")
+            return
+        
+        try:
+            self._formation_controller.arm_all()
+            self.ros2LogMessage.emit("INFO", "[FORMATION] ✓ All vehicles armed")
+        except Exception as e:
+            self.ros2LogMessage.emit("ERROR", f"[FORMATION] Arm failed: {e}")
+    
+    @pyqtSlot()
+    def disarmFormation(self) -> None:
+        """Disarm all vehicles in formation."""
+        if not self.isFormationActive():
+            self.ros2LogMessage.emit("WARN", "[FORMATION] Controller not running")
+            return
+        
+        try:
+            self._formation_controller.disarm_all()
+            self.ros2LogMessage.emit("INFO", "[FORMATION] ✓ All vehicles disarmed")
+        except Exception as e:
+            self.ros2LogMessage.emit("ERROR", f"[FORMATION] Disarm failed: {e}")
+    
+    @pyqtSlot()
+    def enableOffboardFormation(self) -> None:
+        """Enable offboard mode for all vehicles in formation."""
+        if not self.isFormationActive():
+            self.ros2LogMessage.emit("WARN", "[FORMATION] Controller not running")
+            return
+        
+        try:
+            self._formation_controller.enable_offboard_all()
+            self.ros2LogMessage.emit("INFO", "[FORMATION] ✓ Offboard mode enabled for all vehicles")
+        except Exception as e:
+            self.ros2LogMessage.emit("ERROR", f"[FORMATION] Enable offboard failed: {e}")
+    
     
     # ── Frame Conversion Debug ─────────────────────────────────────────────
     

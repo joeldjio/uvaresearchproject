@@ -314,6 +314,215 @@ Item {
 
                         Text { visible: topicsCol.topics.length === 0; text: "Kein Drone ausgewählt"; color: "#374151"; font.pixelSize: 10; anchors.horizontalCenter: parent.horizontalCenter }
                     }
+
+                // Spacer
+                Item { width: 1; height: 16 }
+
+                // ── Formation Control ─────────────────────────────────────
+                Text { text: "FORMATION CONTROL"; color: "#64748b"; font.pixelSize: 9; font.weight: Font.Bold; font.letterSpacing: 1 }
+
+                Rectangle {
+                    width: parent.width; height: formCol.implicitHeight + 20; radius: 8
+                    color: "#1a2035"; border.color: "#2d3748"; border.width: 1
+
+                    Column {
+                        id: formCol
+                        anchors { left: parent.left; right: parent.right; top: parent.top; margins: 10 }
+                        spacing: 8
+
+                        property bool _formActive: (typeof ros2 !== "undefined" && ros2) ? ros2.isFormationActive() : false
+                        Timer { interval: 500; running: true; repeat: true
+                            onTriggered: formCol._formActive = (typeof ros2 !== "undefined" && ros2) ? ros2.isFormationActive() : false
+                        }
+
+                        // Leader selection
+                        Row {
+                            width: parent.width; spacing: 6
+                            Text { text: "Leader:"; color: "#64748b"; font.pixelSize: 10; anchors.verticalCenter: parent.verticalCenter; width: 50 }
+                            ComboBox {
+                                id: leaderCombo; width: parent.width - 56; height: 26
+                                model: (typeof swarm !== "undefined" && swarm) ? swarm.droneIds() : []
+                                background: Rectangle { color: "#1e2535"; radius: 5; border.color: "#2d3748"; border.width: 1 }
+                                contentItem: Text { text: leaderCombo.displayText; color: "#e2e8f0"; font.pixelSize: 10; verticalAlignment: Text.AlignVCenter; leftPadding: 6 }
+                            }
+                        }
+
+                        // Followers (multi-select would be complex, so just show count)
+                        Text {
+                            width: parent.width
+                            text: "Followers: All other drones"
+                            color: "#64748b"
+                            font.pixelSize: 9
+                        }
+
+                        // Formation shape
+                        Row {
+                            width: parent.width; spacing: 6
+                            Text { text: "Shape:"; color: "#64748b"; font.pixelSize: 10; anchors.verticalCenter: parent.verticalCenter; width: 50 }
+                            ComboBox {
+                                id: shapeCombo; width: parent.width - 56; height: 26
+                                model: ["line", "v", "grid", "circle", "wedge"]
+                                currentIndex: 1  // Default to V
+                                background: Rectangle { color: "#1e2535"; radius: 5; border.color: "#2d3748"; border.width: 1 }
+                                contentItem: Text { text: shapeCombo.displayText; color: "#e2e8f0"; font.pixelSize: 10; verticalAlignment: Text.AlignVCenter; leftPadding: 6 }
+                            }
+                        }
+
+                        // Spacing slider
+                        Row {
+                            width: parent.width; spacing: 6
+                            Text { text: "Spacing:"; color: "#64748b"; font.pixelSize: 10; anchors.verticalCenter: parent.verticalCenter; width: 50 }
+                            Slider {
+                                id: spacingSlider
+                                width: parent.width - 100
+                                from: 2.0; to: 20.0; value: 5.0; stepSize: 0.5
+                                background: Rectangle {
+                                    x: spacingSlider.leftPadding
+                                    y: spacingSlider.topPadding + spacingSlider.availableHeight / 2 - height / 2
+                                    width: spacingSlider.availableWidth; height: 4; radius: 2
+                                    color: "#2d3748"
+                                    Rectangle {
+                                        width: spacingSlider.visualPosition * parent.width; height: parent.height; radius: 2
+                                        color: "#3b82f6"
+                                    }
+                                }
+                                handle: Rectangle {
+                                    x: spacingSlider.leftPadding + spacingSlider.visualPosition * (spacingSlider.availableWidth - width)
+                                    y: spacingSlider.topPadding + spacingSlider.availableHeight / 2 - height / 2
+                                    width: 16; height: 16; radius: 8
+                                    color: spacingSlider.pressed ? "#60a5fa" : "#3b82f6"
+                                    border.color: "#1e293b"; border.width: 1
+                                }
+                            }
+                            Text { text: spacingSlider.value.toFixed(1) + "m"; color: "#e2e8f0"; font.pixelSize: 10; anchors.verticalCenter: parent.verticalCenter; width: 40 }
+                        }
+
+                        // Start/Stop button
+                        Rectangle {
+                            width: parent.width; height: 32; radius: 6
+                            color: formTogM.containsMouse ? (formCol._formActive ? "#7f1d1d" : "#166534") : (formCol._formActive ? "#450a0a" : "#14532d")
+                            border.color: formCol._formActive ? "#ef4444" : "#22c55e"; border.width: 1
+                            Behavior on color { ColorAnimation { duration: 120 } }
+                            Row {
+                                anchors.centerIn: parent; spacing: 6
+                                Text { text: formCol._formActive ? "■" : "▶"; color: formCol._formActive ? "#fca5a5" : "#86efac"; font.pixelSize: 12; anchors.verticalCenter: parent.verticalCenter }
+                                Text { text: formCol._formActive ? "Stop Formation" : "Start Formation"; color: formCol._formActive ? "#fca5a5" : "#86efac"; font.pixelSize: 10; font.weight: Font.Bold; anchors.verticalCenter: parent.verticalCenter }
+                            }
+                            MouseArea {
+                                id: formTogM; anchors.fill: parent; hoverEnabled: true
+                                onClicked: {
+                                    if (typeof ros2 === "undefined" || !ros2) return
+                                    if (typeof swarm === "undefined" || !swarm) return
+                                    
+                                    if (formCol._formActive) {
+                                        ros2.stopFormation()
+                                    } else {
+                                        var allDrones = swarm.droneIds()
+                                        if (allDrones.length < 2) {
+                                            console.log("Need at least 2 drones for formation")
+                                            return
+                                        }
+                                        var leader = leaderCombo.currentText
+                                        var followers = allDrones.filter(function(id) { return id !== leader })
+                                        ros2.startFormation(leader, followers, shapeCombo.currentText, spacingSlider.value)
+                                    }
+                                }
+                            }
+                        }
+
+                        // Control buttons (only when active)
+                        Row {
+                            width: parent.width; spacing: 4
+                            visible: formCol._formActive
+
+                            Rectangle {
+                                width: (parent.width - 8) / 3; height: 28; radius: 5
+                                color: armM.containsMouse ? "#166534" : "#14532d"
+                                border.color: "#22c55e"; border.width: 1
+                                Text { text: "ARM ALL"; color: "#86efac"; font.pixelSize: 9; font.weight: Font.Bold; anchors.centerIn: parent }
+                                MouseArea {
+                                    id: armM; anchors.fill: parent; hoverEnabled: true
+                                    onClicked: { if (typeof ros2 !== "undefined" && ros2) ros2.armFormation() }
+                                }
+                            }
+
+                            Rectangle {
+                                width: (parent.width - 8) / 3; height: 28; radius: 5
+                                color: offbM.containsMouse ? "#1e40af" : "#1e3a8a"
+                                border.color: "#3b82f6"; border.width: 1
+                                Text { text: "OFFBOARD"; color: "#93c5fd"; font.pixelSize: 9; font.weight: Font.Bold; anchors.centerIn: parent }
+                                MouseArea {
+                                    id: offbM; anchors.fill: parent; hoverEnabled: true
+                                    onClicked: { if (typeof ros2 !== "undefined" && ros2) ros2.enableOffboardFormation() }
+                                }
+                            }
+
+                            Rectangle {
+                                width: (parent.width - 8) / 3; height: 28; radius: 5
+                                color: disarmM.containsMouse ? "#7f1d1d" : "#450a0a"
+                                border.color: "#ef4444"; border.width: 1
+                                Text { text: "DISARM"; color: "#fca5a5"; font.pixelSize: 9; font.weight: Font.Bold; anchors.centerIn: parent }
+                                MouseArea {
+                                    id: disarmM; anchors.fill: parent; hoverEnabled: true
+                                    onClicked: { if (typeof ros2 !== "undefined" && ros2) ros2.disarmFormation() }
+                                }
+                            }
+                        }
+
+                        // Position controls (only when active)
+                        Column {
+                            width: parent.width; spacing: 4
+                            visible: formCol._formActive
+
+                            Text { text: "Leader Position:"; color: "#64748b"; font.pixelSize: 9; font.weight: Font.Bold }
+
+                            Row {
+                                width: parent.width; spacing: 4
+                                Text { text: "N:"; color: "#64748b"; font.pixelSize: 9; width: 15 }
+                                TextField {
+                                    id: northField; width: (parent.width - 80) / 3; height: 24
+                                    text: "0"; placeholderText: "0"
+                                    background: Rectangle { color: "#1e2535"; radius: 4; border.color: "#2d3748"; border.width: 1 }
+                                    color: "#e2e8f0"; font.pixelSize: 9; leftPadding: 4
+                                }
+                                Text { text: "E:"; color: "#64748b"; font.pixelSize: 9; width: 15 }
+                                TextField {
+                                    id: eastField; width: (parent.width - 80) / 3; height: 24
+                                    text: "0"; placeholderText: "0"
+                                    background: Rectangle { color: "#1e2535"; radius: 4; border.color: "#2d3748"; border.width: 1 }
+                                    color: "#e2e8f0"; font.pixelSize: 9; leftPadding: 4
+                                }
+                                Text { text: "Alt:"; color: "#64748b"; font.pixelSize: 9; width: 20 }
+                                TextField {
+                                    id: altField; width: (parent.width - 80) / 3; height: 24
+                                    text: "10"; placeholderText: "10"
+                                    background: Rectangle { color: "#1e2535"; radius: 4; border.color: "#2d3748"; border.width: 1 }
+                                    color: "#e2e8f0"; font.pixelSize: 9; leftPadding: 4
+                                }
+                            }
+
+                            Rectangle {
+                                width: parent.width; height: 26; radius: 5
+                                color: setPosM.containsMouse ? "#1e40af" : "#1e3a8a"
+                                border.color: "#3b82f6"; border.width: 1
+                                Text { text: "Set Position"; color: "#93c5fd"; font.pixelSize: 9; font.weight: Font.Bold; anchors.centerIn: parent }
+                                MouseArea {
+                                    id: setPosM; anchors.fill: parent; hoverEnabled: true
+                                    onClicked: {
+                                        if (typeof ros2 !== "undefined" && ros2) {
+                                            ros2.setFormationLeaderPosition(
+                                                parseFloat(northField.text),
+                                                parseFloat(eastField.text),
+                                                parseFloat(altField.text),
+                                                0.0  // yaw
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
                 }
             }
         }
