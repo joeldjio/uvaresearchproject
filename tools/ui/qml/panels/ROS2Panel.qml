@@ -541,6 +541,209 @@ Item {
                         }
                     }
                 }
+
+                // ── Mission Management ────────────────────────────────────
+                Text { text: "MISSION MANAGEMENT"; color: "#64748b"; font.pixelSize: 9; font.weight: Font.Bold; font.letterSpacing: 1 }
+
+                Rectangle {
+                    width: parent.width; height: missionCol.implicitHeight + 20; radius: 8
+                    color: "#1a2035"; border.color: "#2d3748"; border.width: 1
+
+                    Column {
+                        id: missionCol
+                        anchors { fill: parent; margins: 10 }
+                        spacing: 8
+
+                        // Mission Status Display
+                        property var missionStatus: ({})
+                        Timer {
+                            interval: 500; running: true; repeat: true
+                            onTriggered: {
+                                if (typeof ros2 === "undefined" || !ros2 || root.selectedDroneId === "") return
+                                missionCol.missionStatus = ros2.getMissionStatus(root.selectedDroneId)
+                            }
+                        }
+
+                        // Status indicator
+                        Rectangle {
+                            width: parent.width; height: 50; radius: 6
+                            color: "#0d1117"; border.color: missionCol.missionStatus.active ? "#22c55e" : "#374151"; border.width: 1
+
+                            Column {
+                                anchors { fill: parent; margins: 8 }
+                                spacing: 4
+
+                                Row {
+                                    spacing: 6
+                                    Rectangle {
+                                        width: 8; height: 8; radius: 4; anchors.verticalCenter: parent.verticalCenter
+                                        color: missionCol.missionStatus.active ? "#22c55e" : "#6b7280"
+                                        SequentialAnimation on opacity {
+                                            running: missionCol.missionStatus.active
+                                            loops: Animation.Infinite
+                                            NumberAnimation { to: 0.3; duration: 800 }
+                                            NumberAnimation { to: 1.0; duration: 800 }
+                                        }
+                                    }
+                                    Text {
+                                        text: missionCol.missionStatus.finished ? "Mission Complete" :
+                                              missionCol.missionStatus.failure ? "Mission Failed" :
+                                              missionCol.missionStatus.active ? "Mission Active" : "No Mission"
+                                        color: missionCol.missionStatus.finished ? "#22c55e" :
+                                               missionCol.missionStatus.failure ? "#ef4444" :
+                                               missionCol.missionStatus.active ? "#22c55e" : "#6b7280"
+                                        font.pixelSize: 10; font.weight: Font.Bold
+                                    }
+                                }
+
+                                // Progress bar
+                                Rectangle {
+                                    width: parent.width; height: 20; radius: 4
+                                    color: "#1e2535"; border.color: "#2d3748"; border.width: 1
+                                    visible: missionCol.missionStatus.total_count > 0
+
+                                    Rectangle {
+                                        width: missionCol.missionStatus.total_count > 0 ?
+                                               (parent.width - 2) * (missionCol.missionStatus.current_seq / missionCol.missionStatus.total_count) : 0
+                                        height: parent.height - 2; radius: 3
+                                        anchors { left: parent.left; top: parent.top; margins: 1 }
+                                        color: "#22c55e"
+                                        Behavior on width { NumberAnimation { duration: 200 } }
+                                    }
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: "WP " + (missionCol.missionStatus.current_seq + 1) + " / " + missionCol.missionStatus.total_count
+                                        color: "#e2e8f0"; font.pixelSize: 9; font.weight: Font.Bold
+                                    }
+                                }
+                            }
+                        }
+
+                        // Mission Control Buttons
+                        Row {
+                            width: parent.width; spacing: 4
+
+                            Rectangle {
+                                width: (parent.width - 8) / 3; height: 28; radius: 5
+                                color: startMa.containsMouse ? "#166534" : "#14532d"
+                                border.color: "#22c55e"; border.width: 1
+                                Text { anchors.centerIn: parent; text: "▶ START"; color: "#86efac"; font.pixelSize: 9; font.weight: Font.Bold }
+                                MouseArea {
+                                    id: startMa; anchors.fill: parent; hoverEnabled: true
+                                    onClicked: {
+                                        if (typeof ros2 !== "undefined" && ros2 && root.selectedDroneId !== "")
+                                            ros2.startMission(root.selectedDroneId)
+                                    }
+                                }
+                            }
+
+                            Rectangle {
+                                width: (parent.width - 8) / 3; height: 28; radius: 5
+                                color: pauseMa.containsMouse ? "#c2410c" : "#9a3412"
+                                border.color: "#f97316"; border.width: 1
+                                Text { anchors.centerIn: parent; text: "⏸ PAUSE"; color: "#fed7aa"; font.pixelSize: 9; font.weight: Font.Bold }
+                                MouseArea {
+                                    id: pauseMa; anchors.fill: parent; hoverEnabled: true
+                                    onClicked: {
+                                        if (typeof ros2 !== "undefined" && ros2 && root.selectedDroneId !== "")
+                                            ros2.pauseMission(root.selectedDroneId)
+                                    }
+                                }
+                            }
+
+                            Rectangle {
+                                width: (parent.width - 8) / 3; height: 28; radius: 5
+                                color: clearMa.containsMouse ? "#7f1d1d" : "#450a0a"
+                                border.color: "#ef4444"; border.width: 1
+                                Text { anchors.centerIn: parent; text: "✕ CLEAR"; color: "#fca5a5"; font.pixelSize: 9; font.weight: Font.Bold }
+                                MouseArea {
+                                    id: clearMa; anchors.fill: parent; hoverEnabled: true
+                                    onClicked: {
+                                        if (typeof ros2 !== "undefined" && ros2 && root.selectedDroneId !== "")
+                                            ros2.clearMission(root.selectedDroneId)
+                                    }
+                                }
+                            }
+                        }
+
+                        // Upload Mission Button
+                        Rectangle {
+                            width: parent.width; height: 32; radius: 5
+                            color: uploadMa.containsMouse ? "#1e3a5f" : "#1e2535"
+                            border.color: "#2563eb"; border.width: 1
+                            Text { anchors.centerIn: parent; text: "⬆ UPLOAD MISSION"; color: "#93c5fd"; font.pixelSize: 10; font.weight: Font.Bold }
+                            MouseArea {
+                                id: uploadMa; anchors.fill: parent; hoverEnabled: true
+                                onClicked: {
+                                    // Open mission upload dialog
+                                    missionDialog.open()
+                                }
+                            }
+                        }
+
+                        // Info text
+                        Text {
+                            width: parent.width
+                            text: "Upload waypoints, then ARM + TAKEOFF before starting mission"
+                            color: "#64748b"; font.pixelSize: 8
+                            wrapMode: Text.WordWrap
+                        }
+                    }
+                }
+            }
+        }
+
+        // ── Mission Upload Dialog ─────────────────────────────────────────────
+        Dialog {
+            id: missionDialog
+            title: "Upload Mission"
+            modal: true
+            anchors.centerIn: parent
+            width: 400; height: 500
+
+            background: Rectangle {
+                color: "#1a2035"; radius: 8
+                border.color: "#2d3748"; border.width: 1
+            }
+
+            Column {
+                anchors.fill: parent
+                spacing: 10
+
+                Text {
+                    text: "Simple 3-waypoint test mission (Zurich area)"
+                    color: "#e2e8f0"; font.pixelSize: 11
+                }
+
+                // Waypoint inputs (simplified for now)
+                Text { text: "This will upload a test mission with 3 waypoints"; color: "#94a3b8"; font.pixelSize: 9; wrapMode: Text.WordWrap; width: parent.width }
+
+                Row {
+                    spacing: 10
+                    Button {
+                        text: "Upload Test Mission"
+                        onClicked: {
+                            if (typeof ros2 === "undefined" || !ros2 || root.selectedDroneId === "") return
+                            
+                            // Test mission waypoints (Zurich area)
+                            var waypoints = [
+                                { "lat": 47.397742, "lon": 8.545594, "alt": 15.0, "hold_time": 2.0 },
+                                { "lat": 47.397842, "lon": 8.545694, "alt": 20.0, "hold_time": 3.0 },
+                                { "lat": 47.397942, "lon": 8.545794, "alt": 15.0, "hold_time": 2.0 }
+                            ]
+                            
+                            var success = ros2.uploadMission(root.selectedDroneId, waypoints)
+                            if (success) {
+                                missionDialog.close()
+                            }
+                        }
+                    }
+                    Button {
+                        text: "Cancel"
+                        onClicked: missionDialog.close()
+                    }
+                }
             }
         }
 }

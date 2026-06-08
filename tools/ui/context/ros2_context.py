@@ -68,6 +68,7 @@ class ROS2Context(QObject):
     telemetryReceived   = pyqtSignal(str, "QVariant", arguments=["droneId", "snapshot"])
     ros2LogMessage      = pyqtSignal(str, str,    arguments=["level", "text"])
     nodeStatusChanged   = pyqtSignal(str,          arguments=["status"])
+    missionStatusChanged = pyqtSignal(str, "QVariant", arguments=["droneId", "status"])
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -397,3 +398,143 @@ class ROS2Context(QObject):
                 self.ros2LogMessage.emit("ERROR", f"[SITL] Stop failed: {e}")
 
         threading.Thread(target=_stop, daemon=True).start()
+    
+    # ── Mission Management ────────────────────────────────────────────────
+    
+    @pyqtSlot(str, "QVariant", result=bool)
+    def uploadMission(self, drone_id: str, waypoints: list) -> bool:
+        """
+        Upload waypoint mission to PX4.
+        
+        Args:
+            drone_id: Drone identifier
+            waypoints: List of waypoint dicts with keys: lat, lon, alt
+        
+        Returns:
+            True if upload successful
+        """
+        b = self._bridges.get(drone_id)
+        if not b:
+            self.ros2LogMessage.emit("WARN", f"[MISSION] No bridge for {drone_id}")
+            return False
+        
+        try:
+            # Convert QML list to Python list of dicts
+            wp_list = []
+            for wp in waypoints:
+                wp_dict = {
+                    "lat": float(wp.get("lat", 0)),
+                    "lon": float(wp.get("lon", 0)),
+                    "alt": float(wp.get("alt", 0)),
+                }
+                # Optional parameters
+                if "hold_time" in wp:
+                    wp_dict["hold_time"] = float(wp["hold_time"])
+                if "accept_radius" in wp:
+                    wp_dict["accept_radius"] = float(wp["accept_radius"])
+                if "yaw" in wp:
+                    wp_dict["yaw"] = float(wp["yaw"])
+                wp_list.append(wp_dict)
+            
+            self.ros2LogMessage.emit("INFO", f"[MISSION] Uploading {len(wp_list)} waypoints to {drone_id}...")
+            success = b.upload_mission(wp_list, timeout=10.0)
+            
+            if success:
+                self.ros2LogMessage.emit("INFO", f"[MISSION] ✓ Mission uploaded to {drone_id}")
+                # Register status callback
+                b.on_mission_status(lambda status: self._on_mission_status(drone_id, status))
+            else:
+                self.ros2LogMessage.emit("ERROR", f"[MISSION] Upload failed for {drone_id}")
+            
+            return success
+        except Exception as e:
+            self.ros2LogMessage.emit("ERROR", f"[MISSION] Upload error: {e}")
+            return False
+    
+    @pyqtSlot(str, result=bool)
+    def clearMission(self, drone_id: str) -> bool:
+        """Clear mission on PX4."""
+        b = self._bridges.get(drone_id)
+        if not b:
+            self.ros2LogMessage.emit("WARN", f"[MISSION] No bridge for {drone_id}")
+            return False
+        
+        try:
+            success = b.clear_mission()
+            if success:
+                self.ros2LogMessage.emit("INFO", f"[MISSION] ✓ Mission cleared on {drone_id}")
+            return success
+        except Exception as e:
+            self.ros2LogMessage.emit("ERROR", f"[MISSION] Clear error: {e}")
+            return False
+    
+    @pyqtSlot(str)
+    def startMission(self, drone_id: str) -> None:
+        """Start mission execution (switch to AUTO.MISSION mode)."""
+        b = self._bridges.get(drone_id)
+        if not b:
+            self.ros2LogMessage.emit("WARN", f"[MISSION] No bridge for {drone_id}")
+            return
+        
+        try:
+            b.start_mission()
+            self.ros2LogMessage.emit("INFO", f"[MISSION] ✓ Mission started on {drone_id}")
+        except Exception as e:
+            self.ros2LogMessage.emit("ERROR", f"[MISSION] Start error: {e}")
+    
+    @pyqtSlot(str)
+    def pauseMission(self, drone_id: str) -> None:
+        """Pause mission execution (switch to AUTO.LOITER mode)."""
+        b = self._bridges.get(drone_id)
+        if not b:
+            self.ros2LogMessage.emit("WARN", f"[MISSION] No bridge for {drone_id}")
+            return
+        
+        try:
+            b.pause_mission()
+            self.ros2LogMessage.emit("INFO", f"[MISSION] ✓ Mission paused on {drone_id}")
+        except Exception as e:
+            self.ros2LogMessage.emit("ERROR", f"[MISSION] Pause error: {e}")
+    
+    @pyqtSlot(str, result="QVariant")
+    def getMissionStatus(self, drone_id: str) -> dict:
+        """Get current mission status."""
+        b = self._bridges.get(drone_id)
+        if not b:
+            return {
+                "active": False,
+                "current_seq": 0,
+                "total_count": 0,
+                "reached": False,
+                "finished": False,
+                "failure": False,
+            }
+        
+        try:
+            return b.get_mission_status()
+        except Exception as e:
+            self.ros2LogMessage.emit("ERROR", f"[MISSION] Status error: {e}")
+            return {}
+    
+    @pyqtSlot(str, result="QVariant")
+    def getMissionWaypoints(self, drone_id: str) -> list:
+        """Get uploaded mission waypoints."""
+        b = self._bridges.get(drone_id)
+        if not b:
+            return []
+        
+        try:
+            return b.get_mission_waypoints()
+        except Exception as e:
+            self.ros2LogMessage.emit("ERROR", f"[MISSION] Waypoints error: {e}")
+            return []
+    
+    def _on_mission_status(self, drone_id: str, status: dict) -> None:
+        """Handle mission status updates from bridge."""
+        self.missionStatusChanged.emit(drone_id, status)
+        
+        # Log significant events
+        if status.get("finished"):
+            self.ros2LogMessage.emit("INFO", f"[MISSION] ✓ Mission completed on {drone_id}")
+        elif status.get("failure"):
+            self.ros2LogMessage.emit("ERROR", f"[MISSION] Mission failed on {drone_id}")

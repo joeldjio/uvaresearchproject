@@ -14,7 +14,7 @@ from __future__ import annotations
 import threading
 import time
 import logging
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Callable
 
 try:
     import rclpy
@@ -32,6 +32,14 @@ try:
         _MISSION_ACK_OK = True
     except ImportError:
         _MISSION_ACK_OK = False
+    
+    # Mission status monitoring
+    try:
+        from px4_msgs.msg import MissionResult
+        _MISSION_RESULT_OK = True
+    except ImportError:
+        _MISSION_RESULT_OK = False
+    
     _PX4_MSGS_OK = True
 except ImportError:
     _PX4_MSGS_OK = False
@@ -95,8 +103,34 @@ class PX4MissionUploader:
                 10
             )
         
+        # Subscriber for mission result/status (if available)
+        self._sub_result = None
+        if _MISSION_RESULT_OK:
+            self._sub_result = node.create_subscription(
+                MissionResult,
+                f"{self._ns}/fmu/out/mission_result",
+                self._on_mission_result,
+                10
+            )
+        
         self._ack_received = threading.Event()
         self._ack_result = None
+        
+        # Mission status tracking
+        self._mission_status = {
+            "active": False,
+            "current_seq": 0,
+            "total_count": 0,
+            "reached": False,
+            "finished": False,
+            "failure": False,
+            "item_do_jump_changed": False,
+            "item_changed_index": 0,
+            "mode_auto": False,
+            "mode_offboard": False,
+        }
+        self._status_callbacks: List[Callable] = []
+        self._uploaded_waypoints: List[Dict] = []
         
         logger.info(f"PX4MissionUploader initialized (namespace: {namespace or '/'})")
     
@@ -115,6 +149,13 @@ class PX4MissionUploader:
         if not waypoints:
             logger.warning("No waypoints to upload")
             return False
+        
+        # Store waypoints for later retrieval
+        self._uploaded_waypoints = waypoints.copy()
+        
+        # Update mission status
+        self._mission_status["total_count"] = len(waypoints)
+        self._mission_status["current_seq"] = 0
         
         logger.info(f"Uploading {len(waypoints)} waypoints...")
         
@@ -222,5 +263,58 @@ class PX4MissionUploader:
         
         result_name = result_names.get(msg.result, f"UNKNOWN({msg.result})")
         logger.debug(f"Received mission ACK: {result_name}")
+    
+    def _on_mission_result(self, msg):
+        """Handle mission result/status from PX4."""
+        # Update mission status
+        self._mission_status.update({
+            "active": msg.mission_id > 0,
+            "current_seq": msg.seq_current,
+            "total_count": msg.seq_total,
+            "reached": msg.seq_reached == msg.seq_current,
+            "finished": msg.finished,
+            "failure": msg.failure,
+            "item_do_jump_changed": msg.item_do_jump_changed,
+            "item_changed_index": msg.item_changed_index,
+            "mode_auto": msg.mode_auto,
+            "mode_offboard": msg.mode_offboard,
+        })
+        
+        # Fire callbacks
+        for cb in self._status_callbacks:
+            try:
+                cb(self._mission_status.copy())
+            except Exception as e:
+                logger.error(f"Mission status callback error: {e}")
+        
+        logger.debug(f"Mission status: seq {msg.seq_current}/{msg.seq_total}, "
+                    f"finished={msg.finished}, failure={msg.failure}")
+    
+    def on_status_change(self, callback: Callable):
+        """
+        Register callback for mission status changes.
+        
+        Args:
+            callback: Function that receives mission status dict
+        """
+        self._status_callbacks.append(callback)
+    
+    def get_status(self) -> Dict:
+        """
+        Get current mission status.
+        
+        Returns:
+            Dict with mission status information
+        """
+        return self._mission_status.copy()
+    
+    def get_waypoints(self) -> List[Dict]:
+        """
+        Get uploaded waypoints.
+        
+        Returns:
+            List of waypoint dicts
+        """
+        return self._uploaded_waypoints.copy()
 
 # Made with Bob

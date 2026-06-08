@@ -311,6 +311,51 @@ class PX4ROS2Bridge:
             param1=1.0,  # MAV_MODE_FLAG_CUSTOM_MODE_ENABLED
             param2=3.0,  # PX4 AUTO.LOITER mode
         )
+    
+    def get_mission_status(self) -> dict:
+        """
+        Get current mission status.
+        
+        Returns:
+            Dict with mission status information:
+            - active: Mission is active
+            - current_seq: Current waypoint index
+            - total_count: Total waypoint count
+            - reached: Current waypoint reached
+            - finished: Mission finished
+            - failure: Mission failed
+        """
+        if not self._mission_uploader:
+            return {
+                "active": False,
+                "current_seq": 0,
+                "total_count": 0,
+                "reached": False,
+                "finished": False,
+                "failure": False,
+            }
+        return self._mission_uploader.get_status()
+    
+    def get_mission_waypoints(self) -> list:
+        """
+        Get uploaded mission waypoints.
+        
+        Returns:
+            List of waypoint dicts
+        """
+        if not self._mission_uploader:
+            return []
+        return self._mission_uploader.get_waypoints()
+    
+    def on_mission_status(self, callback: Callable):
+        """
+        Register callback for mission status changes.
+        
+        Args:
+            callback: Function that receives mission status dict
+        """
+        if self._mission_uploader:
+            self._mission_uploader.on_status_change(callback)
 
     # ── Events ────────────────────────────────────────────────────────────
 
