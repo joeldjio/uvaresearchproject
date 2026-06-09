@@ -1,0 +1,324 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  # ============================================================================
+  # Unit & Integration Tests (Fast, No Hardware)
+  # ============================================================================
+  unit-tests:
+    name: Unit & Integration Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.10", "3.11"]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Cache pip packages
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt', '**/pyproject.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[test]"
+    
+    - name: Run unit tests with coverage
+      run: |
+        pytest tests/ \
+          -m "not slow and not sitl and not e2e" \
+          --cov=droneresearch \
+          --cov=tools.ui \
+          --cov-report=xml \
+          --cov-report=term \
+          --junitxml=junit.xml \
+          -v
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-${{ matrix.python-version }}
+    
+    - name: Upload test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-results-${{ matrix.python-version }}
+        path: junit.xml
+
+  # ============================================================================
+  # UI Tests (PyQt6 + QML)
+  # ============================================================================
+  ui-tests:
+    name: UI Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+    
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libxcb-xinerama0 \
+          libxcb-icccm4 \
+          libxcb-image0 \
+          libxcb-keysyms1 \
+          libxcb-randr0 \
+          libxcb-render-util0 \
+          libxcb-shape0 \
+          libxkbcommon-x11-0 \
+          libdbus-1-3 \
+          libegl1 \
+          libfontconfig1 \
+          libglib2.0-0 \
+          xvfb
+    
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[test]"
+    
+    - name: Run UI tests with Xvfb
+      run: |
+        xvfb-run -a pytest tests/test_ui_*.py \
+          --cov=tools.ui \
+          --cov-report=xml \
+          --cov-report=term \
+          -v
+    
+    - name: Upload UI coverage
+      uses: codecov/codecov-action@v4
+      with:
+        file: ./coverage.xml
+        flags: ui
+        name: codecov-ui
+
+  # ============================================================================
+  # System Tests (Requires SITL)
+  # ============================================================================
+  system-tests:
+    name: System Tests (SITL)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[test]"
+    
+    - name: Install ArduPilot SITL
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y git python3-dev python3-opencv python3-wxgtk4.0 \
+          python3-pip python3-matplotlib python3-lxml python3-pygame
+        git clone https://github.com/ArduPilot/ardupilot.git /tmp/ardupilot
+        cd /tmp/ardupilot
+        git submodule update --init --recursive
+        Tools/environment_install/install-prereqs-ubuntu.sh -y
+        . ~/.profile
+        ./waf configure --board sitl
+        ./waf copter
+    
+    - name: Run system tests
+      run: |
+        export PATH=/tmp/ardupilot/Tools/autotest:$PATH
+        pytest tests/ -m sitl --timeout=300 -v
+      timeout-minutes: 10
+
+  # ============================================================================
+  # E2E Tests (Playwright)
+  # ============================================================================
+  e2e-tests:
+    name: E2E Tests (Playwright)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[test]"
+        pip install playwright pytest-playwright
+    
+    - name: Install Playwright browsers
+      run: playwright install --with-deps chromium
+    
+    - name: Install system dependencies for UI
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libxcb-xinerama0 libxcb-icccm4 libxcb-image0 \
+          libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 \
+          libxcb-shape0 libxkbcommon-x11-0 libdbus-1-3 \
+          libegl1 libfontconfig1 libglib2.0-0 xvfb
+    
+    - name: Run E2E tests
+      run: |
+        xvfb-run -a pytest tests/e2e/ -m e2e --video=retain-on-failure -v
+      timeout-minutes: 15
+    
+    - name: Upload E2E artifacts
+      uses: actions/upload-artifact@v4
+      if: failure()
+      with:
+        name: e2e-artifacts
+        path: |
+          test-results/
+          playwright-report/
+
+  # ============================================================================
+  # Linting & Code Quality
+  # ============================================================================
+  lint:
+    name: Linting & Code Quality
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+    
+    - name: Install linting tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install ruff mypy black isort
+    
+    - name: Run ruff
+      run: ruff check droneresearch/ tools/ tests/
+      continue-on-error: true
+    
+    - name: Run black
+      run: black --check droneresearch/ tools/ tests/
+      continue-on-error: true
+    
+    - name: Run isort
+      run: isort --check-only droneresearch/ tools/ tests/
+      continue-on-error: true
+    
+    - name: Run mypy
+      run: mypy droneresearch/ --ignore-missing-imports
+      continue-on-error: true
+
+  # ============================================================================
+  # License Check
+  # ============================================================================
+  license-check:
+    name: License Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[test]"
+    
+    - name: Run license tests
+      run: pytest tests/test_license.py -v
+
+  # ============================================================================
+  # Build & Package
+  # ============================================================================
+  build:
+    name: Build Package
+    runs-on: ubuntu-latest
+    needs: [unit-tests, ui-tests, lint, license-check]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+    
+    - name: Install build tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install build twine
+    
+    - name: Build package
+      run: python -m build
+    
+    - name: Check package
+      run: twine check dist/*
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: dist
+        path: dist/
+
+  # ============================================================================
+  # Test Summary
+  # ============================================================================
+  test-summary:
+    name: Test Summary
+    runs-on: ubuntu-latest
+    needs: [unit-tests, ui-tests, lint, license-check]
+    if: always()
+    
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+    
+    - name: Generate summary
+      run: |
+        echo "## Test Results Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+        echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+        echo "| Unit Tests | ${{ needs.unit-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| UI Tests | ${{ needs.ui-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Linting | ${{ needs.lint.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| License Check | ${{ needs.license-check.result }} |" >> $GITHUB_STEP_SUMMARY
+
+# Made with Bob

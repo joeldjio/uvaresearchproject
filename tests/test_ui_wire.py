@@ -122,12 +122,15 @@ class FakeROS2(QObject):
 @pytest.fixture
 def wired_locator(qapp):
     """Locator pre-populated with fakes and run through wire()."""
+    from tools.ui.context.bag_playback_context import BagPlaybackContext
+    
     loc = ServiceLocator()
     loc.register("swarm",          FakeSwarm())
     loc.register("telemetryModel", FakeTelemetryModel())
     loc.register("experiment",     FakeExperiment())
     loc.register("safety",         FakeSafety())
     loc.register("ros2",           FakeROS2())
+    loc.register("bagPlayback",    BagPlaybackContext())  # Add missing service
     wire(loc)
     return loc
 

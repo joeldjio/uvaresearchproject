@@ -1,0 +1,112 @@
+# Codecov Configuration
+# https://docs.codecov.com/docs/codecov-yaml
+
+coverage:
+  precision: 2
+  round: down
+  range: "70...100"
+  
+  status:
+    project:
+      default:
+        target: 70%
+        threshold: 2%
+        if_ci_failed: error
+    
+    patch:
+      default:
+        target: 80%
+        threshold: 5%
+        if_ci_failed: error
+
+# Component-based coverage tracking
+component_management:
+  individual_components:
+    - component_id: core
+      name: Core (FSM, Connection, Telemetry)
+      paths:
+        - droneresearch/core/**
+      
+    - component_id: control
+      name: Control (Mission, Script)
+      paths:
+        - droneresearch/control/**
+      
+    - component_id: safety
+      name: Safety (APF)
+      paths:
+        - droneresearch/safety/**
+      
+    - component_id: sdk
+      name: SDK (Drone, Swarm, Formations)
+      paths:
+        - droneresearch/sdk/**
+      
+    - component_id: ros2
+      name: ROS2 (Bridge, Context, PX4)
+      paths:
+        - droneresearch/ros/**
+      
+    - component_id: ui
+      name: UI (Qt/QML Backend)
+      paths:
+        - tools/ui/**
+      
+    - component_id: data
+      name: Data (Logger, Store)
+      paths:
+        - droneresearch/data/**
+      
+    - component_id: simulation
+      name: Simulation (SITL, Replay)
+      paths:
+        - droneresearch/simulation/**
+      
+    - component_id: experiment
+      name: Experiment (Manager, Metrics)
+      paths:
+        - droneresearch/experiment/**
+      
+    - component_id: autopilot
+      name: Autopilot (MAVLink, ArduPilot, PX4)
+      paths:
+        - droneresearch/autopilot/**
+
+# Ignore patterns
+ignore:
+  - "tests/**"
+  - "examples/**"
+  - "tools/installer/**"
+  - "pi/**"
+  - "docker/**"
+  - "docs/**"
+  - "**/__pycache__/**"
+  - "**/*.pyc"
+  - "**/conftest.py"
+
+# Comment settings
+comment:
+  layout: "reach,diff,flags,tree,components"
+  behavior: default
+  require_changes: false
+  require_base: false
+  require_head: true
+
+# Flag-based coverage (from CI jobs)
+flags:
+  unittests:
+    paths:
+      - droneresearch/**
+      - tools/ui/**
+    carryforward: true
+  
+  ui:
+    paths:
+      - tools/ui/**
+    carryforward: true
+
+# GitHub checks
+github_checks:
+  annotations: true
+
+# Made with Bob

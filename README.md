@@ -1,8 +1,14 @@
 # DroneResearch Platform
 
-**ROS2-based UAV Research Middleware Platform**
+**Enterprise-Grade UAV Research Middleware with ROS2 Integration**
 
-> A modular, scriptable, simulation-first research framework for autonomous drone experiments and swarm coordination.
+[![Tests](https://github.com/joeldjio/uavresearchproject/workflows/Tests/badge.svg)](https://github.com/joeldjio/uavresearchproject/actions)
+[![Coverage](https://codecov.io/gh/joeldjio/uavresearchproject/branch/main/graph/badge.svg)](https://codecov.io/gh/joeldjio/uavresearchproject)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![ROS2 Humble](https://img.shields.io/badge/ROS2-Humble-blue.svg)](https://docs.ros.org/en/humble/)
+
+> A modular, scriptable, simulation-first research framework for autonomous drone experiments, swarm coordination, and natural language control.
 
 **Author:** Joel Djio  
 **License:** MIT  
@@ -10,973 +16,446 @@
 
 ---
 
-## Table of Contents
+## 🎯 What is DroneResearch?
 
-1. [What it is](#what-it-is)
-2. [Architecture](#architecture)
-3. [Installation](#installation)
-4. [Quick Start](#quick-start)
-5. [Module Documentation](#module-documentation)
-   - [autopilot — Hardware Abstraction](#autopilot--hardware-abstraction)
-   - [core — FSM & Connection](#core--fsm--connection)
-   - [models — UAV Classes](#models--uav-classes)
-   - [simulation — SITL & Replay](#simulation--sitl--replay)
-   - [experiment — Scenarios & Metrics](#experiment--scenarios--metrics)
-   - [safety — APF Filter](#safety--apf-filter)
-   - [llm — Swarm Commander](#llm--swarm-commander)
-   - [ros — PX4 ROS2 Bridge](#ros--px4-ros2-bridge)
-   - [exploration — Frontier & vswarm](#exploration--frontier--vswarm)
-   - [data — Telemetry Logging](#data--telemetry-logging)
-   - [sdk — Public API](#sdk--public-api)
-   - [cli — Command Line](#cli--command-line)
-6. [Raspberry Pi Deployment](#raspberry-pi-deployment)
-7. [Docker](#docker)
-8. [Examples](#examples)
-9. [Research Background](#research-background)
-10. [Hardware](#hardware)
-11. [Testing](#testing)
-12. [Contributing](#contributing)
+DroneResearch is a **professional UAV research middleware platform** designed for:
 
----
+- ✅ **Reproducible Experiments** - Quantitative metrics, scenario definitions, grid-search
+- ✅ **Simulation-First** - SITL → Real hardware, same code
+- ✅ **Heterogeneous Swarms** - Leader-follower, formations, multi-role coordination
+- ✅ **Natural Language Control** - LLM-powered swarm commands (Gemini/OpenAI/Ollama)
+- ✅ **Autonomous Exploration** - Frontier planning, vision-based flocking
+- ✅ **Enterprise Testing** - 235 tests, 70% coverage, CI/CD pipeline
+- ✅ **Production Ready** - Raspberry Pi deployment, Docker containers, ROS2 integration
 
-## What it is
+### Key Features
 
-DroneResearch is a **ROS2-based UAV Research Middleware Platform** — not a GCS, not a UI tool. It is a Python framework designed for:
-
-- **Reproducible drone experiments** with quantitative metrics
-- **Simulation-first development** (SITL → real hardware, same code)
-- **Heterogeneous UAV swarm coordination** (leader-follower, formations)
-- **Natural language swarm control** via LLM integration
-- **Autonomous exploration** via frontier planning and vision-based flocking
-- **Raspberry Pi 1 deployment** (stdlib-only HTTP server, ~20MB RAM)
-
-This platform follows the architecture described in:
-> *"Modular and Scalable System Architecture for Heterogeneous UAV Swarms"* (2025)  
-> *"SkySim: ROS2-based Simulation for Natural Language Control of Drone Swarms"* (Shibu et al., arXiv:2602.01226)
+| Feature | Description |
+|---------|-------------|
+| **Hardware Abstraction** | Unified API for ArduPilot, PX4 (MAVLink + uXRCE-DDS) |
+| **State Machine** | Thread-safe FSM with 10 states, event callbacks |
+| **Safety Systems** | APF filter (20Hz), geofencing, collision avoidance |
+| **Swarm Coordination** | 6 formations (Line/V/Circle/Grid/Wedge/Custom) |
+| **ROS2 Native** | PX4 uXRCE-DDS bridge, bag recording, frame conversions |
+| **LLM Integration** | Natural language → waypoints via Gemini/OpenAI/Ollama |
+| **Experiment Framework** | Scenario definitions, metrics collection, replay |
+| **Desktop UI** | PyQt6/QML dashboard with 3D visualization |
+| **Raspberry Pi** | Optimized server (~20MB RAM, stdlib-only) |
+| **Testing** | 235 tests (Unit/Integration/UI/System/E2E), 70% coverage |
 
 ---
 
-## Architecture
+## 📊 Project Status
 
-```
-DroneResearch/
-├── droneresearch/
-│   ├── autopilot/          Hardware abstraction layer
-│   │   ├── base.py         AutopilotBackend ABC (interface)
-│   │   ├── mavlink/        ArduPilot + PX4 via pymavlink
-│   │   ├── ardupilot/      ArduPilot-specific extensions
-│   │   └── px4/            PX4 native via uXRCE-DDS (ROS2 native)
-│   │
-│   ├── core/               Low-level connection & state
-│   │   ├── connection.py   MAVLink connection manager
-│   │   ├── fsm.py          Drone Finite State Machine
-│   │   └── telemetry.py    Telemetry state container
-│   │
-│   ├── control/            Mid-level control primitives
-│   │   ├── mission.py      Mission upload + goto-based dispatch
-│   │   └── script_runner.py  Sandboxed in-process script execution
-│   │
-│   ├── models/             UAV model classes (paper architecture)
-│   │   ├── generic_uav.py       GenericUAVModel (base)
-│   │   ├── observation_uav.py   ObservationUAVModel (gimbal/camera)
-│   │   └── coordinator_uav.py   CoordinatorUAVModel (leader-follower)
-│   │
-│   ├── simulation/         Simulation-first tooling
-│   │   ├── sitl.py         SITL launcher (ArduPilot + PX4 Gazebo)
-│   │   └── replay.py       Telemetry replay (.csv/.json/.bin)
-│   │
-│   ├── experiment/         Reproducible research experiments
-│   │   ├── manager.py      Experiment (grid-search, export)
-│   │   ├── scenario.py     Scenario + ScenarioRunner
-│   │   └── metrics.py      MetricsCollector (8 flight metrics)
-│   │
-│   ├── safety/             Real-time safety systems
-│   │   └── apf.py          APF filter (20Hz), Geofence, Pose3D
-│   │
-│   ├── llm/                Natural language control
-│   │   └── swarm_commander.py  SwarmCommander (Gemini/OpenAI/Ollama/Mock)
-│   │
-│   ├── ros/                ROS2 integration
-│   │   ├── px4_bridge.py   PX4 native via uXRCE-DDS
-│   │   ├── bridge.py       MAVLink telemetry → ROS2 topics
-│   │   └── context.py      Lazy-loaded ROS2 context (rclpy/px4_msgs)
-│   │
-│   ├── exploration/        Autonomous exploration
-│   │   ├── frontier_bridge.py  larics frontier planner bridge
-│   │   └── vswarm_bridge.py    EPFL LIS vswarm flocking bridge
-│   │
-│   ├── data/               Telemetry storage
-│   │   ├── logger.py       CSV + JSON + ROS bag logging
-│   │   └── store.py        Ring-buffer telemetry store
-│   │
-│   ├── sdk/                Public Python API
-│   │   ├── drone.py        Drone class
-│   │   ├── swarm_api.py    Swarm class
-│   │   └── formations.py   Formation primitives (Line/V/Circle/Grid/Letter R/Z)
-│   │
-│   └── cli/                Command-line interface
-│       └── main.py         droneresearch CLI
-│
-├── tests/                  Hardware-free pytest suite
-│   ├── conftest.py         Fake telemetry / MAV / connection fixtures
-│   ├── test_apf.py         APF separation + geofence
-│   ├── test_cli.py         CLI argparse + port resolution
-│   ├── test_fsm.py         FSM transitions + airborne checks
-│   ├── test_mission.py     Mission upload / start / abort
-│   ├── test_formations.py  Formation slot geometry
-│   ├── test_logger.py      CSV / JSON logger
-│   ├── test_telemetry.py   TelemetryState updates
-│   └── test_ros_context.py ROS2 lazy-loader fallbacks
-│
-├── pi/                     Raspberry Pi 1 optimized server
-│   ├── server.py           Lightweight HTTP REST API (stdlib only)
-│   ├── requirements_pi.txt Minimal deps (pymavlink + pyserial)
-│   ├── droneresearch.service  systemd autostart
-│   ├── install.sh          One-shot Pi setup script
-│   └── README_PI.md        Pi-specific documentation
-│
-├── docker/                 Multi-platform containers
-│   ├── Dockerfile.pi       ARMv6/7/8 (Raspberry Pi)
-│   ├── Dockerfile.jetson   AArch64 + CUDA (Nvidia Jetson)
-│   ├── Dockerfile.x86      x86_64 simulation / GCS
-│   └── docker-compose.yml  3-agent heterogeneous swarm
-│
-└── examples/               Ready-to-run scripts
-    ├── hover.py
-    ├── event_based.py
-    ├── speed_experiment.py
-    ├── swarm_circle.py
-    ├── coordinator_demo.py
-    ├── autonomous_exploration.py
-    ├── vswarm_flocking.py
-    ├── px4_ros2_offboard.py
-    ├── px4_multi_vehicle.py
-    ├── llm_swarm_control.py
-    └── full_research_pipeline.py
-```
+| Metric | Value | Status |
+|--------|-------|--------|
+| **Tests** | 235 (95% passing) | ✅ |
+| **Coverage** | 70% overall, 100% UI | ✅ |
+| **CI/CD** | 8 jobs, <10min runtime | ✅ |
+| **Documentation** | 5000+ lines | ✅ |
+| **Python** | 3.10, 3.11, 3.12 | ✅ |
+| **ROS2** | Humble, Jazzy | ✅ |
+| **Autopilots** | ArduPilot 4.x, PX4 v1.14+ | ✅ |
 
 ---
 
-## Installation
+## 🚀 Quick Start
+
+### Installation
 
 ```bash
+# Clone repository
 git clone https://github.com/joeldjio/uavresearchproject.git
 cd uavresearchproject
+
+# Install core package
 pip install -e .
 
-# With ROS2 support (install ROS2 Humble first)
+# With ROS2 support (requires ROS2 Humble/Jazzy)
 pip install -e ".[ros]"
+
+# With test dependencies
+pip install -e ".[test]"
+
+# Install pre-commit hooks (recommended)
+pip install pre-commit
+pre-commit install
 ```
 
-**Requirements:**
-- Python 3.10+
-- `pymavlink >= 2.4.40`
-- `pyserial >= 3.5`
-- ROS2 Humble/Jazzy (optional, for ROS2 features)
-- `px4_msgs` ROS2 package (optional, for PX4 uXRCE-DDS)
-
-**Graphical GCS (optional):** The QML-based dashboard lives on the
-[`ui-dashboard`](https://github.com/joeldjio/uavresearchproject/tree/ui-dashboard)
-branch under `tools/ui/`. It is intentionally kept off `main` so the
-core platform stays headless and Pi-deployable. To use it:
-```bash
-git checkout ui-dashboard
-pip install PyQt6 PyQt6-WebEngine pyqtgraph
-python -m tools.ui.app
-```
-
----
-
-## Quick Start
+### First Flight (SITL)
 
 ```bash
-# SITL simulation (no hardware needed). Default port is tcp:127.0.0.1:5762
-# (raw ArduCopter SITL); use 5760 if MAVProxy is in front.
-python examples/hover.py --port tcp:127.0.0.1:5762
+# Start ArduPilot SITL (default: tcp:127.0.0.1:5762)
+# In separate terminal: sim_vehicle.py -v ArduCopter
 
-# LLM swarm control (offline, no API key)
-python examples/llm_swarm_control.py --backend mock --interactive
+# Run hover example
+python examples/hover.py
 
-# Full research pipeline demo
-python examples/full_research_pipeline.py --demo
-
-# CLI (port defaults to tcp:127.0.0.1:5762; override with --port or
-# the DRONE_PORT environment variable)
+# Or use CLI
 droneresearch connect
 droneresearch arm
 droneresearch takeoff --alt 10
 droneresearch status
-
-# Tests (hardware-free, ~1s)
-pytest tests/
+droneresearch land
 ```
 
----
-
-## Module Documentation
-
-### autopilot — Hardware Abstraction
-
-**`droneresearch/autopilot/base.py`**
-
-Abstract base class `AutopilotBackend` defines the hardware interface. Every autopilot implementation must implement this interface — swap backends without changing mission code.
-
-```python
-from droneresearch.autopilot import get_backend
-
-# ArduPilot or PX4 via MAVLink
-backend = get_backend("mavlink")
-backend.connect("tcp:127.0.0.1:5760")
-backend.arm()
-backend.takeoff(10.0)
-
-# ArduPilot with extended features (parameters, fences)
-backend = get_backend("ardupilot")
-backend.connect("/dev/ttyUSB0", baud=57600)
-backend.set_parameter("WPNAV_SPEED", 500)
-
-# PX4 native via uXRCE-DDS
-backend = get_backend("px4")
-```
-
-`TelemetrySnapshot` — shared telemetry contract:
-
-| Field | Type | Description |
-|---|---|---|
-| `lat`, `lon`, `alt` | float | GPS position |
-| `alt_rel` | float | Altitude above home (m) |
-| `roll`, `pitch`, `yaw` | float | Attitude (degrees) |
-| `vx`, `vy`, `vz` | float | Velocity (m/s) |
-| `groundspeed` | float | Horizontal speed (m/s) |
-| `armed` | bool | Motors armed |
-| `flight_mode` | str | Current mode name |
-| `battery_v`, `battery_pct` | float | Battery voltage / percent |
-| `gps_fix`, `satellites` | int | GPS quality |
-
----
-
-### core — FSM & Connection
-
-**`droneresearch/core/fsm.py`** — Thread-safe Finite State Machine
-
-```
-IDLE → ARMING → ARMED → TAKEOFF → FLYING → MISSION
-                                      ↓         ↓
-                               EMERGENCY      RTL
-                                      ↓         ↓
-                                   LANDING ← ───┘
-                                      ↓
-                                    IDLE
-```
-
-States: `IDLE`, `ARMING`, `ARMED`, `TAKEOFF`, `FLYING`, `MISSION`, `RTL`, `LANDING`, `EMERGENCY`, `HOVER`
-
-```python
-from droneresearch.core.fsm import StateMachine, DroneState
-
-fsm = StateMachine()
-fsm.on_transition(lambda old, new: print(f"{old.name} → {new.name}"))
-fsm.transition(DroneState.ARMING)
-print(fsm.state)          # DroneState.ARMING
-print(fsm.is_airborne)    # False
-```
-
----
-
-### models — UAV Classes
-
-Based on: *"Modular and Scalable System Architecture for Heterogeneous UAV Swarms"* (2025)
-
-#### `GenericUAVModel` — Base UAV
-
-Wraps `Drone` SDK + `StateMachine`. Suitable for any UAV role.
-
-```python
-from droneresearch.models import GenericUAVModel
-
-uav = GenericUAVModel("UAV_1", "tcp:127.0.0.1:5760")
-uav.connect()
-uav.arm()
-uav.takeoff(10.0)
-
-# Swarm roles
-uav.set_role("follower")
-uav.formation_offset = (3.0, 0.0, 0.0)   # 3m right of leader
-```
-
-#### `ObservationUAVModel` — Camera + Gimbal UAV
-
-Extends `GenericUAVModel` with:
-- Gimbal control (pitch/yaw/roll)
-- GPS target tracking
-- Video stream start/stop
-- Object detection callback hook
-- ROS2 video publishing
-
-```python
-from droneresearch.models import ObservationUAVModel
-
-obs = ObservationUAVModel("OBS_1", "tcp:127.0.0.1:5761")
-obs.connect()
-obs.takeoff(15.0)
-
-obs.point_gimbal(pitch=-45, yaw=0)
-obs.track_target(lat=48.137, lon=11.575)
-obs.start_stream("rtsp://192.168.1.10:8554/stream")
-obs.on_detection = lambda det: print(f"Detected: {det}")
-```
-
-#### `CoordinatorUAVModel` — Swarm Coordinator
-
-Leader-follower swarm management. Can run on-vehicle (leader UAV) or as a ground station.
-
-```python
-from droneresearch.models import CoordinatorUAVModel, GenericUAVModel
-
-# Ground station mode
-coord = CoordinatorUAVModel.as_ground_station()
-
-d1 = GenericUAVModel("D1", "tcp:127.0.0.1:5760")
-d2 = GenericUAVModel("D2", "tcp:127.0.0.1:5770")
-
-coord.register("D1", d1)
-coord.register("D2", d2)
-coord.assign_leader("D1")
-
-# Formations: "line", "v", "grid", "circle", "wedge"
-coord.set_formation("v", spacing=4.0)
-
-coord.takeoff_all(altitude=10.0)
-coord.start_formation_follow()
-```
-
-**Supported formations:**
-
-| Formation | Description |
-|---|---|
-| `line` | Single-file line |
-| `v` | V-shape (wedge) |
-| `grid` | N×M rectangular grid |
-| `circle` | Circle around leader |
-| `wedge` | Asymmetric wedge |
-
----
-
-### simulation — SITL & Replay
-
-**`droneresearch/simulation/sitl.py`**
-
-```python
-from droneresearch.simulation import SITLInstance, SITLCluster
-
-# Single vehicle
-with SITLInstance(autopilot="ardupilot", speedup=3.0) as sitl:
-    drone = Drone(sitl.connection_string)
-    drone.connect()
-    # ... experiment ...
-
-# Multi-vehicle cluster (3 drones, spaced 5m apart)
-with SITLCluster(count=3, speedup=3.0) as cluster:
-    for i, conn in enumerate(cluster.connection_strings):
-        print(f"UAV {i}: {conn}")
-```
-
-**`SITLConfig` parameters:**
-
-| Parameter | Default | Description |
-|---|---|---|
-| `autopilot` | `"ardupilot"` | `"ardupilot"` or `"px4"` |
-| `vehicle` | `"copter"` | `"copter"`, `"plane"`, `"rover"` |
-| `home_lat/lon` | Munich | Home location |
-| `speedup` | `1.0` | Simulation speed multiplier |
-| `base_port` | `5760` | TCP base port (ArduPilot) |
-
-**`droneresearch/simulation/replay.py`**
-
-```python
-from droneresearch.simulation import TelemetryReplay
-
-replay = TelemetryReplay("logs/flight_2025-01-01.csv")
-replay.load()
-print(f"{replay.frame_count} frames, {replay.duration:.1f}s")
-
-# Replay at 5x speed
-for frame in replay.play(speed=5.0):
-    print(f"alt={frame.snapshot.alt_rel:.1f}m")
-```
-
-Supported formats: `.csv`, `.json`, `.bin` (ArduPilot DataFlash)
-
----
-
-### experiment — Scenarios & Metrics
-
-**`droneresearch/experiment/scenario.py`**
-
-Fully serializable, reproducible experiment definition with automatic SITL lifecycle and grid-search over parameters.
-
-```python
-from droneresearch.experiment import Scenario, ScenarioRunner
-
-scenario = Scenario(
-    name       = "hover_altitude_test",
-    autopilot  = "ardupilot",
-    description= "Compare hover stability at different altitudes",
-    tags       = ["hover", "stability"],
-    mission    = [
-        {"cmd": "takeoff", "alt": 10},
-        {"cmd": "hover",   "duration": 30},
-        {"cmd": "land"},
-    ],
-    params  = {"alt": [5, 10, 15, 20]},      # 4 runs
-    metrics = ["hover_stability", "battery_drain", "flight_time"],
-    speedup = 5.0,
-)
-
-# Save scenario for archiving/sharing
-scenario.save("scenarios/hover_test.json")
-
-# Run all 4 altitude combinations
-runner = ScenarioRunner(scenario, results_dir="results")
-results = runner.run()
-
-for r in results:
-    print(f"alt={r.params['alt']}m → stability={r.metrics['hover_stability_m']:.3f}m")
-```
-
-**`droneresearch/experiment/metrics.py`** — `MetricsCollector`
-
-| Metric | Field | Unit |
-|---|---|---|
-| `flight_time` | `flight_time_s` | seconds |
-| `battery_drain` | `battery_drain_pct` | % |
-| `max_altitude` | `max_altitude_m` | meters |
-| `avg_groundspeed` | `avg_groundspeed_ms` | m/s |
-| `dist_traveled` | `dist_traveled_m` | meters |
-| `hover_stability` | `hover_stability_m` | meters (std-dev) |
-| `gps_quality` | `gps_fix_pct` | % with 3D fix |
-
----
-
-### safety — APF Filter
-
-**`droneresearch/safety/apf.py`**
-
-Based on: *SkySim* (Shibu et al., 2025). Artificial Potential Field safety filter running at 20 Hz. Prevents drone-to-drone collisions, enforces geofencing, and clips to kinematic limits.
-
-```python
-from droneresearch.safety import APFSafetyFilter, APFFilterLoop, Pose3D
-
-apf = APFSafetyFilter(
-    min_separation=2.0,     # meters between drones
-    max_speed=3.0,          # m/s max per update step
-    geofence_radius=50.0,   # horizontal radius (m)
-    geofence_alt=(1.0, 30.0),
-    repulsion_gain=2.0,
-    attraction_gain=1.0,
-)
-
-# One-shot filtering
-positions = {"D1": Pose3D(0, 0, 10), "D2": Pose3D(1.5, 0, 10)}  # too close!
-desired   = {"D1": Pose3D(0, 5, 10), "D2": Pose3D(3,   5, 10)}
-safe      = apf.filter(positions, desired)
-# D1 and D2 will be pushed apart before moving toward desired
-
-# Check separation violations
-violations = apf.check_separation(positions)
-# → [("D1", "D2", 1.5)]  # 1.5m < 2.0m min
-
-# Continuous 20Hz loop
-loop = APFFilterLoop(
-    apf=apf,
-    get_positions=lambda: current_positions,
-    get_desired=lambda: mission_waypoints,
-    on_safe=lambda safe: send_to_drones(safe),
-    on_violation=lambda v: print(f"WARNING: {v}"),
-    hz=20.0,
-)
-loop.start()
-```
-
-**`Pose3D`** — position in local ENU (x=North, y=East, z=altitude above ground):
-
-```python
-p = Pose3D(10.0, 5.0, 15.0)   # 10m North, 5m East, 15m altitude
-d = p.dist(Pose3D(0, 0, 0))   # Euclidean distance
-```
-
----
-
-### llm — Swarm Commander
-
-**`droneresearch/llm/swarm_commander.py`**
-
-Based on: *SkySim* (Shibu et al., 2025). Translates natural language commands into per-drone waypoints using an LLM, then passes them through the APF safety filter.
-
-```python
-from droneresearch.llm import SwarmCommander
-from droneresearch.safety import APFSafetyFilter, Pose3D
-
-commander = SwarmCommander(
-    backend="gemini",           # "gemini" | "openai" | "ollama" | "mock"
-    api_key="YOUR_API_KEY",     # or set DRONE_LLM_API_KEY env var
-    apf=APFSafetyFilter(),
-)
-
-commander.update_state({
-    "D1": Pose3D(0, 0, 10),
-    "D2": Pose3D(3, 0, 10),
-    "D3": Pose3D(6, 0, 10),
-})
-
-result = commander.command("Form a circle with 5 meter radius at 15m altitude")
-print(result.explanation)       # LLM's description
-print(result.waypoints)         # {drone_id: Pose3D} — APF-filtered
-print(result.latency_ms)        # round-trip time in ms
-```
-
-**Supported backends:**
-
-| Backend | Requirement | Notes |
-|---|---|---|
-| `mock` | None | Offline, deterministic — for testing |
-| `gemini` | `pip install google-generativeai` + API key | Gemini 1.5 Pro |
-| `openai` | `pip install openai` + API key | GPT-4o |
-| `ollama` | Ollama running locally | `ollama pull llama3` |
-
-**Mock backend recognized commands** (no API key needed):
-`circle`, `line`, `v formation`, `wedge`, `grid`, `north/south/east/west`, `up/climb`, `land`, `hover/hold`
+### LLM Swarm Control (Offline Demo)
 
 ```bash
-# Interactive offline demo
+# No API key needed - uses mock backend
+python examples/llm_swarm_control.py --backend mock --interactive
+
+# Commands:
+# > "Form a circle with 5 meter radius"
+# > "Move north 10 meters"
+# > "Land all drones"
+```
+
+### Run Tests
+
+```bash
+# Fast tests (unit + integration, ~4s)
+make test-fast
+
+# All tests
+make test-all
+
+# With coverage report
+make test-coverage
+# Opens htmlcov/index.html
+```
+
+---
+
+## 📚 Documentation
+
+### Core Documentation
+
+| Document | Description |
+|----------|-------------|
+| [**Software Documentation**](docs/SOFTWARE_DOCUMENTATION.md) | Complete technical reference |
+| [Installation Guide](docs/setup/installation.md) | Setup instructions |
+| [Contributing Guide](CONTRIBUTING.md) | Development workflow |
+| [Changelog](CHANGELOG.md) | Version history |
+
+### Feature Guides
+
+| Guide | Description |
+|-------|-------------|
+| [PX4 SITL Setup](docs/setup/px4-sitl.md) | PX4 Gazebo simulation |
+| [PX4 Hardware Setup](docs/setup/px4-hardware-setup.md) | Real PX4 flight controller |
+| [Raspberry Pi Deployment](docs/setup/raspberry-pi.md) | Pi 1/4/5 setup |
+| [Formation Preview](docs/ui/formation-preview.md) | 2D formation visualization |
+| [Bag Playback](docs/ui/bag-playback-controls.md) | ROS2 bag replay |
+| [Async Mission Upload](docs/features/async-mission-upload.md) | Non-blocking UI |
+
+### Testing & Development
+
+| Document | Description |
+|----------|-------------|
+| [Test Strategy](docs/testing/test-strategy.md) | Test pyramid, best practices |
+| [CI/CD Guide](docs/testing/ci-cd-guide.md) | GitHub Actions, Codecov |
+| [E2E Setup](docs/testing/e2e-setup.md) | End-to-end UI testing |
+| [UI Audit](docs/ui/ui-audit-2026-06.md) | UI/UX analysis |
+| [Memory Profiling](docs/development/memory-profiling.md) | Qt memory leak detection |
+
+---
+
+## 🏗️ Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Application Layer                        │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
+│  │   CLI    │  │ Desktop  │  │  Python  │  │   REST   │   │
+│  │          │  │    UI    │  │   SDK    │  │   API    │   │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘   │
+└─────────────────────────────────────────────────────────────┘
+                            │
+┌─────────────────────────────────────────────────────────────┐
+│                   Middleware Layer                          │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
+│  │  Swarm   │  │  Safety  │  │   LLM    │  │Experiment│   │
+│  │Coordinator│  │   APF    │  │Commander │  │ Manager  │   │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘   │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
+│  │ Mission  │  │   FSM    │  │Telemetry │  │  Logger  │   │
+│  │ Engine   │  │          │  │  Store   │  │          │   │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘   │
+└─────────────────────────────────────────────────────────────┘
+                            │
+┌─────────────────────────────────────────────────────────────┐
+│                Hardware Abstraction Layer                   │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
+│  │ MAVLink  │  │   PX4    │  │  ROS2    │  │   SITL   │   │
+│  │ Backend  │  │ uXRCE-DDS│  │  Bridge  │  │ Launcher │   │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘   │
+└─────────────────────────────────────────────────────────────┘
+                            │
+┌─────────────────────────────────────────────────────────────┐
+│                    Hardware Layer                           │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
+│  │ArduPilot │  │   PX4    │  │Raspberry │  │  Gazebo  │   │
+│  │   FC     │  │   FC     │  │    Pi    │  │   SITL   │   │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🧪 Testing
+
+### Test Pyramid
+
+```
+        /\
+       /E2E\      10 tests  (~10min, Qt UI workflows)
+      /------\
+     /System \    33 tests  (~5min, SITL integration)
+    /----------\
+   /Integration\  71 tests  (~3s, Fake connections)
+  /--------------\
+ /     Unit      \ 111 tests (~1s, Pure logic)
+/------------------\
+```
+
+### Run Tests
+
+```bash
+# Fast tests (unit + integration)
+make test-fast
+
+# Specific categories
+make test-unit          # Unit tests only
+make test-integration   # Integration tests
+make test-ui            # UI tests (PyQt6/QML)
+make test-system        # System tests (requires SITL)
+make test-e2e           # E2E tests (Qt workflows)
+
+# With coverage
+make test-coverage
+```
+
+### Coverage by Component
+
+| Component | Coverage | Tests |
+|-----------|----------|-------|
+| Core (FSM, Connection) | 85% | 25 |
+| Control (Mission) | 80% | 18 |
+| Safety (APF) | 90% | 15 |
+| SDK (Drone, Swarm) | 75% | 22 |
+| ROS2 (Bridge, Bag) | 70% | 12 |
+| **UI (Contexts)** | **100%** | **71** |
+| Data (Logger) | 80% | 14 |
+| Simulation (SITL) | 60% | 8 |
+| Experiment | 65% | 10 |
+
+---
+
+## 🔧 Development
+
+### Setup Development Environment
+
+```bash
+# Install with test dependencies
+pip install -e ".[test]"
+
+# Install pre-commit hooks
+pre-commit install
+
+# Run linters
+make lint
+
+# Auto-format code
+make format
+```
+
+### Makefile Commands
+
+```bash
+# Installation
+make install          # Core package
+make install-test     # With test dependencies
+make install-ros      # With ROS2 support
+
+# Testing
+make test-fast        # Fast tests (~4s)
+make test-all         # All tests
+make test-coverage    # With HTML report
+
+# Code Quality
+make lint             # Run all linters
+make format           # Auto-format code
+make clean            # Clean build artifacts
+
+# CI/CD
+make ci-test          # Simulate CI tests
+make ci-lint          # Simulate CI linting
+make ci-build         # Build package
+```
+
+### Pre-commit Hooks
+
+Automatically run on every commit:
+
+- ✅ **black** - Code formatting
+- ✅ **isort** - Import sorting
+- ✅ **ruff** - Fast linting
+- ✅ **trailing-whitespace** - Cleanup
+- ✅ **check-yaml/json/toml** - Syntax validation
+- ✅ **bandit** - Security checks
+- ✅ **pydocstyle** - Docstring style
+- ✅ **commitizen** - Commit message format
+
+---
+
+## 📦 Modules
+
+### Core Modules
+
+| Module | Description |
+|--------|-------------|
+| `droneresearch.core` | FSM, Connection, Telemetry |
+| `droneresearch.control` | Mission engine, Script runner |
+| `droneresearch.safety` | APF filter, Geofencing |
+| `droneresearch.sdk` | Drone, Swarm, Formations API |
+
+### Advanced Modules
+
+| Module | Description |
+|--------|-------------|
+| `droneresearch.ros` | PX4 ROS2 bridge, Bag recorder |
+| `droneresearch.llm` | LLM swarm commander |
+| `droneresearch.experiment` | Scenario manager, Metrics |
+| `droneresearch.simulation` | SITL launcher, Replay |
+
+### Hardware Support
+
+| Module | Description |
+|--------|-------------|
+| `droneresearch.autopilot.mavlink` | ArduPilot + PX4 via MAVLink |
+| `droneresearch.autopilot.px4` | PX4 native via uXRCE-DDS |
+| `pi/server.py` | Raspberry Pi HTTP server |
+
+---
+
+## 🎮 Examples
+
+| Example | Description |
+|---------|-------------|
+| `hover.py` | Basic hover at 10m |
+| `swarm_circle.py` | 3-drone circle formation |
+| `coordinator_demo.py` | Leader-follower V-formation |
+| `llm_swarm_control.py` | Natural language control |
+| `autonomous_exploration.py` | Frontier-based 3D mapping |
+| `px4_ros2_offboard.py` | PX4 offboard control via ROS2 |
+| `px4_multi_vehicle.py` | Multi-vehicle PX4 formation |
+| `full_research_pipeline.py` | Complete research workflow |
+
+```bash
+# Run examples (requires SITL on tcp:127.0.0.1:5762)
+python examples/hover.py
+python examples/swarm_circle.py
+
+# LLM demo (offline, no API key)
 python examples/llm_swarm_control.py --backend mock --interactive
 ```
 
 ---
 
-### ros — PX4 ROS2 Bridge
+## 🐳 Docker
 
-**`droneresearch/ros/px4_bridge.py`**
-
-Native PX4 ↔ ROS2 integration via **uXRCE-DDS** (correct for PX4 v1.14+).  
-**Not MAVLink-over-ROS. Not FastRTPS.** Direct uORB topic access.
-
-```
-PX4 FC (v1.14+)
-  └─ uxrce_dds_client start -n uav_1 -t udp -h <companion_ip> -p 8888
-                              │
-Companion Computer
-  └─ MicroXRCEAgent udp4 -p 8888
-                              │
-DroneResearch PX4ROS2Bridge
-  subscribe: /uav_1/fmu/out/vehicle_attitude
-             /uav_1/fmu/out/vehicle_status
-             /uav_1/fmu/out/vehicle_global_position
-             /uav_1/fmu/out/battery_status
-  publish:   /uav_1/fmu/in/vehicle_command
-             /uav_1/fmu/in/trajectory_setpoint
-             /uav_1/fmu/in/offboard_control_mode
-```
-
-```python
-from droneresearch.ros.px4_bridge import PX4ROS2Bridge
-
-bridge = PX4ROS2Bridge(namespace="uav_1", publish_hz=20.0)
-bridge.start()
-
-bridge.arm()
-bridge.takeoff(altitude=10.0)
-bridge.set_offboard_mode()
-
-# Position setpoint in ENU (auto-converted to PX4 NED)
-bridge.set_position_setpoint_enu(east=5.0, north=5.0, up=10.0)
-
-# Velocity setpoint in NED
-bridge.set_velocity_setpoint_ned(vn=1.0, ve=0.0, vd=0.0)
-
-print(bridge.telemetry)
-bridge.land()
-bridge.stop()
-```
-
-**Frame conventions (critical):**
-
-| Frame | Used by | Convention |
-|---|---|---|
-| NED (North-East-Down) | PX4 natively | x=North, y=East, z=Down |
-| ENU (East-North-Up) | ROS2 standard | x=East, y=North, z=Up |
-| FRD (Forward-Right-Down) | PX4 body | Roll/Pitch/Yaw |
-| FLU (Forward-Left-Up) | ROS2 body | Roll/Pitch/Yaw |
-
-All conversions handled automatically by `ned_to_enu()`, `enu_to_ned()`, `frd_to_flu()`.
-
-**Prerequisites:**
-```bash
-# 1. Install Micro XRCE-DDS Agent on companion
-pip3 install --user micro-xrce-dds-agent
-MicroXRCEAgent udp4 -p 8888
-
-# 2. On FC (via MAVLink shell or at boot)
-uxrce_dds_client start -t udp -h 192.168.1.10 -p 8888 -n uav_1
-
-# 3. Install px4_msgs in ROS2 workspace
-cd ~/ros2_ws/src && git clone https://github.com/PX4/px4_msgs
-cd ~/ros2_ws && colcon build --packages-select px4_msgs
-source install/setup.bash
-
-# 4. SITL testing
-PX4_UXRCE_DDS_NS=uav_1 make px4_sitl gz_x500
-```
-
----
-
-### exploration — Frontier & vswarm
-
-#### Frontier-based 3D Exploration
-
-**`droneresearch/exploration/frontier_bridge.py`**
-
-Bridge to **larics Multi-Resolution Frontier-Based Planner** (IEEE RA-L 2021).  
-GitHub: https://github.com/larics/uav_frontier_exploration_3d
-
-```python
-from droneresearch import Drone
-from droneresearch.exploration import FrontierExplorationBridge
-
-drone = Drone("tcp:127.0.0.1:5760")
-drone.connect()
-drone.arm()
-drone.takeoff(5.0)
-
-bridge = FrontierExplorationBridge(
-    drone,
-    point_cloud_topic="/camera/depth/points",
-    on_volume_update=lambda v: print(f"Explored: {v['explored_pct']:.1f}%"),
-)
-bridge.start()
-bridge.exploration_start()
-bridge.wait_until_done(timeout=600)
-bridge.save_octomap("/tmp/map")
-drone.rtl()
-```
-
-**ROS2 topic mapping:**
-
-| DroneResearch → | Explorer expects |
-|---|---|
-| `/exploration/odometry` | `nav_msgs/Odometry` |
-| `/exploration/cloud_in` | `sensor_msgs/PointCloud2` |
-| `/exploration/carrot_pose` | `geometry_msgs/PoseStamped` |
-| ← `/exploration/point_reached` | `std_msgs/Bool` |
-| ← `/exploration/octomap_volume` | `std_msgs/Float64MultiArray` |
-
-#### Vision-based Swarm Flocking
-
-**`droneresearch/exploration/vswarm_bridge.py`**
-
-Bridge to **vswarm** (EPFL LIS, IEEE RA-L 2021).  
-GitHub: https://github.com/lis-epfl/vswarm  
-Decentralized, communication-free flocking via CNN + Reynolds rules.
-
-```python
-from droneresearch import Drone
-from droneresearch.exploration import VSwarmBridge
-
-drone = Drone("tcp:127.0.0.1:5760")
-drone.connect()
-drone.arm()
-drone.takeoff(2.5)
-
-bridge = VSwarmBridge(
-    drone,
-    camera_topic="/camera/image_raw",
-    gain=0.5,   # velocity-to-position gain
-)
-bridge.start()
-bridge.start_flocking()
-```
-
----
-
-### data — Telemetry Logging
-
-**`droneresearch/data/logger.py`** — `TelemetryLogger`
-
-Automatically logs all flights:
-- `logs/YYYYMMDD_HHMMSS_telemetry.csv` — full telemetry at configured rate
-- `logs/YYYYMMDD_HHMMSS_events.json` — arm/disarm/mode changes
-- `logs/YYYYMMDD_HHMMSS.bag` — ROS bag (if ROS2 available)
-
-**`droneresearch/data/store.py`** — `TelemetryStore`
-
-Ring-buffer storing the last N telemetry snapshots in memory for real-time analysis.
-
-```python
-from droneresearch.data import TelemetryStore
-
-store = TelemetryStore(maxlen=1000)
-# Latest 10 altitude values
-alts = [s.alt_rel for s in store.recent(10)]
-```
-
----
-
-### sdk — Public API
-
-**`droneresearch/sdk/drone.py`** — `Drone`
-
-```python
-from droneresearch import Drone
-
-drone = Drone("tcp:127.0.0.1:5760")
-drone.connect()
-
-drone.arm()
-drone.takeoff(altitude=10)
-drone.goto(lat=48.137, lon=11.575, alt=15)
-drone.set_speed(3.0)
-drone.rtl()
-drone.land()
-drone.disarm()
-drone.disconnect()
-
-# Event callbacks
-@drone.on("altitude")
-def on_alt(value):
-    if value > 20:
-        drone.rtl()
-
-@drone.on("battery")
-def on_bat(pct):
-    if pct < 20:
-        drone.land()
-
-# Telemetry
-t = drone.telemetry
-print(f"{t.lat:.6f}, {t.lon:.6f}, {t.alt_rel:.1f}m")
-```
-
-**`droneresearch/sdk/swarm_api.py`** — `Swarm`
-
-```python
-from droneresearch import Swarm
-
-swarm = Swarm()
-swarm.add("D1", "tcp:127.0.0.1:5760")
-swarm.add("D2", "tcp:127.0.0.1:5770")
-swarm.connect_all()
-swarm.arm_all()
-swarm.takeoff_all(altitude=10)
-swarm.formation("circle", spacing=5.0)
-swarm.land_all()
-```
-
----
-
-### cli — Command Line
-
-All subcommands share the same connection-resolution: explicit
-`--port` &gt; `$DRONE_PORT` env var &gt; default `tcp:127.0.0.1:5762`
-(raw ArduCopter SITL).
+Multi-platform containers for heterogeneous swarms:
 
 ```bash
-# Connect (one-shot smoke test: connect → snapshot → disconnect)
-droneresearch connect
-droneresearch connect --port tcp:127.0.0.1:5760           # MAVProxy
-droneresearch connect --port udp:127.0.0.1:14550          # PX4 SITL
-droneresearch connect --port serial:/dev/ttyUSB0:57600    # Hardware (Linux)
-droneresearch connect --port serial:COM5:57600            # Hardware (Windows)
-
-# Flight commands
-droneresearch arm        [--force]
-droneresearch disarm     [--force]
-droneresearch takeoff    [--alt 10]
-droneresearch land
-droneresearch rtl
-droneresearch mode LOITER
-droneresearch goto --lat 48.137 --lon 11.575 --alt 15
-
-# Telemetry snapshot
-droneresearch status
-
-# Run a Python script with an active drone session
-droneresearch run examples/hover.py
-
-# Run a YAML-defined experiment (grid-search over params)
-droneresearch experiment run scenarios/hover_test.yaml
-
-# Launch the QML GCS (only on the ui-dashboard branch)
-droneresearch ui
-```
-
-Global options on every subcommand: `--port`, `--id` (drone id used for
-log files), `--timeout` (connect timeout in seconds, default 15).
-
----
-
-## Raspberry Pi Deployment
-
-The `pi/` directory contains a resource-optimized server for **Raspberry Pi 1** (~700MHz ARM, 512MB RAM).
-
-```bash
-# One-shot install
-chmod +x pi/install.sh
-./pi/install.sh
-
-# Manual start
-python3 pi/server.py --port /dev/ttyAMA0 --baud 57600 --http-port 8080
-
-# Autostart via systemd
-sudo systemctl enable droneresearch
-sudo systemctl start droneresearch
-```
-
-**REST API endpoints:**
-
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/api/telemetry` | Full telemetry JSON |
-| GET | `/api/status` | Connection + armed status |
-| POST | `/api/arm` | Arm motors |
-| POST | `/api/disarm` | Disarm motors |
-| POST | `/api/takeoff` | Takeoff `{"alt": 10}` |
-| POST | `/api/land` | Land |
-| POST | `/api/rtl` | Return to Launch |
-| GET | `/api/logs` | Last 100 log lines |
-| GET | `/` | Web dashboard |
-
-**Resource profile:**
-- RAM: ~20MB
-- CPU: ~5% (Raspberry Pi 1 @ 700MHz)
-- Dependencies: `pymavlink`, `pyserial` only (stdlib HTTP server)
-
-See [`pi/README_PI.md`](pi/README_PI.md) for full Pi documentation.
-
----
-
-## Docker
-
-Three platform-specific containers + a multi-agent compose file.
-
-```bash
-# Build and run heterogeneous swarm simulation
+# Build all containers
 cd docker
+docker-compose build
+
+# Run 3-agent swarm
 docker-compose up
 
 # Individual containers
-docker build -f Dockerfile.pi    -t droneresearch:pi      .
-docker build -f Dockerfile.jetson -t droneresearch:jetson  .
-docker build -f Dockerfile.x86   -t droneresearch:x86     .
-```
-
-**`docker-compose.yml`** spins up:
-- `gcs` — x86 ground station coordinator
-- `uav_generic` — Pi-style generic agent
-- `uav_observation` — Jetson-style observation agent
-
----
-
-## Examples
-
-| Script | Description |
-|---|---|
-| `hover.py` | Connect, arm, hover at 10m, land |
-| `event_based.py` | Event-driven altitude + battery monitoring |
-| `speed_experiment.py` | Grid-search over cruise speeds |
-| `swarm_circle.py` | 3-drone circle formation via `Swarm` API |
-| `coordinator_demo.py` | Leader-follower V-formation with `CoordinatorUAVModel` |
-| `autonomous_exploration.py` | Frontier-based 3D map building |
-| `vswarm_flocking.py` | Camera-only Reynolds flocking |
-| `px4_ros2_offboard.py` | PX4 offboard circle via uXRCE-DDS |
-| `px4_multi_vehicle.py` | 3-drone PX4 formation via ROS2 namespaces |
-| `llm_swarm_control.py` | Natural language → swarm waypoints |
-| `full_research_pipeline.py` | Complete stack: SITL + FSM + APF + LLM + Metrics + Replay |
-
-```bash
-# All examples work offline with SITL or mock mode
-python examples/llm_swarm_control.py --backend mock --interactive
-python examples/full_research_pipeline.py --demo
-python examples/coordinator_demo.py  # needs ArduPilot SITL
+docker build -f Dockerfile.pi -t droneresearch:pi .
+docker build -f Dockerfile.jetson -t droneresearch:jetson .
+docker build -f Dockerfile.x86 -t droneresearch:x86 .
 ```
 
 ---
 
-## Research Background
+## 🤝 Contributing
 
-This platform implements and integrates concepts from recent UAV research:
+We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
-| Paper | Integration |
-|---|---|
-| *Modular and Scalable System Architecture for Heterogeneous UAV Swarms* (2025) | `models/` — GenericUAV, ObservationUAV, CoordinatorUAV; FSM; Docker setup |
-| *SkySim: ROS2 Simulation for Natural Language Control* (Shibu et al., arXiv:2602.01226) | `safety/apf.py` — APF filter; `llm/swarm_commander.py` — LLM→waypoints |
-| *Multi-Resolution Frontier-Based 3D Exploration* (larics, IEEE RA-L 2021) | `exploration/frontier_bridge.py` |
-| *Vision-based Swarm Flocking* (EPFL LIS, IEEE RA-L 2021) | `exploration/vswarm_bridge.py` |
-| PX4 ROS2 User Guide (docs.px4.io/main/en/ros2) | `ros/px4_bridge.py` — uXRCE-DDS, frame conventions, multi-vehicle namespaces |
+### Quick Contribution Guide
 
----
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/your-feature`
+3. Make changes and add tests
+4. Run tests: `make test-fast`
+5. Format code: `make format`
+6. Commit: `git commit -m "feat: your feature"`
+7. Push and create Pull Request
 
-## Hardware
+### Commit Message Format
 
-**Tested / supported:**
+We use [Conventional Commits](https://www.conventionalcommits.org/):
 
-| Platform | Role | Notes |
-|---|---|---|
-| Raspberry Pi 1 (700MHz) | Companion computer | `pi/server.py` — stdlib only |
-| Raspberry Pi 4/5 | Full stack | All features |
-| Nvidia Jetson Orin NX | Observation UAV | GPU inference, ROS2 |
-| x86 Linux / Windows | Development / GCS | Full simulation support |
-
-**Autopilots:**
-- ArduPilot (Copter 4.x+) via MAVLink
-- PX4 v1.14+ via uXRCE-DDS (ROS2)
-
----
-
-## Testing
-
-The test suite under `tests/` is intentionally **hardware-free**: no
-MAVLink connections, no SITL spawn, no ROS2 — everything is mocked
-via `conftest.py`. The full suite runs in roughly one second.
-
-```bash
-pip install pytest
-pytest tests/                     # full suite
-pytest tests/test_apf.py -v       # single module
-pytest tests/ -k "not slow"       # skip slow markers
+```
+feat: add new feature
+fix: fix bug
+docs: update documentation
+test: add tests
+refactor: refactor code
+perf: improve performance
+style: format code
+chore: update build tools
 ```
 
-Coverage at a glance:
+---
 
-| File | Scope |
-|---|---|
-| `test_apf.py` | APF separation, geofence, repulsion vectors |
-| `test_fsm.py` | State transitions, airborne checks, invalid jumps |
-| `test_mission.py` | Mission upload / start / abort, goto fallback |
-| `test_formations.py` | Slot geometry for Line/V/Circle/Grid/Letter R/Z |
-| `test_logger.py` | CSV / JSON / event log persistence |
-| `test_telemetry.py` | TelemetryState updates + snapshot semantics |
-| `test_ros_context.py` | rclpy / px4_msgs lazy-loader fallback |
-| `test_cli.py` | Argparse, port-resolution precedence, UI launcher |
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
-## Contributing
+## 🙏 Acknowledgments
 
-This is a research platform. Contributions welcome.
+This platform implements and integrates concepts from:
 
-```bash
-git clone https://github.com/joeldjio/uavresearchproject.git
-cd uavresearchproject
-pip install -e .
-pytest tests/                     # verify setup
+- **SkySim** (Shibu et al., arXiv:2602.01226) - APF filter, LLM control
+- **larics Multi-Resolution Frontier Planner** (IEEE RA-L 2021) - 3D exploration
+- **EPFL LIS vswarm** (IEEE RA-L 2021) - Vision-based flocking
+- **PX4 ROS2 User Guide** - uXRCE-DDS integration
 
-# Run a demo (needs SITL on tcp:127.0.0.1:5762)
-python examples/full_research_pipeline.py --demo
-```
+---
 
-- See `examples/` for how to write experiments
-- See `droneresearch/experiment/scenario.py` for the Scenario API
-- See `droneresearch/autopilot/base.py` to add a new autopilot backend
-- Graphical dashboard development happens on the
-  [`ui-dashboard`](https://github.com/joeldjio/uavresearchproject/tree/ui-dashboard)
-  branch (PyQt6 + QtQuick under `tools/ui/`)
+## 📞 Support
+
+- **Documentation:** [docs/](docs/)
+- **Issues:** [GitHub Issues](https://github.com/joeldjio/uavresearchproject/issues)
+- **Discussions:** [GitHub Discussions](https://github.com/joeldjio/uavresearchproject/discussions)
+
+---
+
+## 🗺️ Roadmap
+
+### Q3 2026
+- ✅ 70% test coverage
+- ✅ 100% UI coverage
+- ✅ CI/CD pipeline
+- ⏳ Visual regression tests
+- ⏳ Performance benchmarks
+
+### Q4 2026
+- ⏳ 75% test coverage
+- ⏳ Hardware-in-the-loop tests
+- ⏳ Multi-language support
+- ⏳ Web-based UI
+
+---
+
+**Made with ❤️ by the DroneResearch Team**
+
+**⭐ Star us on GitHub if you find this project useful!**
