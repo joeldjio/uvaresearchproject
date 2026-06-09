@@ -46,7 +46,8 @@ Usage (two modes):
 import math
 import threading
 import time
-from typing import Callable, Optional
+from typing import Callable, Optional, List, Dict
+from enum import Enum
 
 try:
     import rclpy
@@ -55,6 +56,17 @@ try:
     _ROS2_OK = True
 except ImportError:
     _ROS2_OK = False
+
+
+# ── Connection Status ──────────────────────────────────────────────────────
+
+class ConnectionStatus(Enum):
+    """ROS2 bridge connection status."""
+    DISCONNECTED = "disconnected"
+    CONNECTING = "connecting"
+    CONNECTED = "connected"
+    RECONNECTING = "reconnecting"
+    FAILED = "failed"
 
 from droneresearch.ros.context import acquire_ros, release_ros
 from droneresearch.ros.px4_mission import PX4MissionUploader
@@ -129,6 +141,8 @@ class PX4ROS2Bridge:
         drone=None,
         namespace:   str   = "",
         publish_hz:  float = 10.0,
+        auto_reconnect: bool = True,
+        max_reconnect_delay: float = 30.0,
     ):
         if not _ROS2_OK:
             raise ImportError("rclpy not found — install ROS2 Humble+")
@@ -145,6 +159,15 @@ class PX4ROS2Bridge:
         self._node: Optional[Node] = None
         self._thread: Optional[threading.Thread] = None
         self._running   = False
+        
+        # Reconnect logic
+        self._auto_reconnect = auto_reconnect
+        self._max_reconnect_delay = max_reconnect_delay
+        self._reconnect_delay = 1.0  # Start with 1 second
+        self._connection_status = ConnectionStatus.DISCONNECTED
+        self._last_message_time = 0.0
+        self._connection_timeout = 5.0  # Consider disconnected if no messages for 5s
+        self._reconnect_attempts = 0
 
         # Internal telemetry (filled from uXRCE-DDS topics)
         self.telemetry: dict = {
@@ -183,8 +206,11 @@ class PX4ROS2Bridge:
         if self._running:
             return
         if not acquire_ros():
+            self._set_status(ConnectionStatus.FAILED)
             print("[px4-bridge] rclpy not available \u2014 cannot start")
             return
+        self._reconnect_attempts = 0
+        self._reconnect_delay = 1.0
         self._running = True
         self._thread  = threading.Thread(
             target=self._spin, daemon=True, name="px4-ros2-bridge"
@@ -195,9 +221,11 @@ class PX4ROS2Bridge:
         print(f"[px4-bridge] Listening on {self._ns_prefix}/fmu/out/*")
 
     def stop(self):
+        """Stop the bridge and cleanup resources."""
         if not self._running:
             return
         self._running = False
+        self._set_status(ConnectionStatus.DISCONNECTED)
         # Wake spin() so the thread can exit cleanly.
         try:
             if self._node is not None:
@@ -208,6 +236,32 @@ class PX4ROS2Bridge:
             self._thread.join(timeout=2.0)
         self._thread = None
         release_ros()
+    
+    def get_connection_status(self) -> ConnectionStatus:
+        """Get current connection status."""
+        return self._connection_status
+    
+    def is_connected(self) -> bool:
+        """Check if bridge is connected and receiving data."""
+        return self._connection_status == ConnectionStatus.CONNECTED
+    
+    def get_reconnect_info(self) -> dict:
+        """
+        Get reconnection information.
+        
+        Returns:
+            Dict with reconnect status:
+            - status: Current ConnectionStatus
+            - attempts: Number of reconnect attempts
+            - next_delay: Next reconnect delay in seconds
+            - last_message_age: Seconds since last message
+        """
+        return {
+            "status": self._connection_status.value,
+            "attempts": self._reconnect_attempts,
+            "next_delay": self._reconnect_delay,
+            "last_message_age": time.time() - self._last_message_time if self._last_message_time > 0 else -1,
+        }
 
     # ── Vehicle commands (PX4 VehicleCommand) ─────────────────────────────
 
@@ -367,38 +421,101 @@ class PX4ROS2Bridge:
     # ── Events ────────────────────────────────────────────────────────────
 
     def on(self, event: str, cb: Callable):
-        """Register callback. Events: 'telemetry', 'armed', 'mode'"""
+        """
+        Register callback.
+        
+        Events:
+        - 'telemetry': Telemetry data updated
+        - 'armed': Armed state changed
+        - 'mode': Flight mode changed
+        - 'connection_status': Connection status changed (receives ConnectionStatus)
+        """
         self._callbacks.setdefault(event, []).append(cb)
 
     # ── Internal ──────────────────────────────────────────────────────────
 
     def _spin(self):
-        # rclpy.init() is handled by acquire_ros() in start().
-        self._node = _PX4Node(
-            ns_prefix       = self._ns_prefix,
-            hz              = self._hz,
-            on_telemetry    = self._on_telemetry,
-            get_setpoint    = lambda: self._setpoint,
-            offboard_active = lambda: self._offboard_active,
-        )
-        # Initialize mission uploader after node is created
-        try:
-            self._mission_uploader = PX4MissionUploader(
-                self._node,
-                namespace=self._ns_prefix.lstrip("/") if self._ns_prefix else ""
-            )
-        except Exception as e:
-            print(f"[px4-bridge] Mission uploader init failed: {e}")
-            self._mission_uploader = None
+        """Main spin loop with reconnect logic."""
+        while self._running:
+            try:
+                self._set_status(ConnectionStatus.CONNECTING)
+                
+                # Create node
+                self._node = _PX4Node(
+                    ns_prefix       = self._ns_prefix,
+                    hz              = self._hz,
+                    on_telemetry    = self._on_telemetry,
+                    get_setpoint    = lambda: self._setpoint,
+                    offboard_active = lambda: self._offboard_active,
+                )
+                
+                # Initialize mission uploader after node is created
+                try:
+                    self._mission_uploader = PX4MissionUploader(
+                        self._node,
+                        namespace=self._ns_prefix.lstrip("/") if self._ns_prefix else ""
+                    )
+                except Exception as e:
+                    print(f"[px4-bridge] Mission uploader init failed: {e}")
+                    self._mission_uploader = None
+                
+                self._set_status(ConnectionStatus.CONNECTED)
+                self._reconnect_attempts = 0
+                self._reconnect_delay = 1.0
+                print(f"[px4-bridge] Connected successfully")
+                
+                # Main spin loop with health monitoring
+                while self._running and rclpy.ok():
+                    rclpy.spin_once(self._node, timeout_sec=0.1)
+                    
+                    # Check connection health
+                    if self._last_message_time > 0:
+                        age = time.time() - self._last_message_time
+                        if age > self._connection_timeout:
+                            print(f"[px4-bridge] No messages for {age:.1f}s - connection lost")
+                            raise ConnectionError("Topic timeout")
+                
+                # Clean exit
+                break
+                
+            except Exception as e:
+                print(f"[px4-bridge] Connection error: {e}")
+                
+                # Cleanup node
+                try:
+                    if self._node is not None:
+                        self._node.destroy_node()
+                        self._node = None
+                except Exception as cleanup_err:
+                    print(f"[px4-bridge] Cleanup error: {cleanup_err}")
+                
+                # Handle reconnect
+                if not self._running:
+                    break
+                
+                if not self._auto_reconnect:
+                    print("[px4-bridge] Auto-reconnect disabled - stopping")
+                    self._set_status(ConnectionStatus.FAILED)
+                    break
+                
+                self._reconnect_attempts += 1
+                self._set_status(ConnectionStatus.RECONNECTING)
+                
+                print(f"[px4-bridge] Reconnecting in {self._reconnect_delay:.1f}s (attempt {self._reconnect_attempts})...")
+                
+                # Wait with early exit check
+                wait_start = time.time()
+                while self._running and (time.time() - wait_start) < self._reconnect_delay:
+                    time.sleep(0.1)
+                
+                if not self._running:
+                    break
+                
+                # Exponential backoff
+                self._reconnect_delay = min(self._reconnect_delay * 2, self._max_reconnect_delay)
         
-        try:
-            while self._running and rclpy.ok():
-                rclpy.spin_once(self._node, timeout_sec=0.1)
-        except Exception as e:
-            print(f"[px4-bridge] ROS2 spin error: {e}")
-        finally:
-            # Node teardown is handled by stop() to avoid double-destroy.
-            pass
+        # Final cleanup
+        self._set_status(ConnectionStatus.DISCONNECTED)
 
     def _send_vehicle_command(self, cmd: int, **params):
         if self._node:
@@ -407,6 +524,9 @@ class PX4ROS2Bridge:
             print(f"[px4-bridge] Node not ready — command {cmd} dropped")
 
     def _on_telemetry(self, data: dict):
+        """Handle telemetry update and track connection health."""
+        self._last_message_time = time.time()
+        
         self.telemetry.update(data)
         # Sync to DroneResearch Drone if paired
         if self._drone:
@@ -427,6 +547,19 @@ class PX4ROS2Bridge:
                 cb(data)
             except Exception as e:
                 print(f"[px4-bridge] callback error: {e}")
+    
+    def _set_status(self, status: ConnectionStatus):
+        """Update connection status and fire callbacks."""
+        if self._connection_status != status:
+            self._connection_status = status
+            print(f"[px4-bridge] Status: {status.value}")
+            
+            # Fire status callbacks
+            for cb in self._callbacks.get("connection_status", []):
+                try:
+                    cb(status)
+                except Exception as e:
+                    print(f"[px4-bridge] status callback error: {e}")
 
 
 if _ROS2_OK and _PX4_MSGS_OK:

@@ -69,6 +69,7 @@ class ROS2Context(QObject):
     ros2LogMessage      = pyqtSignal(str, str,    arguments=["level", "text"])
     nodeStatusChanged   = pyqtSignal(str,          arguments=["status"])
     missionStatusChanged = pyqtSignal(str, "QVariant", arguments=["droneId", "status"])
+    connectionStatusChanged = pyqtSignal(str, str, arguments=["droneId", "status"])
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -126,6 +127,28 @@ class ROS2Context(QObject):
         return drone_id in self._active_drone_ids
 
     @pyqtSlot(result="QVariant")
+    @pyqtSlot(str, result=str)
+    def getConnectionStatus(self, drone_id: str) -> str:
+        """Get connection status for a drone."""
+        bridge = self._bridges.get(drone_id)
+        if not bridge:
+            return "disconnected"
+        try:
+            status = bridge.get_connection_status()
+            return status.value if hasattr(status, 'value') else str(status)
+        except Exception:
+            return "unknown"
+    
+    @pyqtSlot(str, result="QVariant")
+    def getReconnectInfo(self, drone_id: str) -> dict:
+        """Get reconnect information for a drone."""
+        bridge = self._bridges.get(drone_id)
+        if not bridge:
+            return {}
+        try:
+            return bridge.get_reconnect_info()
+        except Exception:
+            return {}
     def activeBridges(self) -> list:
         return list(self._active_drone_ids)
 
@@ -153,8 +176,9 @@ class ROS2Context(QObject):
 
         def _start():
             try:
-                bridge = _PX4Bridge(namespace=ns, publish_hz=10.0)
+                bridge = _PX4Bridge(namespace=ns, publish_hz=10.0, auto_reconnect=True)
                 bridge.on("telemetry", lambda data: self._on_bridge_telemetry(drone_id, data))
+                bridge.on("connection_status", lambda status: self._on_connection_status(drone_id, status))
                 bridge.start()
                 self._bridges[drone_id] = bridge
                 self._active_drone_ids.add(drone_id)
@@ -280,6 +304,21 @@ class ROS2Context(QObject):
 
     def _on_bridge_telemetry(self, drone_id: str, data: dict) -> None:
         self.telemetryReceived.emit(drone_id, data)
+    
+    def _on_connection_status(self, drone_id: str, status) -> None:
+        """Handle connection status changes from bridge."""
+        status_str = status.value if hasattr(status, 'value') else str(status)
+        self.connectionStatusChanged.emit(drone_id, status_str)
+        
+        # Log status changes to LogPanel via ros2LogMessage
+        if status_str == "connected":
+            self.ros2LogMessage.emit("INFO", f"[ROS2] {drone_id} connected")
+        elif status_str == "reconnecting":
+            self.ros2LogMessage.emit("WARN", f"[ROS2] {drone_id} reconnecting...")
+        elif status_str == "failed":
+            self.ros2LogMessage.emit("ERROR", f"[ROS2] {drone_id} connection failed")
+        elif status_str == "disconnected":
+            self.ros2LogMessage.emit("INFO", f"[ROS2] {drone_id} disconnected")
 
     def _poll(self) -> None:
         for did, bridge in list(self._bridges.items()):
