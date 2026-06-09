@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Layouts
 import QtQuick.Dialogs
 import "../components" as Cmp
 
@@ -22,7 +23,6 @@ Item {
     onHoverIdxChanged: repaintAll()
 
     // ── CSV Parser ────────────────────────────────────────────────────────
-    // Computed ranges for auto-scaling Y axes (updated after CSV load)
     property real _altMax: 120
     property real _spdMax: 30
 
@@ -51,7 +51,6 @@ Item {
             })
         }
         rows = parsed
-        // Auto-scale: round up to next 10m / 5 m/s
         if (parsed.length > 0) {
             var maxAlt = 0, maxSpd = 0
             for (var j = 0; j < parsed.length; j++) {
@@ -65,7 +64,14 @@ Item {
         statsRow.visible = parsed.length > 0
     }
 
-    // ── Chart drawing (on root so every Canvas child can call root.drawChart) ──
+    // ── Helper: Format seconds as MM:SS ───────────────────────────────────
+    function formatTime(seconds) {
+        var mins = Math.floor(seconds / 60)
+        var secs = Math.floor(seconds % 60)
+        return mins.toString() + ":" + (secs < 10 ? "0" : "") + secs.toString()
+    }
+
+    // ── Chart drawing ─────────────────────────────────────────────────────
     function drawChart(ctx, w, h, dataRows, yKey, yMin, yMax, col, title, hover) {
         var pad = { l: 38, r: 10, t: 22, b: 28 }
         var W = w - pad.l - pad.r
@@ -99,54 +105,32 @@ Item {
         ctx.textAlign = "left";  ctx.textBaseline = "bottom"; ctx.fillText("0s", pad.l, h - 2)
         ctx.textAlign = "right"; ctx.fillText(tMax.toFixed(0) + "s", pad.l + W, h - 2)
 
-        function toX(t)   { return pad.l + (t / tMax) * W }
-        function toY(val) { return pad.t + H - Math.max(0, Math.min(1, (val - yMin) / (yMax - yMin))) * H }
-
-        if (yMin < 0) {
-            var zy = toY(0)
-            ctx.strokeStyle = "#334155"; ctx.lineWidth = 0.8
-            ctx.setLineDash([4, 4])
-            ctx.beginPath(); ctx.moveTo(pad.l, zy); ctx.lineTo(pad.l + W, zy); ctx.stroke()
-            ctx.setLineDash([])
-        }
-
-        ctx.fillStyle = col + "1a"
+        ctx.strokeStyle = col; ctx.lineWidth = 1.8
         ctx.beginPath()
-        ctx.moveTo(toX(dataRows[0].t), pad.t + H)
-        ctx.lineTo(toX(dataRows[0].t), toY(dataRows[0][yKey]))
-        for (var i = 1; i < dataRows.length; i++)
-            ctx.lineTo(toX(dataRows[i].t), toY(dataRows[i][yKey]))
-        ctx.lineTo(toX(dataRows[dataRows.length - 1].t), pad.t + H)
-        ctx.closePath(); ctx.fill()
-
-        ctx.strokeStyle = col; ctx.lineWidth = 1.8; ctx.lineJoin = "round"
-        ctx.beginPath(); ctx.moveTo(toX(dataRows[0].t), toY(dataRows[0][yKey]))
-        for (var j = 1; j < dataRows.length; j++)
-            ctx.lineTo(toX(dataRows[j].t), toY(dataRows[j][yKey]))
+        for (var i = 0; i < dataRows.length; i++) {
+            var x = pad.l + (dataRows[i].t / tMax) * W
+            var y = pad.t + H - ((dataRows[i][yKey] - yMin) / (yMax - yMin)) * H
+            if (i === 0) ctx.moveTo(x, y)
+            else         ctx.lineTo(x, y)
+        }
         ctx.stroke()
 
-        if (hover >= 0 && hover < dataRows.length) {
-            var hr = dataRows[hover]
-            var hx = toX(hr.t), hy = toY(hr[yKey])
-            ctx.strokeStyle = "#ffffff33"; ctx.lineWidth = 1; ctx.setLineDash([3, 3])
+        if (hover && hoverIdx >= 0 && hoverIdx < dataRows.length) {
+            var hx = pad.l + (dataRows[hoverIdx].t / tMax) * W
+            var hy = pad.t + H - ((dataRows[hoverIdx][yKey] - yMin) / (yMax - yMin)) * H
+            ctx.strokeStyle = "#fbbf24"; ctx.lineWidth = 1
             ctx.beginPath(); ctx.moveTo(hx, pad.t); ctx.lineTo(hx, pad.t + H); ctx.stroke()
-            ctx.setLineDash([])
-            ctx.fillStyle = col
-            ctx.beginPath(); ctx.arc(hx, hy, 4.5, 0, Math.PI * 2); ctx.fill()
-            ctx.fillStyle = "#0a0e1a"
-            ctx.beginPath(); ctx.arc(hx, hy, 2, 0, Math.PI * 2); ctx.fill()
-            var tv = hr[yKey].toFixed(1)
-            ctx.fillStyle = col; ctx.font = "bold 10px Consolas, Courier New"
-            ctx.textAlign = hx > pad.l + W * 0.6 ? "right" : "left"
-            ctx.textBaseline = "bottom"
-            ctx.fillText(tv, hx + (hx > pad.l + W * 0.6 ? -7 : 7), hy - 5)
+            ctx.fillStyle = col; ctx.beginPath(); ctx.arc(hx, hy, 4, 0, 2*Math.PI); ctx.fill()
+            ctx.fillStyle = "#fbbf24"; ctx.font = "bold 10px Consolas"
+            ctx.textAlign = "center"; ctx.textBaseline = "bottom"
+            ctx.fillText(dataRows[hoverIdx][yKey].toFixed(1), hx, hy - 8)
         }
     }
 
-    function updateHover(mx, canvasW) {
+    function updateHover(canvasX, canvasWidth) {
         if (!rows || rows.length < 2) return
-        var W = canvasW - 48
-        var t = (mx - 38) / W * rows[rows.length - 1].t
+        var tMax = rows[rows.length - 1].t
+        var t = (canvasX - 38) / (canvasWidth - 48) * tMax
         var best = 0, bestDt = 1e9
         for (var i = 0; i < rows.length; i++) {
             var dt = Math.abs(rows[i].t - t)
@@ -155,10 +139,10 @@ Item {
         hoverIdx = best
     }
 
-    // ── File dialog ───────────────────────────────────────────────────────
+    // ── File Dialogs ──────────────────────────────────────────────────────
     FileDialog {
-        id: fileDlg
-        title: "Flight Log öffnen"
+        id: csvFileDlg
+        title: "CSV Flight Log öffnen"
         nameFilters: ["CSV Logs (*.csv)", "Alle Dateien (*)"]
         onAccepted: {
             var pathStr = selectedFile.toString()
@@ -168,6 +152,17 @@ Item {
                 root.loadCsv(content)
             else
                 loadErrorFlash.visible = true
+        }
+    }
+
+    FileDialog {
+        id: bagFileDlg
+        title: "ROS2 Bag öffnen"
+        nameFilters: ["ROS2 Bags (*.mcap *.db3)", "Alle Dateien (*)"]
+        onAccepted: {
+            var pathStr = selectedFile.toString()
+            root.logName = pathStr.split("/").pop().split("\\").pop()
+            bagPlayback.loadBag(pathStr)
         }
     }
 
@@ -181,169 +176,376 @@ Item {
         Timer { interval: 3000; running: loadErrorFlash.visible; onTriggered: loadErrorFlash.visible = false }
     }
 
-    // ── Layout ────────────────────────────────────────────────────────────
+    // ── Main Layout ───────────────────────────────────────────────────────
     Flickable {
         anchors { fill: parent; margins: 12 }
-        contentHeight: Math.max(flightContent.implicitHeight, height)
+        contentHeight: mainColumn.height
         contentWidth: width
         clip: true
-
         ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
-        Item {
-            id: flightContent
+        ColumnLayout {
+            id: mainColumn
             width: parent.width
-            implicitHeight: topBar.height + 8 + (statsRow.visible ? statsRow.height + 8 : 0) + 600
+            spacing: 8
 
-        // ── Top bar ───────────────────────────────────────────────────────
-        Row {
-            id: topBar
-            anchors { top: parent.top; left: parent.left; right: parent.right }
-            height: 32; spacing: 8
+            // ── Top Bar (Buttons + Filename) ──────────────────────────────
+            Row {
+                Layout.fillWidth: true
+                height: 32
+                spacing: 8
 
-            Rectangle {
-                width: 120; height: 32; radius: 6
-                color: openBtnMa.containsMouse ? "#2563eb" : "#1e2535"
-                border.color: "#2563eb"; border.width: 1
-                Behavior on color { ColorAnimation { duration: 100 } }
-                Row {
-                    anchors.centerIn: parent; spacing: 5
-                    Text { text: "OPEN"; color: "#cbd5e1"; font.pixelSize: 10; font.weight: Font.Bold }
-                    Text { text: "LOG ÖFFNEN"; color: "#e2e8f0"; font.pixelSize: 10; font.weight: Font.Bold }
+                Rectangle {
+                    width: 120; height: 32; radius: 6
+                    color: csvBtnMa.containsMouse ? "#2563eb" : "#1e2535"
+                    border.color: "#2563eb"; border.width: 1
+                    Text {
+                        anchors.centerIn: parent
+                        text: "OPEN CSV"
+                        color: "#e2e8f0"
+                        font.pixelSize: 10
+                        font.weight: Font.Bold
+                    }
+                    MouseArea { id: csvBtnMa; anchors.fill: parent; hoverEnabled: true; onClicked: csvFileDlg.open() }
                 }
-                MouseArea { id: openBtnMa; anchors.fill: parent; hoverEnabled: true; onClicked: fileDlg.open() }
+
+                Rectangle {
+                    width: 120; height: 32; radius: 6
+                    color: bagBtnMa.containsMouse ? "#059669" : "#1e2535"
+                    border.color: "#059669"; border.width: 1
+                    Text {
+                        anchors.centerIn: parent
+                        text: "OPEN BAG"
+                        color: "#e2e8f0"
+                        font.pixelSize: 10
+                        font.weight: Font.Bold
+                    }
+                    MouseArea { id: bagBtnMa; anchors.fill: parent; hoverEnabled: true; onClicked: bagFileDlg.open() }
+                }
+
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: root.logName !== "" ? root.logName : "— kein Log geladen —"
+                    color: root.logName !== "" ? "#94a3b8" : "#374151"
+                    font.pixelSize: 11; font.family: "Consolas"
+                    elide: Text.ElideLeft
+                    width: parent.width - 256
+                }
             }
 
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                text: root.logName !== "" ? root.logName : "— kein Log geladen —"
-                color: root.logName !== "" ? "#94a3b8" : "#374151"
-                font.pixelSize: 11; font.family: "Consolas"
-                elide: Text.ElideLeft; width: parent.width - 136
-            }
-        }
+            // ── Bag Playback Controls ─────────────────────────────────────
+            Rectangle {
+                id: bagPlaybackSection
+                Layout.fillWidth: true
+                Layout.preferredHeight: 120
+                radius: 8
+                color: "#1a2035"
+                border.color: "#2d3748"
+                border.width: 1
 
-        // ── Stats strip ───────────────────────────────────────────────────
-        Row {
-            id: statsRow
-            visible: false
-            anchors { top: topBar.bottom; topMargin: 8; left: parent.left; right: parent.right }
-            height: 52; spacing: 6
+                ColumnLayout {
+                    anchors { fill: parent; margins: 12 }
+                    spacing: 8
 
-            property var stats: [
-                { label: "DAUER",   icon: "⏱", col: "#06b6d4",
-                  val: function(r){ return r.length > 1 ? r[r.length-1].t.toFixed(0)+"s" : "—" } },
-                { label: "MAX ALT", icon: "▲",  col: "#2563eb",
-                  val: function(r){ if (!r.length) return "—"; var m=r[0].alt; for(var i=1;i<r.length;i++) if(r[i].alt>m) m=r[i].alt; return m.toFixed(1)+"m" } },
-                { label: "MAX SPD", icon: "→",  col: "#22c55e",
-                  val: function(r){ if (!r.length) return "—"; var m=r[0].spd; for(var i=1;i<r.length;i++) if(r[i].spd>m) m=r[i].spd; return m.toFixed(1)+"m/s" } },
-                { label: "BATT Δ",  icon: "⛯", col: "#ef4444",
-                  val: function(r){ return r.length > 1 ? (r[0].bat-r[r.length-1].bat).toFixed(0)+"%" : "—" } },
-            ]
-
-            Repeater {
-                model: statsRow.stats
-                delegate: Rectangle {
-                    width: (statsRow.width - 18) / 4; height: 52; radius: 8
-                    color: "#1a2035"; border.color: "#2d3748"; border.width: 1
-                    Column {
-                        anchors.centerIn: parent; spacing: 2
-                        Row {
-                            anchors.horizontalCenter: parent.horizontalCenter; spacing: 4
-                            Text { text: modelData.icon; font.pixelSize: 11; color: modelData.col }
-                            Text { text: modelData.label; color: "#64748b"; font.pixelSize: 8; font.weight: Font.Bold; anchors.verticalCenter: parent.verticalCenter }
-                        }
+                    // Title + State
+                    Row {
+                        Layout.fillWidth: true
+                        spacing: 8
                         Text {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            text: root.rows.length > 0 ? modelData.val(root.rows) : "—"
-                            color: modelData.col; font.pixelSize: 15; font.weight: Font.Bold; font.family: "Consolas"
+                            text: "ROS2 Bag Playback"
+                            color: "#94a3b8"
+                            font.pixelSize: 12
+                            font.weight: Font.Bold
+                        }
+                        Rectangle {
+                            width: stateText.implicitWidth + 12
+                            height: 18
+                            radius: 4
+                            color: bagPlayback.state === "playing" ? "#059669" : bagPlayback.state === "paused" ? "#d97706" : "#374151"
+                            Text {
+                                id: stateText
+                                anchors.centerIn: parent
+                                text: bagPlayback.state === "playing" ? "PLAYING" : bagPlayback.state === "paused" ? "PAUSED" : "STOPPED"
+                                color: "#f1f5f9"
+                                font.pixelSize: 9
+                                font.weight: Font.Bold
+                            }
+                        }
+                    }
+
+                    // Timeline
+                    Row {
+                        Layout.fillWidth: true
+                        spacing: 8
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: formatTime(bagPlayback.progress * bagPlayback.duration)
+                            color: "#64748b"
+                            font.pixelSize: 10
+                            font.family: "Consolas"
+                            width: 50
+                        }
+
+                        Slider {
+                            id: timelineSlider
+                            width: parent.width - 120
+                            from: 0.0
+                            to: 1.0
+                            value: bagPlayback.progress
+                            enabled: bagPlayback.state !== "stopped"
+                            onMoved: bagPlayback.seek(value)
+
+                            background: Rectangle {
+                                x: timelineSlider.leftPadding
+                                y: timelineSlider.topPadding + timelineSlider.availableHeight / 2 - height / 2
+                                width: timelineSlider.availableWidth
+                                height: 4
+                                radius: 2
+                                color: "#2d3748"
+                                Rectangle {
+                                    width: timelineSlider.visualPosition * parent.width
+                                    height: parent.height
+                                    radius: 2
+                                    color: "#059669"
+                                }
+                            }
+
+                            handle: Rectangle {
+                                x: timelineSlider.leftPadding + timelineSlider.visualPosition * (timelineSlider.availableWidth - width)
+                                y: timelineSlider.topPadding + timelineSlider.availableHeight / 2 - height / 2
+                                width: 14
+                                height: 14
+                                radius: 7
+                                color: timelineSlider.pressed ? "#10b981" : "#059669"
+                                border.color: "#f1f5f9"
+                                border.width: 2
+                            }
+                        }
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: formatTime(bagPlayback.duration)
+                            color: "#64748b"
+                            font.pixelSize: 10
+                            font.family: "Consolas"
+                            width: 50
+                        }
+                    }
+
+                    // Control Buttons
+                    Row {
+                        spacing: 6
+
+                        Rectangle {
+                            width: 80; height: 28; radius: 6
+                            color: playBtnMa.containsMouse ? "#059669" : "#1e2535"
+                            border.color: "#059669"; border.width: 1
+                            visible: bagPlayback.state !== "playing"
+                            Text {
+                                anchors.centerIn: parent
+                                text: "PLAY"
+                                color: "#e2e8f0"
+                                font.pixelSize: 10
+                                font.weight: Font.Bold
+                            }
+                            MouseArea { id: playBtnMa; anchors.fill: parent; hoverEnabled: true; onClicked: bagPlayback.play() }
+                        }
+
+                        Rectangle {
+                            width: 80; height: 28; radius: 6
+                            color: pauseBtnMa.containsMouse ? "#d97706" : "#1e2535"
+                            border.color: "#d97706"; border.width: 1
+                            visible: bagPlayback.state === "playing"
+                            Text {
+                                anchors.centerIn: parent
+                                text: "PAUSE"
+                                color: "#e2e8f0"
+                                font.pixelSize: 10
+                                font.weight: Font.Bold
+                            }
+                            MouseArea { id: pauseBtnMa; anchors.fill: parent; hoverEnabled: true; onClicked: bagPlayback.pause() }
+                        }
+
+                        Rectangle {
+                            width: 80; height: 28; radius: 6
+                            color: stopBtnMa.containsMouse ? "#dc2626" : "#1e2535"
+                            border.color: "#dc2626"; border.width: 1
+                            Text {
+                                anchors.centerIn: parent
+                                text: "STOP"
+                                color: "#e2e8f0"
+                                font.pixelSize: 10
+                                font.weight: Font.Bold
+                            }
+                            MouseArea { id: stopBtnMa; anchors.fill: parent; hoverEnabled: true; onClicked: bagPlayback.stop() }
+                        }
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Speed: " + bagPlayback.playbackRate.toFixed(1) + "x"
+                            color: "#64748b"
+                            font.pixelSize: 10
+                            font.family: "Consolas"
+                        }
+
+                        Rectangle {
+                            width: 28; height: 28; radius: 6
+                            color: speedDownMa.containsMouse ? "#374151" : "#1e2535"
+                            border.color: "#475569"; border.width: 1
+                            Text {
+                                anchors.centerIn: parent
+                                text: "−"
+                                color: "#e2e8f0"
+                                font.pixelSize: 14
+                                font.weight: Font.Bold
+                            }
+                            MouseArea {
+                                id: speedDownMa
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                onClicked: bagPlayback.playbackRate = Math.max(0.1, bagPlayback.playbackRate - 0.5)
+                            }
+                        }
+
+                        Rectangle {
+                            width: 28; height: 28; radius: 6
+                            color: speedUpMa.containsMouse ? "#374151" : "#1e2535"
+                            border.color: "#475569"; border.width: 1
+                            Text {
+                                anchors.centerIn: parent
+                                text: "+"
+                                color: "#e2e8f0"
+                                font.pixelSize: 14
+                                font.weight: Font.Bold
+                            }
+                            MouseArea {
+                                id: speedUpMa
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                onClicked: bagPlayback.playbackRate = Math.min(10.0, bagPlayback.playbackRate + 0.5)
+                            }
                         }
                     }
                 }
             }
+
+            // ── Stats Strip ───────────────────────────────────────────────
+            Row {
+                id: statsRow
+                visible: false
+                Layout.fillWidth: true
+                height: 52
+                spacing: 6
+
+                property var stats: [
+                    { label: "DAUER",   icon: "T", col: "#06b6d4",
+                      val: function(r){ return r.length > 1 ? r[r.length-1].t.toFixed(0)+"s" : "—" } },
+                    { label: "MAX ALT", icon: "A",  col: "#2563eb",
+                      val: function(r){ if (!r.length) return "—"; var m=r[0].alt; for(var i=1;i<r.length;i++) if(r[i].alt>m) m=r[i].alt; return m.toFixed(1)+"m" } },
+                    { label: "MAX SPD", icon: "S",  col: "#22c55e",
+                      val: function(r){ if (!r.length) return "—"; var m=r[0].spd; for(var i=1;i<r.length;i++) if(r[i].spd>m) m=r[i].spd; return m.toFixed(1)+"m/s" } },
+                    { label: "BATT D",  icon: "B", col: "#ef4444",
+                      val: function(r){ return r.length > 1 ? (r[0].bat-r[r.length-1].bat).toFixed(0)+"%" : "—" } },
+                ]
+
+                Repeater {
+                    model: statsRow.stats
+                    delegate: Rectangle {
+                        width: (statsRow.width - 18) / 4; height: 52; radius: 8
+                        color: "#1a2035"; border.color: "#2d3748"; border.width: 1
+                        Column {
+                            anchors.centerIn: parent; spacing: 2
+                            Row {
+                                anchors.horizontalCenter: parent.horizontalCenter; spacing: 4
+                                Text { text: modelData.icon; color: modelData.col; font.pixelSize: 14 }
+                                Text { text: modelData.label; color: "#64748b"; font.pixelSize: 9; font.weight: Font.Bold }
+                            }
+                            Text {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                text: modelData.val(rows)
+                                color: "#e2e8f0"
+                                font.pixelSize: 16
+                                font.weight: Font.Bold
+                                font.family: "Consolas"
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ── CSV Charts (2x2 Grid) ────────────────────────────────────
+            Grid {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 400
+                columns: 2
+                rowSpacing: 8
+                columnSpacing: 8
+
+                // Altitude
+                Rectangle {
+                    width: (parent.width - 8) / 2; height: (parent.height - 8) / 2
+                    color: "#0a0e1a"; radius: 6; border.color: "#1e293b"; border.width: 1
+                    Canvas {
+                        id: altCanvas
+                        anchors.fill: parent
+                        onPaint: root.drawChart(getContext("2d"), width, height, rows, "alt", 0, _altMax, "#2563eb", "Altitude (m) [0-120m]", true)
+                    }
+                    MouseArea {
+                        anchors.fill: parent; hoverEnabled: true
+                        onPositionChanged: root.updateHover(mouseX, width)
+                        onExited: { hoverIdx = -1 }
+                    }
+                }
+
+                // Groundspeed
+                Rectangle {
+                    width: (parent.width - 8) / 2; height: (parent.height - 8) / 2
+                    color: "#0a0e1a"; radius: 6; border.color: "#1e293b"; border.width: 1
+                    Canvas {
+                        id: spdCanvas
+                        anchors.fill: parent
+                        onPaint: root.drawChart(getContext("2d"), width, height, rows, "spd", 0, _spdMax, "#22c55e", "Groundspeed (m/s) [0-30m/s]", true)
+                    }
+                    MouseArea {
+                        anchors.fill: parent; hoverEnabled: true
+                        onPositionChanged: root.updateHover(mouseX, width)
+                        onExited: { hoverIdx = -1 }
+                    }
+                }
+
+                // Battery
+                Rectangle {
+                    width: (parent.width - 8) / 2; height: (parent.height - 8) / 2
+                    color: "#0a0e1a"; radius: 6; border.color: "#1e293b"; border.width: 1
+                    Canvas {
+                        id: batCanvas
+                        anchors.fill: parent
+                        onPaint: root.drawChart(getContext("2d"), width, height, rows, "bat", 0, 100, "#f59e0b", "Battery (%)", true)
+                    }
+                    MouseArea {
+                        anchors.fill: parent; hoverEnabled: true
+                        onPositionChanged: root.updateHover(mouseX, width)
+                        onExited: { hoverIdx = -1 }
+                    }
+                }
+
+                // Vertical Speed
+                Rectangle {
+                    width: (parent.width - 8) / 2; height: (parent.height - 8) / 2
+                    color: "#0a0e1a"; radius: 6; border.color: "#1e293b"; border.width: 1
+                    Canvas {
+                        id: vzCanvas
+                        anchors.fill: parent
+                        onPaint: root.drawChart(getContext("2d"), width, height, rows, "vz", -5, 5, "#8b5cf6", "Vertical Speed (m/s)", true)
+                    }
+                    MouseArea {
+                        anchors.fill: parent; hoverEnabled: true
+                        onPositionChanged: root.updateHover(mouseX, width)
+                        onExited: { hoverIdx = -1 }
+                    }
+                }
+            }
         }
-
-        // ── Charts 2×2 grid ───────────────────────────────────────────────
-        Item {
-            id: chartArea
-            anchors {
-                top: statsRow.visible ? statsRow.bottom : topBar.bottom
-                topMargin: 8
-                left: parent.left; right: parent.right; bottom: parent.bottom
-            }
-
-            // ALT ── top-left
-            Rectangle {
-                x: 0; y: 0
-                width: (parent.width - 8) / 2; height: (parent.height - 8) / 2
-                radius: 8; color: "#0a0e1a"; border.color: "#1e2535"; border.width: 1; clip: true
-                Canvas {
-                    id: altCanvas; anchors.fill: parent
-                    onPaint: root.drawChart(getContext("2d"), width, height, root.rows, "alt",  0, root._altMax, "#2563eb", "Altitude (m)  [0–" + root._altMax + "m]", root.hoverIdx)
-                }
-                MouseArea {
-                    anchors.fill: parent; hoverEnabled: true
-                    onPositionChanged: function(m) { root.updateHover(m.x, altCanvas.width) }
-                    onExited: root.hoverIdx = -1
-                }
-                onWidthChanged:  altCanvas.requestPaint()
-                onHeightChanged: altCanvas.requestPaint()
-            }
-
-            // SPD ── top-right
-            Rectangle {
-                x: (parent.width - 8) / 2 + 8; y: 0
-                width: (parent.width - 8) / 2; height: (parent.height - 8) / 2
-                radius: 8; color: "#0a0e1a"; border.color: "#1e2535"; border.width: 1; clip: true
-                Canvas {
-                    id: spdCanvas; anchors.fill: parent
-                    onPaint: root.drawChart(getContext("2d"), width, height, root.rows, "spd",  0, root._spdMax, "#22c55e", "Groundspeed (m/s)  [0–" + root._spdMax + "m/s]", root.hoverIdx)
-                }
-                MouseArea {
-                    anchors.fill: parent; hoverEnabled: true
-                    onPositionChanged: function(m) { root.updateHover(m.x, spdCanvas.width) }
-                    onExited: root.hoverIdx = -1
-                }
-                onWidthChanged:  spdCanvas.requestPaint()
-                onHeightChanged: spdCanvas.requestPaint()
-            }
-
-            // BAT ── bottom-left
-            Rectangle {
-                x: 0; y: (parent.height - 8) / 2 + 8
-                width: (parent.width - 8) / 2; height: (parent.height - 8) / 2
-                radius: 8; color: "#0a0e1a"; border.color: "#1e2535"; border.width: 1; clip: true
-                Canvas {
-                    id: batCanvas; anchors.fill: parent
-                    onPaint: root.drawChart(getContext("2d"), width, height, root.rows, "bat",  0,  100, "#ef4444", "Battery (%)",        root.hoverIdx)
-                }
-                MouseArea {
-                    anchors.fill: parent; hoverEnabled: true
-                    onPositionChanged: function(m) { root.updateHover(m.x, batCanvas.width) }
-                    onExited: root.hoverIdx = -1
-                }
-                onWidthChanged:  batCanvas.requestPaint()
-                onHeightChanged: batCanvas.requestPaint()
-            }
-
-            // VZ ── bottom-right
-            Rectangle {
-                x: (parent.width - 8) / 2 + 8; y: (parent.height - 8) / 2 + 8
-                width: (parent.width - 8) / 2; height: (parent.height - 8) / 2
-                radius: 8; color: "#0a0e1a"; border.color: "#1e2535"; border.width: 1; clip: true
-                Canvas {
-                    id: vzCanvas; anchors.fill: parent
-                    onPaint: root.drawChart(getContext("2d"), width, height, root.rows, "vz",  -6,    6, "#f59e0b", "Vertical Speed (m/s)", root.hoverIdx)
-                }
-                MouseArea {
-                    anchors.fill: parent; hoverEnabled: true
-                    onPositionChanged: function(m) { root.updateHover(m.x, vzCanvas.width) }
-                    onExited: root.hoverIdx = -1
-                }
-                onWidthChanged:  vzCanvas.requestPaint()
-                onHeightChanged: vzCanvas.requestPaint()
-            }
-        }
-        }  // Item flightContent
-    }  // Flickable
+    }
 }

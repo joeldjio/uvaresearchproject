@@ -110,6 +110,11 @@ def build_default_locator() -> ServiceLocator:
 
         return ROS2Context()
 
+    def _bag_playback():
+        from tools.ui.context.bag_playback_context import BagPlaybackContext
+
+        return BagPlaybackContext()
+
     def _updater():
         from tools.ui.updater import UpdaterContext
 
@@ -125,6 +130,7 @@ def build_default_locator() -> ServiceLocator:
     loc.register_factory("experiment", _experiment)
     loc.register_factory("safety", _safety)
     loc.register_factory("ros2", _ros2)
+    loc.register_factory("bagPlayback", _bag_playback)
     loc.register_factory("updater", _updater)
     loc.register_factory("licenseManager", _license)
     return loc
@@ -140,6 +146,7 @@ def wire(locator: ServiceLocator) -> None:
     experiment = locator["experiment"]
     safety = locator["safety"]
     ros2 = locator["ros2"]
+    bag_playback = locator["bagPlayback"]
 
     # Telemetry → models
     swarm.telemetryUpdated.connect(
@@ -247,3 +254,8 @@ def wire(locator: ServiceLocator) -> None:
 
     # ROS2 logs → swarm log
     ros2.ros2LogMessage.connect(swarm.logMessage)
+
+    # Bag playback logs → swarm log
+    bag_playback.errorOccurred.connect(
+        lambda msg: swarm.logMessage.emit("ERROR", f"[BAG] {msg}")
+    )
