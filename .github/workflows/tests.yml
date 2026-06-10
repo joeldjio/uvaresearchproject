@@ -38,6 +38,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -e ".[test]"
+        pip install pytest-cov
     
     - name: Run unit tests with coverage
       run: |
@@ -101,6 +102,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -e ".[test]"
+        pip install pytest-cov PyQt6 PyQt6-WebEngine pyqtgraph
     
     - name: Run UI tests with Xvfb
       run: |
@@ -177,7 +179,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -e ".[test]"
-        pip install playwright pytest-playwright
+        pip install playwright pytest-playwright PyQt6 PyQt6-WebEngine pyqtgraph
     
     - name: Install Playwright browsers
       run: playwright install --with-deps chromium
@@ -260,6 +262,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -e ".[test]"
+        pip install PyQt6 PyQt6-WebEngine pyqtgraph
     
     - name: Run license tests
       run: pytest tests/test_license.py -v
