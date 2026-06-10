@@ -145,13 +145,23 @@ Item {
         title: "CSV Flight Log öffnen"
         nameFilters: ["CSV Logs (*.csv)", "Alle Dateien (*)"]
         onAccepted: {
-            var pathStr = selectedFile.toString()
-            root.logName = pathStr.split("/").pop().split("\\").pop()
-            var content = swarm.readFile(pathStr)
-            if (content && content.length > 0)
-                root.loadCsv(content)
-            else
+            try {
+                var pathStr = selectedFile.toString()
+                root.logName = pathStr.split("/").pop().split("\\").pop()
+                if (typeof swarm !== 'undefined' && swarm.readFile) {
+                    var content = swarm.readFile(pathStr)
+                    if (content && content.length > 0)
+                        root.loadCsv(content)
+                    else
+                        loadErrorFlash.visible = true
+                } else {
+                    console.error("FlightLogPanel: swarm.readFile not available")
+                    loadErrorFlash.visible = true
+                }
+            } catch (e) {
+                console.error("FlightLogPanel: Error loading CSV:", e)
                 loadErrorFlash.visible = true
+            }
         }
     }
 
@@ -160,9 +170,19 @@ Item {
         title: "ROS2 Bag öffnen"
         nameFilters: ["ROS2 Bags (*.mcap *.db3)", "Alle Dateien (*)"]
         onAccepted: {
-            var pathStr = selectedFile.toString()
-            root.logName = pathStr.split("/").pop().split("\\").pop()
-            bagPlayback.loadBag(pathStr)
+            try {
+                var pathStr = selectedFile.toString()
+                root.logName = pathStr.split("/").pop().split("\\").pop()
+                if (typeof bagPlayback !== 'undefined' && bagPlayback.loadBag) {
+                    bagPlayback.loadBag(pathStr)
+                } else {
+                    console.error("FlightLogPanel: bagPlayback not available")
+                    loadErrorFlash.visible = true
+                }
+            } catch (e) {
+                console.error("FlightLogPanel: Error loading bag:", e)
+                loadErrorFlash.visible = true
+            }
         }
     }
 
@@ -261,11 +281,14 @@ Item {
                             width: stateText.implicitWidth + 12
                             height: 18
                             radius: 4
-                            color: bagPlayback.state === "playing" ? "#059669" : bagPlayback.state === "paused" ? "#d97706" : "#374151"
+                            color: (typeof bagPlayback !== 'undefined' && bagPlayback.state === "playing") ? "#059669" :
+                                   (typeof bagPlayback !== 'undefined' && bagPlayback.state === "paused") ? "#d97706" : "#374151"
                             Text {
                                 id: stateText
                                 anchors.centerIn: parent
-                                text: bagPlayback.state === "playing" ? "PLAYING" : bagPlayback.state === "paused" ? "PAUSED" : "STOPPED"
+                                text: (typeof bagPlayback !== 'undefined') ?
+                                      (bagPlayback.state === "playing" ? "PLAYING" : bagPlayback.state === "paused" ? "PAUSED" : "STOPPED") :
+                                      "N/A"
                                 color: "#f1f5f9"
                                 font.pixelSize: 9
                                 font.weight: Font.Bold
@@ -280,7 +303,7 @@ Item {
 
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
-                            text: formatTime(bagPlayback.progress * bagPlayback.duration)
+                            text: (typeof bagPlayback !== 'undefined') ? formatTime(bagPlayback.progress * bagPlayback.duration) : "0:00"
                             color: "#64748b"
                             font.pixelSize: 10
                             font.family: "Consolas"
@@ -292,9 +315,13 @@ Item {
                             width: parent.width - 120
                             from: 0.0
                             to: 1.0
-                            value: bagPlayback.progress
-                            enabled: bagPlayback.state !== "stopped"
-                            onMoved: bagPlayback.seek(value)
+                            value: (typeof bagPlayback !== 'undefined') ? bagPlayback.progress : 0.0
+                            enabled: (typeof bagPlayback !== 'undefined') && bagPlayback.state !== "stopped"
+                            onMoved: {
+                                if (typeof bagPlayback !== 'undefined' && bagPlayback.seek) {
+                                    bagPlayback.seek(value)
+                                }
+                            }
 
                             background: Rectangle {
                                 x: timelineSlider.leftPadding
@@ -325,7 +352,7 @@ Item {
 
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
-                            text: formatTime(bagPlayback.duration)
+                            text: (typeof bagPlayback !== 'undefined') ? formatTime(bagPlayback.duration) : "0:00"
                             color: "#64748b"
                             font.pixelSize: 10
                             font.family: "Consolas"
@@ -341,7 +368,7 @@ Item {
                             width: 80; height: 28; radius: 6
                             color: playBtnMa.containsMouse ? "#059669" : "#1e2535"
                             border.color: "#059669"; border.width: 1
-                            visible: bagPlayback.state !== "playing"
+                            visible: (typeof bagPlayback === 'undefined') || bagPlayback.state !== "playing"
                             Text {
                                 anchors.centerIn: parent
                                 text: "PLAY"
@@ -349,14 +376,23 @@ Item {
                                 font.pixelSize: 10
                                 font.weight: Font.Bold
                             }
-                            MouseArea { id: playBtnMa; anchors.fill: parent; hoverEnabled: true; onClicked: bagPlayback.play() }
+                            MouseArea {
+                                id: playBtnMa
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                onClicked: {
+                                    if (typeof bagPlayback !== 'undefined' && bagPlayback.play) {
+                                        bagPlayback.play()
+                                    }
+                                }
+                            }
                         }
 
                         Rectangle {
                             width: 80; height: 28; radius: 6
                             color: pauseBtnMa.containsMouse ? "#d97706" : "#1e2535"
                             border.color: "#d97706"; border.width: 1
-                            visible: bagPlayback.state === "playing"
+                            visible: (typeof bagPlayback !== 'undefined') && bagPlayback.state === "playing"
                             Text {
                                 anchors.centerIn: parent
                                 text: "PAUSE"
@@ -364,7 +400,16 @@ Item {
                                 font.pixelSize: 10
                                 font.weight: Font.Bold
                             }
-                            MouseArea { id: pauseBtnMa; anchors.fill: parent; hoverEnabled: true; onClicked: bagPlayback.pause() }
+                            MouseArea {
+                                id: pauseBtnMa
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                onClicked: {
+                                    if (typeof bagPlayback !== 'undefined' && bagPlayback.pause) {
+                                        bagPlayback.pause()
+                                    }
+                                }
+                            }
                         }
 
                         Rectangle {
@@ -378,12 +423,21 @@ Item {
                                 font.pixelSize: 10
                                 font.weight: Font.Bold
                             }
-                            MouseArea { id: stopBtnMa; anchors.fill: parent; hoverEnabled: true; onClicked: bagPlayback.stop() }
+                            MouseArea {
+                                id: stopBtnMa
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                onClicked: {
+                                    if (typeof bagPlayback !== 'undefined' && bagPlayback.stop) {
+                                        bagPlayback.stop()
+                                    }
+                                }
+                            }
                         }
 
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
-                            text: "Speed: " + bagPlayback.playbackRate.toFixed(1) + "x"
+                            text: (typeof bagPlayback !== 'undefined') ? "Speed: " + bagPlayback.playbackRate.toFixed(1) + "x" : "Speed: 1.0x"
                             color: "#64748b"
                             font.pixelSize: 10
                             font.family: "Consolas"
@@ -404,7 +458,11 @@ Item {
                                 id: speedDownMa
                                 anchors.fill: parent
                                 hoverEnabled: true
-                                onClicked: bagPlayback.playbackRate = Math.max(0.1, bagPlayback.playbackRate - 0.5)
+                                onClicked: {
+                                    if (typeof bagPlayback !== 'undefined') {
+                                        bagPlayback.playbackRate = Math.max(0.1, bagPlayback.playbackRate - 0.5)
+                                    }
+                                }
                             }
                         }
 
@@ -423,7 +481,11 @@ Item {
                                 id: speedUpMa
                                 anchors.fill: parent
                                 hoverEnabled: true
-                                onClicked: bagPlayback.playbackRate = Math.min(10.0, bagPlayback.playbackRate + 0.5)
+                                onClicked: {
+                                    if (typeof bagPlayback !== 'undefined') {
+                                        bagPlayback.playbackRate = Math.min(10.0, bagPlayback.playbackRate + 0.5)
+                                    }
+                                }
                             }
                         }
                     }

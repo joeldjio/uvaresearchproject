@@ -341,12 +341,12 @@ QDoubleSpinBox::up-button:hover, QDoubleSpinBox::down-button:hover {{
 QScrollBar:vertical {{
     background: {Colors.bg_panel};
     width: 10px;
-    border-radius: 5px;
+    border-radius: 6px;
     margin: 2px;
 }}
 QScrollBar::handle:vertical {{
     background: {Colors.border_strong};
-    border-radius: 5px;
+    border-radius: 6px;
     min-height: 30px;
 }}
 QScrollBar::handle:vertical:hover {{
@@ -357,12 +357,12 @@ QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0; }}
 QScrollBar:horizontal {{
     background: {Colors.bg_panel};
     height: 10px;
-    border-radius: 5px;
+    border-radius: 6px;
     margin: 2px;
 }}
 QScrollBar::handle:horizontal {{
     background: {Colors.border_strong};
-    border-radius: 5px;
+    border-radius: 6px;
     min-width: 30px;
 }}
 QScrollBar::handle:horizontal:hover {{ 
@@ -392,7 +392,7 @@ QSlider::handle:horizontal {{
     background: {Colors.blue};
     width: 18px;
     height: 18px;
-    border-radius: 9px;
+    border-radius: 10px;
     margin: -6px 0;
     border: 2px solid white;
 }}
@@ -453,7 +453,7 @@ QProgressBar::chunk {{
     background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
                                 stop:0 {Colors.blue_light}, 
                                 stop:1 {Colors.blue});
-    border-radius: 7px;
+    border-radius: 8px;
 }}
 
 /* ── CheckBox (improved styling) ── */
@@ -484,7 +484,7 @@ QRadioButton {{
 QRadioButton::indicator {{
     width: 18px;
     height: 18px;
-    border-radius: 9px;
+    border-radius: 10px;
     border: 2px solid {Colors.border};
     background: {Colors.bg_input};
 }}

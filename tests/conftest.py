@@ -114,23 +114,25 @@ def qapp():
     """Session-scoped QApplication for UI tests.
 
     Creates a full QApplication (not just QCoreApplication) to support
-    E2E tests that create windows. QtWebEngineWidgets is imported before
-    QApplication creation to avoid initialization errors.
+    E2E tests that create windows. QtWebEngine requires AA_ShareOpenGLContexts
+    to be set BEFORE any QtWebEngine imports.
     """
     try:
-        # Import QtWebEngineWidgets BEFORE creating QApplication
-        # to avoid "must be imported before QCoreApplication" error
+        from PyQt6.QtWidgets import QApplication
+        from PyQt6.QtCore import Qt
+        import sys
+        
+        # CRITICAL: Set AA_ShareOpenGLContexts BEFORE importing QtWebEngine
+        # This must happen before QApplication creation AND before any
+        # QtWebEngineWidgets imports (which may happen in UI modules)
+        QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
+        
+        # Now safe to import QtWebEngine components
         try:
             from PyQt6.QtWebEngineWidgets import QWebEngineView  # noqa: F401
         except ImportError:
             pass  # QtWebEngine not installed, tests will skip if needed
         
-        from PyQt6.QtWidgets import QApplication
-        from PyQt6.QtCore import Qt
-        import sys
-        
-        # Set platform to offscreen for headless CI
-        QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
     except ImportError:
         pytest.skip("PyQt6 not installed — skipping UI tests")
 
