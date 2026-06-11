@@ -280,4 +280,3 @@ def test_performance_ui_responsiveness(qapp, wired_locator, fake_conn, snap_fact
     window.close()
 
 
-# Made with Bob

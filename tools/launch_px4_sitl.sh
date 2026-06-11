@@ -132,5 +132,3 @@ echo ""
 
 # Warte auf Benutzer-Interrupt
 wait $PX4_PID
-
-# Made with Bob

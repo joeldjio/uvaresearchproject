@@ -281,5 +281,3 @@ Rectangle {
         canvas.updateFormation()
     }
 }
-
-// Made with Bob

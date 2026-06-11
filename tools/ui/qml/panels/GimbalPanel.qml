@@ -29,7 +29,7 @@ Item {
             spacing: 10
 
             // ── Drone selector ──────────────────────────────────────────
-            Text { text: "GIMBAL / KAMERA"; color: "#64748b"; font.pixelSize: 9; font.weight: Font.Bold; font.letterSpacing: 1 }
+            Text { text: qsTr("GIMBAL / CAMERA"); color: "#64748b"; font.pixelSize: 9; font.weight: Font.Bold; font.letterSpacing: 1 }
 
             Rectangle {
                 width: parent.width; height: 36; radius: 8
@@ -39,7 +39,7 @@ Item {
                     anchors { fill: parent; leftMargin: 10; rightMargin: 10 }
                     spacing: 8
 
-                    Text { text: "Drone:"; color: "#64748b"; font.pixelSize: 10; anchors.verticalCenter: parent.verticalCenter }
+                    Text { text: qsTr("Drone:"); color: "#64748b"; font.pixelSize: 10; anchors.verticalCenter: parent.verticalCenter }
                     ComboBox {
                         id: droneCombo
                         width: parent.width - 60; height: 26
@@ -64,7 +64,7 @@ Item {
                     spacing: 6
                     Text { text: "⚠"; color: "#f59e0b"; font.pixelSize: 14; anchors.verticalCenter: parent.verticalCenter }
                     Text {
-                        text: "Gimbal nur für Observation UAV (Drone-Typ = observation)"
+                        text: qsTr("Gimbal only for Observation UAV (Drone type = observation)")
                         color: "#fcd34d"; font.pixelSize: 10
                         anchors.verticalCenter: parent.verticalCenter
                     }
@@ -173,7 +173,7 @@ Item {
                             color: applyM.containsMouse ? "#1d4ed8" : "#1e3a5f"
                             border.color: "#2563eb"; border.width: 1
                             Behavior on color { ColorAnimation { duration: 100 } }
-                            Text { anchors.centerIn: parent; text: "APPLY GIMBAL"; color: "#93c5fd"; font.pixelSize: 10; font.weight: Font.Bold; font.letterSpacing: 1 }
+                            Text { anchors.centerIn: parent; text: qsTr("APPLY GIMBAL"); color: "#93c5fd"; font.pixelSize: 10; font.weight: Font.Bold; font.letterSpacing: 1 }
                             MouseArea {
                                 id: applyM; anchors.fill: parent; hoverEnabled: true
                                 onClicked: {
@@ -188,7 +188,7 @@ Item {
                             width: (parent.width - 8) * 0.4; height: 32; radius: 6
                             color: homeM.containsMouse ? "#374151" : "#1e2535"
                             border.color: "#4b5563"; border.width: 1
-                            Text { anchors.centerIn: parent; text: "⌂ HOME"; color: "#94a3b8"; font.pixelSize: 10 }
+                            Text { anchors.centerIn: parent; text: qsTr("⌂ HOME"); color: "#94a3b8"; font.pixelSize: 10 }
                             MouseArea {
                                 id: homeM; anchors.fill: parent; hoverEnabled: true
                                 onClicked: {
@@ -201,15 +201,15 @@ Item {
                     }
 
                     // Quick presets
-                    Text { text: "PRESETS"; color: "#64748b"; font.pixelSize: 8; font.weight: Font.Bold; font.letterSpacing: 1 }
+                    Text { text: qsTr("PRESETS"); color: "#64748b"; font.pixelSize: 8; font.weight: Font.Bold; font.letterSpacing: 1 }
                     Row {
                         width: parent.width; spacing: 6
 
                         Repeater {
                             model: [
-                                { label: "Down",    pitch: -90, roll: 0, yaw: 0 },
-                                { label: "Forward", pitch: 0,   roll: 0, yaw: 0 },
-                                { label: "45°",     pitch: -45, roll: 0, yaw: 0 },
+                                { label: qsTr("Down"),    pitch: -90, roll: 0, yaw: 0 },
+                                { label: qsTr("Forward"), pitch: 0,   roll: 0, yaw: 0 },
+                                { label: qsTr("45°"),     pitch: -45, roll: 0, yaw: 0 },
                             ]
                             delegate: Rectangle {
                                 width: (parent.width - 12) / 3; height: 28; radius: 5
@@ -233,7 +233,7 @@ Item {
             }
 
             // ── Current gimbal state ────────────────────────────────────
-            Text { text: "AKTUELLER STATUS"; color: "#64748b"; font.pixelSize: 9; font.weight: Font.Bold; font.letterSpacing: 1 }
+            Text { text: qsTr("CURRENT STATUS"); color: "#64748b"; font.pixelSize: 9; font.weight: Font.Bold; font.letterSpacing: 1 }
 
             Rectangle {
                 width: parent.width; height: 44; radius: 8

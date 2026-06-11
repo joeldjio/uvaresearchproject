@@ -296,4 +296,3 @@ def test_performance_startup_time(page):
     
     print(f"UI startup time: {startup_time:.0f}ms")
 
-# Made with Bob

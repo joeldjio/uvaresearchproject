@@ -129,4 +129,3 @@ def test_seek_restarts_with_offset(mock_popen):
     offset_idx = args.index("--start-offset")
     assert float(args[offset_idx + 1]) == 50.0
 
-# Made with Bob

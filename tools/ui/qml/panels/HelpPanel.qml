@@ -157,18 +157,18 @@ Item {
                     spacing: Cmp.Theme.spacing(0.5)
                     
                     Text {
-                        text: "UAVResearch Ground Control Station"
+                        text: qsTr("UAVResearch Ground Control Station")
                         color: Cmp.Theme.warning
                         font.pixelSize: Cmp.Theme.fontXl
                         font.weight: Font.Bold
                     }
                     Text {
-                        text: "Vollständige Feature-Referenz · Workflows · Konventionen"
+                        text: qsTr("Complete Feature Reference · Workflows · Conventions")
                         color: Cmp.Theme.textSecondary
                         font.pixelSize: Cmp.Theme.fontMd
                     }
                     Text {
-                        text: "⚠ Lies mindestens Quickstart + Globale Konzepte, bevor du eine Drohne armst."
+                        text: qsTr("⚠ Read at least Quickstart + Global Concepts before arming a drone.")
                         color: Cmp.Theme.textMuted
                         font.pixelSize: Cmp.Theme.fontSm
                         font.italic: true
@@ -186,28 +186,28 @@ Item {
 
             // ── 1. Quickstart ───────────────────────────────────────────────
             HelpSection {
-                title: "1 · QUICKSTART (5 Schritte zur ersten Mission)"
-                subtitle: "Annahme: SITL läuft bereits (z. B. ArduCopter auf tcp:127.0.0.1:5762)"
+                title: qsTr("1 · QUICKSTART (5 Steps to First Mission)")
+                subtitle: qsTr("Assumption: SITL already running (e.g. ArduCopter on tcp:127.0.0.1:5762)")
                 accent: Cmp.Theme.success
                 body:
-                    "<b>① Drohne hinzufügen</b><br>" +
-                    "&nbsp;&nbsp;Swarm-Tab → <b>+ DROHNE</b> → ID (z. B. <code>UAV_1</code>) + Connection-String (<code>tcp:127.0.0.1:5762</code>) → <b>Verbinden</b>. " +
-                    "Status-Badge wechselt zu <span style='color:#22c55e'>grün</span>, FSM springt von <code>DISCONNECTED</code> auf <code>IDLE</code>.<br><br>" +
-                    "<b>② Wegpunkte setzen</b><br>" +
-                    "&nbsp;&nbsp;Map-Tab → <b>WAYPOINT HINZUFÜGEN</b> aktivieren → linke Maustaste auf der Karte. " +
-                    "Höhe (AGL) oben rechts einstellen. ESC bricht den Modus ab. " +
-                    "Alternativ: Swarm-Tab → Lat/Lon/Alt eintippen → <b>Add WP</b>.<br><br>" +
-                    "<b>③ Mission-Targets auswählen</b><br>" +
-                    "&nbsp;&nbsp;Swarm-Tab → Häkchen ☑ links neben jeder Drohne, die mitfliegen soll. " +
-                    "Keine Häkchen → die aktuell <i>selected</i> Drohne ist Target. Mehrere Häkchen → Multi-Drone-Dispatch.<br><br>" +
-                    "<b>④ Sicherheits-Check</b><br>" +
-                    "&nbsp;&nbsp;Safety-Tab öffnen → <b>APF ENABLE</b> (Kollisionsschutz an). " +
-                    "Geofence-Radius prüfen (Default 50 m ist für Multi-Drohne meist zu klein → auf 200 m setzen).<br><br>" +
-                    "<b>⑤ Mission starten</b><br>" +
-                    "&nbsp;&nbsp;Swarm-Tab → <b>MISSION STARTEN</b>. " +
-                    "Die UI armed → takeoffed → fliegt WPs ab → landet. " +
-                    "Während der Mission siehst du den Pfad als <span style='color:#22c55e'>grüne Marker + gestrichelte Linie</span> auf der Map. " +
-                    "FSM-Badge im Telemetry-Tab folgt: <code>ARMED → TAKEOFF → MISSION → RTL → LANDING → IDLE</code>."
+                    qsTr("<b>① Add Drone</b><br>") +
+                    qsTr("&nbsp;&nbsp;Swarm Tab → <b>+ DRONE</b> → ID (e.g. <code>UAV_1</code>) + Connection String (<code>tcp:127.0.0.1:5762</code>) → <b>Connect</b>. ") +
+                    qsTr("Status badge turns <span style='color:#22c55e'>green</span>, FSM jumps from <code>DISCONNECTED</code> to <code>IDLE</code>.<br><br>") +
+                    qsTr("<b>② Set Waypoints</b><br>") +
+                    qsTr("&nbsp;&nbsp;Map Tab → <b>ADD WAYPOINT</b> activate → left click on map. ") +
+                    qsTr("Set altitude (AGL) top right. ESC cancels mode. ") +
+                    qsTr("Alternative: Swarm Tab → type Lat/Lon/Alt → <b>Add WP</b>.<br><br>") +
+                    qsTr("<b>③ Select Mission Targets</b><br>") +
+                    qsTr("&nbsp;&nbsp;Swarm Tab → checkboxes ☑ left of each drone that should fly. ") +
+                    qsTr("No checkboxes → currently <i>selected</i> drone is target. Multiple checkboxes → Multi-Drone Dispatch.<br><br>") +
+                    qsTr("<b>④ Safety Check</b><br>") +
+                    qsTr("&nbsp;&nbsp;Open Safety Tab → <b>APF ENABLE</b> (collision protection on). ") +
+                    qsTr("Check geofence radius (default 50 m is usually too small for multi-drone → set to 200 m).<br><br>") +
+                    qsTr("<b>⑤ Start Mission</b><br>") +
+                    qsTr("&nbsp;&nbsp;Swarm Tab → <b>START MISSION</b>. ") +
+                    qsTr("UI arms → takeoff → flies WPs → lands. ") +
+                    qsTr("During mission you see path as <span style='color:#22c55e'>green markers + dashed line</span> on map. ") +
+                    qsTr("FSM badge in Telemetry Tab follows: <code>ARMED → TAKEOFF → MISSION → RTL → LANDING → IDLE</code>.")
             }
 
             // ── 2. Globale Konzepte ────────────────────────────────────────
@@ -236,27 +236,27 @@ Item {
 
             // ── 3. Tab: Map ────────────────────────────────────────────────
             HelpSection {
-                title: "TAB · MAP"
-                subtitle: "Leaflet-basierte Karte mit Live-Drohnen-Markers, Tracks, Wegpunkten und Geofence-Overlay."
+                title: qsTr("TAB · MAP")
+                subtitle: qsTr("Leaflet-based map with live drone markers, tracks, waypoints and geofence overlay.")
                 accent: Cmp.Theme.info
                 body:
-                    "<b>Was du siehst</b><br>" +
-                    "&nbsp;&nbsp;• Drohnen-Marker mit Live-Position (Update ~5 Hz).<br>" +
-                    "&nbsp;&nbsp;• Track-Polyline (Verlauf), farbig nach Typ: blau = generic, lila = observation.<br>" +
-                    "&nbsp;&nbsp;• Editierbare Wegpunkt-Marker (orange, nummeriert).<br>" +
-                    "&nbsp;&nbsp;• Bereits dispatched Mission-Pfad (grüne Marker + gestrichelte Linie) — bleibt nach Mission-Start als visuelle Referenz.<br>" +
-                    "&nbsp;&nbsp;• Geofence (roter dashed Kreis, falls in Safety aktiviert).<br><br>" +
-                    "<b>Wie du es benutzt</b><br>" +
-                    "&nbsp;&nbsp;• <b>WAYPOINT HINZUFÜGEN</b> (Toolbar oben) → Cursor wird Fadenkreuz → Klick auf Karte legt WP an.<br>" +
-                    "&nbsp;&nbsp;• <b>ESC</b> bricht den Modus ab, ohne WP zu setzen.<br>" +
-                    "&nbsp;&nbsp;• <b>Höhen-Feld</b> oben rechts = AGL für den nächsten gesetzten WP.<br>" +
-                    "&nbsp;&nbsp;• <b>Kartenstil</b> umschaltbar: Hell · Dunkel · Topo.<br>" +
-                    "&nbsp;&nbsp;• <b>Center-on-Drone</b>: Klick auf eine Drohne in der Sidebar zoomt die Map auf ihre Position.<br>" +
-                    "&nbsp;&nbsp;• <b>Mausrad</b>: Zoom. Rechtsklick + Drag: Pan.<br><br>" +
-                    "<span style='color:#f59e0b'><b>Häufige Stolpersteine</b></span><br>" +
-                    "&nbsp;&nbsp;• Karte wirkt leer → Drohnen-Spawn liegt außerhalb des Viewports. Sidebar-Klick auf Drohne zentriert.<br>" +
-                    "&nbsp;&nbsp;• WP wird nicht gesetzt → der WP-Modus ist aus. Toolbar-Button noch mal drücken.<br>" +
-                    "&nbsp;&nbsp;• Drohne springt sichtbar auf der Karte → Telemetry-Lücke (häufig beim ersten GPS-Fix in SITL). Normal."
+                    qsTr("<b>What you see</b><br>") +
+                    qsTr("&nbsp;&nbsp;• Drone markers with live position (update ~5 Hz).<br>") +
+                    qsTr("&nbsp;&nbsp;• Track polyline (history), colored by type: blue = generic, purple = observation.<br>") +
+                    qsTr("&nbsp;&nbsp;• Editable waypoint markers (orange, numbered).<br>") +
+                    qsTr("&nbsp;&nbsp;• Already dispatched mission path (green markers + dashed line) — remains after mission start as visual reference.<br>") +
+                    qsTr("&nbsp;&nbsp;• Geofence (red dashed circle, if enabled in Safety).<br><br>") +
+                    qsTr("<b>How to use it</b><br>") +
+                    qsTr("&nbsp;&nbsp;• <b>ADD WAYPOINT</b> (toolbar top) → cursor becomes crosshair → click on map creates WP.<br>") +
+                    qsTr("&nbsp;&nbsp;• <b>ESC</b> cancels mode without setting WP.<br>") +
+                    qsTr("&nbsp;&nbsp;• <b>Altitude field</b> top right = AGL for next WP to be set.<br>") +
+                    qsTr("&nbsp;&nbsp;• <b>Map style</b> switchable: Light · Dark · Topo.<br>") +
+                    qsTr("&nbsp;&nbsp;• <b>Center-on-Drone</b>: Click on drone in sidebar zooms map to its position.<br>") +
+                    qsTr("&nbsp;&nbsp;• <b>Mouse wheel</b>: Zoom. Right-click + Drag: Pan.<br><br>") +
+                    qsTr("<span style='color:#f59e0b'><b>Common Pitfalls</b></span><br>") +
+                    qsTr("&nbsp;&nbsp;• Map appears empty → drone spawn is outside viewport. Sidebar click on drone centers it.<br>") +
+                    qsTr("&nbsp;&nbsp;• WP not being set → WP mode is off. Press toolbar button again.<br>") +
+                    qsTr("&nbsp;&nbsp;• Drone jumps visibly on map → telemetry gap (common on first GPS fix in SITL). Normal.")
             }
 
             // ── 4. Tab: Telemetry ──────────────────────────────────────────
@@ -539,28 +539,28 @@ Item {
                     spacing: Cmp.Theme.spacing(1)
 
                     Text {
-                        text: "GLOSSAR"
+                        text: qsTr("GLOSSARY")
                         color: Cmp.Theme.info
                         font.pixelSize: Cmp.Theme.fontMd
                         font.weight: Font.Bold
                         font.letterSpacing: 0.5
                     }
 
-                    GlossaryRow { term: "AGL";           def: "Above Ground at Launch — Höhe über dem Takeoff-Punkt." }
-                    GlossaryRow { term: "AMSL / MSL";    def: "Above Mean Sea Level — absolute Höhe." }
-                    GlossaryRow { term: "APF";           def: "Artificial Potential Field — repulsiver Kollisionsschutz, 10 Hz." }
-                    GlossaryRow { term: "FSM";           def: "Finite State Machine — Zustandsautomat pro Drohne (IDLE/ARMED/FLYING/…)." }
-                    GlossaryRow { term: "Selected Drone";def: "Die <i>eine</i> Drohne, deren Telemetrie aktuell angezeigt wird." }
-                    GlossaryRow { term: "Mission-Target";def: "Drohne mit ☑ — bekommt Aktionen (ARM, GOTO, MISSION, …)." }
-                    GlossaryRow { term: "WP";            def: "Waypoint — Lat/Lon/Alt-Punkt in der Mission." }
-                    GlossaryRow { term: "RTL";           def: "Return To Launch — Drohne fliegt zum Spawn-Punkt zurück." }
-                    GlossaryRow { term: "SITL";          def: "Software In The Loop — Drohnen-Simulation ohne Hardware." }
-                    GlossaryRow { term: "uXRCE-DDS";     def: "Micro XRCE-DDS — PX4-Bridge nach ROS2 (ersetzt MAVLink-bridge)." }
-                    GlossaryRow { term: "uORB";          def: "Micro Object Request Broker — PX4-interner Message-Bus." }
-                    GlossaryRow { term: "NED";           def: "North-East-Down lokales Koordinatensystem (PX4-Standard)." }
-                    GlossaryRow { term: "Geofence";      def: "Virtuelle Begrenzung (Radius + Alt-min/max); Verletzung → Log + Auto-RTL." }
-                    GlossaryRow { term: "Boids";         def: "Schwarm-Algorithmus mit Separation/Alignment/Cohesion." }
-                    GlossaryRow { term: "Leader-Follower"; def: "Formation-Modell: ein Leader, N Follower mit relativen Slot-Offsets." }
+                    GlossaryRow { term: "AGL";           def: qsTr("Above Ground at Launch — altitude above takeoff point.") }
+                    GlossaryRow { term: "AMSL / MSL";    def: qsTr("Above Mean Sea Level — absolute altitude.") }
+                    GlossaryRow { term: "APF";           def: qsTr("Artificial Potential Field — repulsive collision protection, 10 Hz.") }
+                    GlossaryRow { term: "FSM";           def: qsTr("Finite State Machine — state automaton per drone (IDLE/ARMED/FLYING/…).") }
+                    GlossaryRow { term: "Selected Drone";def: qsTr("The <i>one</i> drone whose telemetry is currently displayed.") }
+                    GlossaryRow { term: "Mission-Target";def: qsTr("Drone with ☑ — receives actions (ARM, GOTO, MISSION, …).") }
+                    GlossaryRow { term: "WP";            def: qsTr("Waypoint — Lat/Lon/Alt point in mission.") }
+                    GlossaryRow { term: "RTL";           def: qsTr("Return To Launch — drone flies back to spawn point.") }
+                    GlossaryRow { term: "SITL";          def: qsTr("Software In The Loop — drone simulation without hardware.") }
+                    GlossaryRow { term: "uXRCE-DDS";     def: qsTr("Micro XRCE-DDS — PX4 bridge to ROS2 (replaces MAVLink bridge).") }
+                    GlossaryRow { term: "uORB";          def: qsTr("Micro Object Request Broker — PX4 internal message bus.") }
+                    GlossaryRow { term: "NED";           def: qsTr("North-East-Down local coordinate system (PX4 standard).") }
+                    GlossaryRow { term: "Geofence";      def: qsTr("Virtual boundary (radius + alt min/max); violation → log + auto-RTL.") }
+                    GlossaryRow { term: "Boids";         def: qsTr("Swarm algorithm with Separation/Alignment/Cohesion.") }
+                    GlossaryRow { term: "Leader-Follower"; def: qsTr("Formation model: one leader, N followers with relative slot offsets.") }
                 }
             }
 
@@ -655,14 +655,14 @@ Item {
                     
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        text: "💡 Bei Problemen: System-Log + syslogs/*.txt + Konsolen-Output sammeln."
+                        text: qsTr("💡 For issues: collect System Log + syslogs/*.txt + console output.")
                         color: Cmp.Theme.textSecondary
                         font.pixelSize: Cmp.Theme.fontSm
                         font.italic: true
                     }
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        text: "ℹ️ Dieses Help-Panel ist read-only — keine Bindings, keine Side-Effects."
+                        text: qsTr("ℹ️ This Help Panel is read-only — no bindings, no side effects.")
                         color: Cmp.Theme.textMuted
                         font.pixelSize: Cmp.Theme.fontXs
                         font.italic: true

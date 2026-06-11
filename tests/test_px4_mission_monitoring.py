@@ -243,4 +243,3 @@ def test_bridge_on_mission_status():
         bridge._mission_uploader.on_status_change.assert_called_once_with(callback)
 
 
-# Made with Bob

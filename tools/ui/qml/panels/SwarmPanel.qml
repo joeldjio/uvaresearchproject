@@ -46,7 +46,7 @@ Item {
         var φ1 = lat1 * Math.PI / 180, φ2 = lat2 * Math.PI / 180
         var Δφ = (lat2 - lat1) * Math.PI / 180, Δλ = (lon2 - lon1) * Math.PI / 180
         var a = Math.sin(Δφ/2)*Math.sin(Δφ/2) + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)*Math.sin(Δλ/2)
-        distPreview.text = "Entfernung: " + (R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))).toFixed(0) + " m"
+        distPreview.text = qsTr("Distance: ") + (R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))).toFixed(0) + " m"
     }
 
     function setWaypointFromMap(lat, lon) {
@@ -74,7 +74,7 @@ Item {
                 spacing: 8
 
                 // ── DRONE AUSWAHL ─────────────────────────────────────────
-                Text { text: "DRONE AUSWAHL"; color: "#64748b"; font.pixelSize: 9; font.weight: Font.Bold; font.letterSpacing: 1 }
+                Text { text: qsTr("DRONE SELECTION"); color: "#64748b"; font.pixelSize: 9; font.weight: Font.Bold; font.letterSpacing: 1 }
 
                 Rectangle {
                     width: parent.width; height: selCol.implicitHeight + 20; radius: 8
@@ -273,7 +273,7 @@ Item {
                         }
                     }
 
-                    Text { anchors.centerIn: parent; text: "Keine Drones verbunden"; color: "#374151"; font.pixelSize: 10; visible: !telemetryModel || telemetryModel.count === 0 }
+                    Text { anchors.centerIn: parent; text: qsTr("No drones connected"); color: "#374151"; font.pixelSize: 10; visible: !telemetryModel || telemetryModel.count === 0 }
                 }
 
                 Text { text: "SYSTEM INFO"; color: "#64748b"; font.pixelSize: 9; font.weight: Font.Bold; font.letterSpacing: 1 }
@@ -295,7 +295,7 @@ Item {
                                 anchors.verticalCenter: parent.verticalCenter
                             }
                             Text {
-                                text: selectedDroneId || "Keine Drone ausgewählt"
+                                text: selectedDroneId || qsTr("No drone selected")
                                 color: selectedDroneId ? "#e2e8f0" : "#64748b"
                                 font.pixelSize: 12; font.weight: Font.Bold
                                 anchors.verticalCenter: parent.verticalCenter
@@ -404,7 +404,7 @@ Item {
                             width: parent.width; spacing: 6
                             Column {
                                 width: parent.width - 90 - 6; spacing: 2
-                                Text { text: "Takeoff Alt (m)"; color: "#64748b"; font.pixelSize: 9 }
+                                Text { text: qsTr("Takeoff Alt (m)"); color: "#64748b"; font.pixelSize: 9 }
                                 TextField {
                                     id: swarmTakeoffAlt; width: parent.width; height: 28; text: "10"
                                     background: Rectangle { color: "#1e2535"; radius: 4; border.color: "#2d3748"; border.width: 1 }
@@ -449,7 +449,7 @@ Item {
                         }
 
                         // MODE ALL
-                        Text { text: "FLIGHT MODE (ALLE)"; color: "#475569"; font.pixelSize: 8; font.weight: Font.Bold; font.letterSpacing: 1 }
+                        Text { text: qsTr("FLIGHT MODE (ALL)"); color: "#475569"; font.pixelSize: 8; font.weight: Font.Bold; font.letterSpacing: 1 }
                         Flow {
                             width: parent.width; spacing: 4
                             Repeater {
@@ -472,7 +472,7 @@ Item {
                 }
 
                 // ── WAYPOINT / GOTO ───────────────────────────────────────
-                Text { text: "WAYPOINT / GOTO"; color: "#64748b"; font.pixelSize: 9; font.weight: Font.Bold; font.letterSpacing: 1 }
+                Text { text: qsTr("WAYPOINT / GOTO"); color: "#64748b"; font.pixelSize: 9; font.weight: Font.Bold; font.letterSpacing: 1 }
 
                 Rectangle {
                     width: parent.width; height: gotoCol.implicitHeight + 20; radius: 8
@@ -493,7 +493,7 @@ Item {
                                 spacing: 6
                                 Cmp.Icon { name: "target"; size: 11; color: "#64748b"; anchors.verticalCenter: parent.verticalCenter }
                                 Text {
-                                    text: selectedDroneId || "Keine Drone ausgewählt"
+                                    text: selectedDroneId || qsTr("No drone selected")
                                     color: selectedDroneId ? "#22c55e" : "#475569"
                                     font.pixelSize: 11; font.weight: Font.Bold; anchors.verticalCenter: parent.verticalCenter
                                 }
@@ -598,7 +598,7 @@ Item {
                                 border.color: "#f59e0b"; border.width: 1
                                 Row { anchors.centerIn: parent; spacing: 4
                                         Cmp.Icon { name: "map"; size: 11; color: "#f59e0b"; anchors.verticalCenter: parent.verticalCenter }
-                                        Text { text: "Karte"; color: "#f59e0b"; font.pixelSize: 9; font.weight: Font.Bold; anchors.verticalCenter: parent.verticalCenter }
+                                        Text { text: qsTr("Map"); color: "#f59e0b"; font.pixelSize: 9; font.weight: Font.Bold; anchors.verticalCenter: parent.verticalCenter }
                                     }
                                 MouseArea { id: fromMapM; anchors.fill: parent; hoverEnabled: true; onClicked: { if (root.mainWindow && root.mainWindow.startMapPick) root.mainWindow.startMapPick(root) } }
                             }
@@ -616,7 +616,7 @@ Item {
                 }
 
                 // ── MISSION WAYPOINTS ─────────────────────────────────────
-                Text { text: "MISSION WAYPOINTS"; color: "#64748b"; font.pixelSize: 9; font.weight: Font.Bold; font.letterSpacing: 1 }
+                Text { text: qsTr("MISSION WAYPOINTS"); color: "#64748b"; font.pixelSize: 9; font.weight: Font.Bold; font.letterSpacing: 1 }
 
                 Rectangle {
                     width: parent.width
@@ -653,7 +653,7 @@ Item {
                             }
                         }
                     }
-                    Text { anchors.centerIn: parent; text: "Keine Wegpunkte"; color: "#374151"; font.pixelSize: 10; visible: root.wps.count === 0 }
+                    Text { anchors.centerIn: parent; text: qsTr("No waypoints"); color: "#374151"; font.pixelSize: 10; visible: root.wps.count === 0 }
                 }
 
                 // Start Mission button — supports multi-drone target
@@ -669,7 +669,7 @@ Item {
                         anchors.centerIn: parent; spacing: 6
                         Cmp.Icon { name: "play"; size: 12; color: parent.parent._enabled ? "white" : "#374151"; anchors.verticalCenter: parent.verticalCenter }
                         Text {
-                            text: "Mission starten (" + root.wps.count + " WP" + (parent.parent._nTargets > 1 ? " · " + parent.parent._nTargets + " Drohnen" : "") + ")"
+                            text: qsTr("Start Mission") + " (" + root.wps.count + " WP" + (parent.parent._nTargets > 1 ? " · " + parent.parent._nTargets + qsTr(" drones") : "") + ")"
                             color: parent.parent._enabled ? "white" : "#374151"
                             font.pixelSize: 10; font.weight: Font.Bold; font.letterSpacing: 0.5
                             anchors.verticalCenter: parent.verticalCenter
@@ -691,7 +691,7 @@ Item {
                 }
 
                 // ── SWARM ROLLE & FORMATION ───────────────────────────────
-                Text { text: "SWARM ROLLE & FORMATION"; color: "#64748b"; font.pixelSize: 9; font.weight: Font.Bold; font.letterSpacing: 1 }
+                Text { text: qsTr("SWARM ROLE & FORMATION"); color: "#64748b"; font.pixelSize: 9; font.weight: Font.Bold; font.letterSpacing: 1 }
 
                 Rectangle {
                     width: parent.width; height: roleCol.implicitHeight + 20; radius: 8

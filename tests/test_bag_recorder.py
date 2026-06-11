@@ -265,4 +265,3 @@ def test_cleanup_on_deletion(mock_popen, recorder):
     # Process should have been terminated
     mock_process.terminate.assert_called()
 
-# Made with Bob

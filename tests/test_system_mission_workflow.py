@@ -410,4 +410,3 @@ result = {"status": "success", "value": 42}
     assert result.get("status") == "success"
     assert result.get("value") == 42
 
-# Made with Bob

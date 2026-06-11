@@ -332,4 +332,3 @@ def test_ui_contexts_are_qobjects():
     assert issubclass(ExperimentContext, QObject)
     assert issubclass(BagPlaybackContext, QObject)
 
-# Made with Bob

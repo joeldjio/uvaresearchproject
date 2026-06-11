@@ -65,4 +65,3 @@ class I18nContext(QObject):
         """
         return list(self.manager.get_supported_languages().items())
 
-# Made with Bob

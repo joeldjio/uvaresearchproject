@@ -536,4 +536,3 @@ class PX4MissionUploader:
         """
         return self._uploaded_waypoints.copy()
 
-# Made with Bob

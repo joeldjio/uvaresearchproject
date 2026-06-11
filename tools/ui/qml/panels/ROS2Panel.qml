@@ -253,7 +253,7 @@ Item {
                             Row {
                                 anchors.centerIn: parent; spacing: 6
                                 Text { text: sitlCol._sitlRunning ? "■" : "▶"; color: sitlCol._sitlRunning ? "#fca5a5" : "#86efac"; font.pixelSize: 12; anchors.verticalCenter: parent.verticalCenter }
-                                Text { text: sitlCol._sitlRunning ? "SITL stoppen" : "SITL starten"; color: sitlCol._sitlRunning ? "#fca5a5" : "#86efac"; font.pixelSize: 10; font.weight: Font.Bold; anchors.verticalCenter: parent.verticalCenter }
+                                Text { text: sitlCol._sitlRunning ? qsTr("Stop SITL") : qsTr("Start SITL"); color: sitlCol._sitlRunning ? "#fca5a5" : "#86efac"; font.pixelSize: 10; font.weight: Font.Bold; anchors.verticalCenter: parent.verticalCenter }
                             }
                             MouseArea {
                                 id: sitlTogM; anchors.fill: parent; hoverEnabled: true

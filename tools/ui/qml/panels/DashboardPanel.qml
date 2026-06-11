@@ -87,7 +87,7 @@ Item {
                 width: parent.width
                 spacing: 8
 
-                Text { text: "DRONE"; color: "#64748b"; font.pixelSize: 10; font.weight: Font.Bold; anchors.verticalCenter: parent.verticalCenter }
+                Text { text: qsTr("DRONE"); color: "#64748b"; font.pixelSize: 10; font.weight: Font.Bold; anchors.verticalCenter: parent.verticalCenter }
 
                 ComboBox {
                     id: droneCombo
@@ -144,17 +144,17 @@ Item {
                             id: fsmBadgeTxt
                             text: {
                                 var labels = {
-                                    "IDLE":         "IDLE (Verbunden, bereit)",
-                                    "ARMING":       "ARMING (Wird bewaffnet…)",
-                                    "ARMED":        "ARMED (Bereit zum Start)",
-                                    "TAKEOFF":      "TAKEOFF (Startet…)",
-                                    "FLYING":       "FLYING (In der Luft)",
-                                    "MISSION":      "MISSION (Autopilot aktiv)",
-                                    "RTL":          "RTL (Kehrt zurück)",
-                                    "LANDING":      "LANDING (Landet…)",
-                                    "EMERGENCY":    "EMERGENCY (Notfall!)",
-                                    "ERROR":        "ERROR (Fehler)",
-                                    "DISCONNECTED": "DISCONNECTED (Keine Verbindung)"
+                                    "IDLE":         qsTr("IDLE (Connected, ready)"),
+                                    "ARMING":       qsTr("ARMING (Arming…)"),
+                                    "ARMED":        qsTr("ARMED (Ready for takeoff)"),
+                                    "TAKEOFF":      qsTr("TAKEOFF (Taking off…)"),
+                                    "FLYING":       qsTr("FLYING (In the air)"),
+                                    "MISSION":      qsTr("MISSION (Autopilot active)"),
+                                    "RTL":          qsTr("RTL (Returning)"),
+                                    "LANDING":      qsTr("LANDING (Landing…)"),
+                                    "EMERGENCY":    qsTr("EMERGENCY (Emergency!)"),
+                                    "ERROR":        qsTr("ERROR (Error)"),
+                                    "DISCONNECTED": qsTr("DISCONNECTED (No connection)")
                                 }
                                 return labels[parent.parent.fsmSt] || parent.parent.fsmSt
                             }
@@ -173,7 +173,7 @@ Item {
                     Text {
                         id: dtypeTxt
                         anchors.centerIn: parent
-                        text: parent.dtype === "observation" ? "Observation UAV (Gimbal/Kamera)" : "Generic UAV (Standard)"
+                        text: parent.dtype === "observation" ? qsTr("Observation UAV (Gimbal/Camera)") : qsTr("Generic UAV (Standard)")
                         color: parent.dtype === "observation" ? "#c4b5fd" : "#93c5fd"
                         font.pixelSize: 9; font.weight: Font.Bold
                     }
@@ -190,7 +190,7 @@ Item {
                     Text {
                         id: sroleTxt
                         anchors.centerIn: parent
-                        text: { var i={"leader":"Leader","follower":"Follower","coordinator":"Coord."}; return i[parent.srole] || parent.srole }
+                        text: { var i={"leader":qsTr("Leader"),"follower":qsTr("Follower"),"coordinator":qsTr("Coord.")}; return i[parent.srole] || parent.srole }
                         color: { var c={"leader":"#86efac","follower":"#93c5fd","coordinator":"#fcd34d"}; return c[parent.srole] || "#94a3b8" }
                         font.pixelSize: 9; font.weight: Font.Bold
                     }
@@ -208,23 +208,23 @@ Item {
                     anchors { left: parent.left; right: parent.right; margins: 12; verticalCenter: parent.verticalCenter }
                     spacing: 3
 
-                    Text { text: "FSM STEUERUNG — Ablauf:"; color: "#4ade80"; font.pixelSize: 9; font.weight: Font.Bold; font.letterSpacing: 1 }
-                    Text { text: "1. ARM drücken (InstrBar oben) → Status: ARMED"; color: "#6b7280"; font.pixelSize: 9 }
-                    Text { text: "2. TAKEOFF drücken → Status: TAKEOFF → FLYING"; color: "#6b7280"; font.pixelSize: 9 }
-                    Text { text: "3. GOTO / Waypoints setzen (Swarm-Tab)"; color: "#6b7280"; font.pixelSize: 9 }
-                    Text { text: "4. RTL oder LAND → Drone kehrt zurück / landet"; color: "#6b7280"; font.pixelSize: 9 }
+                    Text { text: qsTr("FSM CONTROL — Sequence:"); color: "#4ade80"; font.pixelSize: 9; font.weight: Font.Bold; font.letterSpacing: 1 }
+                    Text { text: qsTr("1. Press ARM (InstrBar above) → Status: ARMED"); color: "#6b7280"; font.pixelSize: 9 }
+                    Text { text: qsTr("2. Press TAKEOFF → Status: TAKEOFF → FLYING"); color: "#6b7280"; font.pixelSize: 9 }
+                    Text { text: qsTr("3. Set GOTO / Waypoints (Swarm tab)"); color: "#6b7280"; font.pixelSize: 9 }
+                    Text { text: qsTr("4. RTL or LAND → Drone returns / lands"); color: "#6b7280"; font.pixelSize: 9 }
                     Text {
                         text: {
                             var hints = {
-                                "IDLE":    "→ Drone ist verbunden. Drücke ARM um zu starten.",
-                                "ARMING":  "→ Wird bewaffnet. Warten…",
-                                "ARMED":   "→ Bewaffnet! Drücke TAKEOFF.",
-                                "TAKEOFF": "→ Startet gerade. Nicht eingreifen.",
-                                "FLYING":  "→ In der Luft. GOTO, Mission oder RTL möglich.",
-                                "MISSION": "→ Autopilot fliegt Mission. RTL zum Abbrechen.",
-                                "RTL":     "→ Kehrt zum Startpunkt zurück.",
-                                "LANDING": "→ Landet. Nicht DISARM drücken.",
-                                "EMERGENCY": "→ NOTFALL! DISARM oder LAND sofort!"
+                                "IDLE":    qsTr("→ Drone is connected. Press ARM to start."),
+                                "ARMING":  qsTr("→ Arming. Wait…"),
+                                "ARMED":   qsTr("→ Armed! Press TAKEOFF."),
+                                "TAKEOFF": qsTr("→ Taking off. Do not interfere."),
+                                "FLYING":  qsTr("→ In the air. GOTO, Mission or RTL possible."),
+                                "MISSION": qsTr("→ Autopilot flying mission. RTL to abort."),
+                                "RTL":     qsTr("→ Returning to start point."),
+                                "LANDING": qsTr("→ Landing. Do not press DISARM."),
+                                "EMERGENCY": qsTr("→ EMERGENCY! DISARM or LAND immediately!")
                             }
                             var st = snap("fsmState", "")
                             return hints[st] || ""
@@ -239,7 +239,7 @@ Item {
             Column {
                 width: parent.width; spacing: 4
 
-                Text { text: "FSM VERLAUF"; color: "#64748b"; font.pixelSize: 8; font.weight: Font.Bold; font.letterSpacing: 1 }
+                Text { text: qsTr("FSM HISTORY"); color: "#64748b"; font.pixelSize: 8; font.weight: Font.Bold; font.letterSpacing: 1 }
 
                 Rectangle {
                     width: parent.width; height: fsmHistView.count > 0 ? Math.min(fsmHistView.count * 22 + 10, 110) : 32
@@ -280,7 +280,7 @@ Item {
                     Text {
                         anchors.centerIn: parent
                         visible: fsmHistView.count === 0
-                        text: "Keine FSM-Übergänge"
+                        text: qsTr("No FSM transitions")
                         color: "#374151"; font.pixelSize: 9
                     }
                 }
@@ -340,7 +340,7 @@ Item {
                     spacing: 4
                     Row {
                         spacing: 6
-                        Text { text: "BATTERY"; color: "#64748b"; font.pixelSize: 9; font.weight: Font.Bold; font.letterSpacing: 1 }
+                        Text { text: qsTr("BATTERY"); color: "#64748b"; font.pixelSize: 9; font.weight: Font.Bold; font.letterSpacing: 1 }
                         Text { text: snap("battery_pct", -1) >= 0 ? snap("battery_pct",0).toFixed(0) + "%" : "—"; color: snap("battery_pct",50) > 20 ? "#22c55e" : "#ef4444"; font.pixelSize: 12; font.weight: Font.Bold }
                         Text { text: snap("battery_v", 0) > 0 ? snap("battery_v",0).toFixed(2) + "V" : ""; color: "#94a3b8"; font.pixelSize: 11 }
                     }

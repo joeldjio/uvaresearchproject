@@ -12,8 +12,8 @@ Item {
     // ── File Dialog ───────────────────────────────────────────────────────
     FileDialog {
         id: pyFileDlg
-        title: "Python-Script öffnen"
-        nameFilters: ["Python Scripts (*.py)", "Alle Dateien (*)"]
+        title: qsTr("Open Python Script")
+        nameFilters: [qsTr("Python Scripts (*.py)"), qsTr("All Files (*)")]
         onAccepted: {
             var pathStr = selectedFile.toString()
             var content = swarm.readFile(pathStr)
@@ -32,8 +32,8 @@ Item {
         text: "\"\"\"
 Hover Stability Experiment
 --------------------------
-Verbindet 3 SITL-Drohnen, hebt ab, schwebt 30s,
-misst Positionsfehler, landet.
+Connects 3 SITL drones, takes off, hovers 30s,
+measures position error, lands.
 \"\"\"
 import time
 
@@ -81,7 +81,7 @@ if connected:
             border.color: "#2d3748"; border.width: 1; radius: 6
             Text {
                 anchors.centerIn: parent
-                text: "Python Script"
+                text: qsTr("Python Script")
                 color: currentMode === "script" ? "white" : "#94a3b8"
                 font.pixelSize: 11; font.weight: Font.Bold
             }
@@ -94,7 +94,7 @@ if connected:
             border.color: "#2d3748"; border.width: 1; radius: 6
             Text {
                 anchors.centerIn: parent
-                text: "JSON Scenario"
+                text: qsTr("JSON Scenario")
                 color: currentMode === "json" ? "white" : "#94a3b8"
                 font.pixelSize: 11; font.weight: Font.Bold
             }
@@ -133,8 +133,8 @@ if connected:
                 width: (parent.width - 18) / 4; height: parent.height; radius: 6
                 color: openPyM.containsMouse ? "#1d4ed8" : "#2563eb"
                 Row { anchors.centerIn: parent; spacing: 5
-                    Text { text: "OPEN"; color: "#cbd5e1"; font.pixelSize: 9; font.weight: Font.Bold }
-                    Text { text: "Laden"; color: "white"; font.pixelSize: 10; font.weight: Font.Bold }
+                    Text { text: qsTr("OPEN"); color: "#cbd5e1"; font.pixelSize: 9; font.weight: Font.Bold }
+                    Text { text: qsTr("Load"); color: "white"; font.pixelSize: 10; font.weight: Font.Bold }
                 }
                 MouseArea { id: openPyM; anchors.fill: parent; hoverEnabled: true; onClicked: pyFileDlg.open() }
             }
@@ -144,8 +144,8 @@ if connected:
                 color: savePyM.containsMouse ? "#15803d" : "#22c55e"
                 opacity: scriptEditor.text.length > 0 ? 1.0 : 0.4
                 Row { anchors.centerIn: parent; spacing: 5
-                    Text { text: "SAVE"; color: "#cbd5e1"; font.pixelSize: 9; font.weight: Font.Bold }
-                    Text { text: "Speichern"; color: "white"; font.pixelSize: 10; font.weight: Font.Bold }
+                    Text { text: qsTr("SAVE"); color: "#cbd5e1"; font.pixelSize: 9; font.weight: Font.Bold }
+                    Text { text: qsTr("Save"); color: "white"; font.pixelSize: 10; font.weight: Font.Bold }
                 }
                 MouseArea {
                     id: savePyM; anchors.fill: parent; hoverEnabled: true
@@ -157,8 +157,8 @@ if connected:
                 width: (parent.width - 18) / 4; height: parent.height; radius: 6
                 color: (experiment && experiment.busy) ? "#7c2d12" : (runPyM.containsMouse ? "#ea580c" : "#f97316")
                 Row { anchors.centerIn: parent; spacing: 5
-                    Text { text: (experiment && experiment.busy) ? "STOP" : "RUN"; color: "white"; font.pixelSize: 12; font.weight: Font.Bold }
-                    Text { text: (experiment && experiment.busy) ? "Stop" : "Ausführen"; color: "white"; font.pixelSize: 10; font.weight: Font.Bold }
+                    Text { text: (experiment && experiment.busy) ? qsTr("STOP") : qsTr("RUN"); color: "white"; font.pixelSize: 12; font.weight: Font.Bold }
+                    Text { text: (experiment && experiment.busy) ? qsTr("Stop") : qsTr("Execute"); color: "white"; font.pixelSize: 10; font.weight: Font.Bold }
                 }
                 MouseArea {
                     id: runPyM; anchors.fill: parent; hoverEnabled: true
@@ -174,8 +174,8 @@ if connected:
                 width: (parent.width - 18) / 4; height: parent.height; radius: 6
                 color: exM.containsMouse ? "#7e22ce" : "#6d28d9"
                 Row { anchors.centerIn: parent; spacing: 5
-                    Text { text: "COPY"; color: "#cbd5e1"; font.pixelSize: 9; font.weight: Font.Bold }
-                    Text { text: "Beispiel"; color: "white"; font.pixelSize: 10; font.weight: Font.Bold }
+                    Text { text: qsTr("COPY"); color: "#cbd5e1"; font.pixelSize: 9; font.weight: Font.Bold }
+                    Text { text: qsTr("Example"); color: "white"; font.pixelSize: 10; font.weight: Font.Bold }
                 }
                 MouseArea {
                     id: exM; anchors.fill: parent; hoverEnabled: true
@@ -220,7 +220,7 @@ if connected:
                     wrapMode: TextEdit.NoWrap
                     selectByMouse: true
                     persistentSelection: true
-                    text: "# Python Experiment Script\n# Klicke auf 'Beispiel' fuer ein fertiges Experiment\n\nprint('Script bereit.')\n"
+                    text: "# Python Experiment Script\n# Click 'Example' for a ready-made experiment\n\nprint('Script ready.')\n"
                 }
             }
         }
@@ -254,13 +254,13 @@ if connected:
 
                     TextField {
                         id: nameField; width: parent.width; height: 30
-                        placeholderText: "Scenario name"
+                        placeholderText: qsTr("Scenario name")
                         background: Rectangle { color: "#1e2535"; radius: 5; border.color: "#2d3748"; border.width: 1 }
                         color: "#e2e8f0"; font.pixelSize: 12; leftPadding: 8
                         text: "my_scenario"
                     }
 
-                    Text { text: "Mission Steps (JSON array)"; color: "#64748b"; font.pixelSize: 10 }
+                    Text { text: qsTr("Mission Steps (JSON array)"); color: "#64748b"; font.pixelSize: 10 }
                     Rectangle {
                         width: parent.width; height: 120; radius: 5
                         color: "#0d1117"; border.color: "#2d3748"; border.width: 1
@@ -275,7 +275,7 @@ if connected:
                     Row {
                         spacing: 8
                         CheckBox {
-                            id: sitlCheck; checked: true; text: "Use SITL"
+                            id: sitlCheck; checked: true; text: qsTr("Use SITL")
                             contentItem: Text { text: sitlCheck.text; color: "#94a3b8"; font.pixelSize: 11; leftPadding: sitlCheck.indicator.width + 4 }
                         }
                     }
@@ -287,7 +287,7 @@ if connected:
                         Row {
                             anchors.centerIn: parent; spacing: 6
                             Text { text: (experiment && experiment.busy) ? "⏳" : "▶"; color: "white"; font.pixelSize: 14 }
-                            Text { text: (experiment && experiment.busy) ? "Running…" : "Run JSON Scenario"; color: "white"; font.pixelSize: 11; font.weight: Font.Bold }
+                            Text { text: (experiment && experiment.busy) ? qsTr("Running…") : qsTr("Run JSON Scenario"); color: "white"; font.pixelSize: 11; font.weight: Font.Bold }
                         }
                         MouseArea {
                             id: runJsonM; anchors.fill: parent; hoverEnabled: true
@@ -302,7 +302,7 @@ if connected:
                 }
             }
 
-            Text { text: "RESULTS"; color: "#64748b"; font.pixelSize: 9; font.weight: Font.Bold; font.letterSpacing: 1 }
+            Text { text: qsTr("RESULTS"); color: "#64748b"; font.pixelSize: 9; font.weight: Font.Bold; font.letterSpacing: 1 }
 
             ListView {
                 width: parent.width
@@ -317,7 +317,7 @@ if connected:
                         anchors { fill: parent; leftMargin: 12 }
                         spacing: 10
                         Text { text: "#" + (index + 1); color: "#64748b"; font.pixelSize: 10; anchors.verticalCenter: parent.verticalCenter }
-                        Text { text: model.success ? "✓ OK" : "✗ FAIL"; color: model.success ? "#22c55e" : "#ef4444"; font.pixelSize: 11; font.weight: Font.Bold; anchors.verticalCenter: parent.verticalCenter }
+                        Text { text: model.success ? qsTr("✓ OK") : qsTr("✗ FAIL"); color: model.success ? "#22c55e" : "#ef4444"; font.pixelSize: 11; font.weight: Font.Bold; anchors.verticalCenter: parent.verticalCenter }
                         Text { text: model.duration.toFixed(1) + "s"; color: "#94a3b8"; font.pixelSize: 11; anchors.verticalCenter: parent.verticalCenter }
                         Text { text: model.mode || ""; color: "#64748b"; font.pixelSize: 9; anchors.verticalCenter: parent.verticalCenter }
                     }

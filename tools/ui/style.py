@@ -525,4 +525,3 @@ DRONE_COLORS = [
     "#a855f7",  # Violet
 ]
 
-# Made with Bob

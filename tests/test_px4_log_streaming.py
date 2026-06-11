@@ -83,4 +83,3 @@ def test_no_callback_doesnt_crash():
         assert cluster.log_callback is None
         assert cluster._log_threads == []
 
-# Made with Bob

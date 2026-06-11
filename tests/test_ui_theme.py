@@ -252,4 +252,3 @@ def test_transition_smoothness():
     assert ":hover" in DARK_THEME
     assert ":pressed" in DARK_THEME
 
-# Made with Bob

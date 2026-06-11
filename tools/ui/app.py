@@ -191,7 +191,7 @@ def _make_splash() -> QSplashScreen:
     return splash
 
 
-def _build_contexts():
+def _build_contexts(app):
     """Stage 2 — heavy context construction via ServiceLocator."""
     profiler.mark("ctx_import_start")
 
@@ -199,7 +199,7 @@ def _build_contexts():
 
     profiler.mark("ctx_import_done")
 
-    locator = build_default_locator()
+    locator = build_default_locator(app)
     locator.eager_init()
     profiler.mark("ctx_construct_done")
 
@@ -226,7 +226,7 @@ def run() -> int:
     app.processEvents()  # ensure splash paints
     profiler.mark("splash_visible")
 
-    contexts = _build_contexts()
+    contexts = _build_contexts(app)
 
     # ── QML engine ────────────────────────────────────────────────────────
     engine = QQmlApplicationEngine()

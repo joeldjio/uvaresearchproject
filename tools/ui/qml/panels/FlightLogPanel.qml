@@ -96,7 +96,7 @@ Item {
         if (!dataRows || dataRows.length < 2) {
             ctx.fillStyle = "#2d3748"; ctx.font = "bold 11px Consolas"
             ctx.textAlign = "center"; ctx.textBaseline = "middle"
-            ctx.fillText("Kein Log — LOG ÖFFNEN drücken", w / 2, h / 2)
+            ctx.fillText(qsTr("No log — press OPEN LOG"), w / 2, h / 2)
             return
         }
 
@@ -142,8 +142,8 @@ Item {
     // ── File Dialogs ──────────────────────────────────────────────────────
     FileDialog {
         id: csvFileDlg
-        title: "CSV Flight Log öffnen"
-        nameFilters: ["CSV Logs (*.csv)", "Alle Dateien (*)"]
+        title: qsTr("Open CSV Flight Log")
+        nameFilters: [qsTr("CSV Logs (*.csv)"), qsTr("All Files (*)")]
         onAccepted: {
             try {
                 var pathStr = selectedFile.toString()
@@ -167,8 +167,8 @@ Item {
 
     FileDialog {
         id: bagFileDlg
-        title: "ROS2 Bag öffnen"
-        nameFilters: ["ROS2 Bags (*.mcap *.db3)", "Alle Dateien (*)"]
+        title: qsTr("Open ROS2 Bag")
+        nameFilters: [qsTr("ROS2 Bags (*.mcap *.db3)"), qsTr("All Files (*)")]
         onAccepted: {
             try {
                 var pathStr = selectedFile.toString()
@@ -192,7 +192,7 @@ Item {
         anchors { top: parent.top; horizontalCenter: parent.horizontalCenter; topMargin: 8 }
         width: errTxt.implicitWidth + 24; height: 32; radius: 6; z: 10
         color: "#7f1d1d"; border.color: "#ef4444"; border.width: 1
-        Text { id: errTxt; anchors.centerIn: parent; text: "Datei konnte nicht gelesen werden"; color: "#fca5a5"; font.pixelSize: 11 }
+        Text { id: errTxt; anchors.centerIn: parent; text: qsTr("File could not be read"); color: "#fca5a5"; font.pixelSize: 11 }
         Timer { interval: 3000; running: loadErrorFlash.visible; onTriggered: loadErrorFlash.visible = false }
     }
 
@@ -221,7 +221,7 @@ Item {
                     border.color: "#2563eb"; border.width: 1
                     Text {
                         anchors.centerIn: parent
-                        text: "OPEN CSV"
+                        text: qsTr("OPEN CSV")
                         color: "#e2e8f0"
                         font.pixelSize: 10
                         font.weight: Font.Bold
@@ -235,7 +235,7 @@ Item {
                     border.color: "#059669"; border.width: 1
                     Text {
                         anchors.centerIn: parent
-                        text: "OPEN BAG"
+                        text: qsTr("OPEN BAG")
                         color: "#e2e8f0"
                         font.pixelSize: 10
                         font.weight: Font.Bold
@@ -245,7 +245,7 @@ Item {
 
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
-                    text: root.logName !== "" ? root.logName : "— kein Log geladen —"
+                    text: root.logName !== "" ? root.logName : qsTr("— no log loaded —")
                     color: root.logName !== "" ? "#94a3b8" : "#374151"
                     font.pixelSize: 11; font.family: "Consolas"
                     elide: Text.ElideLeft
@@ -272,7 +272,7 @@ Item {
                         Layout.fillWidth: true
                         spacing: 8
                         Text {
-                            text: "ROS2 Bag Playback"
+                            text: qsTr("ROS2 Bag Playback")
                             color: "#94a3b8"
                             font.pixelSize: 12
                             font.weight: Font.Bold
@@ -287,7 +287,7 @@ Item {
                                 id: stateText
                                 anchors.centerIn: parent
                                 text: (typeof bagPlayback !== 'undefined') ?
-                                      (bagPlayback.state === "playing" ? "PLAYING" : bagPlayback.state === "paused" ? "PAUSED" : "STOPPED") :
+                                      (bagPlayback.state === "playing" ? qsTr("PLAYING") : bagPlayback.state === "paused" ? qsTr("PAUSED") : qsTr("STOPPED")) :
                                       "N/A"
                                 color: "#f1f5f9"
                                 font.pixelSize: 9
@@ -371,7 +371,7 @@ Item {
                             visible: (typeof bagPlayback === 'undefined') || bagPlayback.state !== "playing"
                             Text {
                                 anchors.centerIn: parent
-                                text: "PLAY"
+                                text: qsTr("PLAY")
                                 color: "#e2e8f0"
                                 font.pixelSize: 10
                                 font.weight: Font.Bold
@@ -395,7 +395,7 @@ Item {
                             visible: (typeof bagPlayback !== 'undefined') && bagPlayback.state === "playing"
                             Text {
                                 anchors.centerIn: parent
-                                text: "PAUSE"
+                                text: qsTr("PAUSE")
                                 color: "#e2e8f0"
                                 font.pixelSize: 10
                                 font.weight: Font.Bold
@@ -418,7 +418,7 @@ Item {
                             border.color: "#dc2626"; border.width: 1
                             Text {
                                 anchors.centerIn: parent
-                                text: "STOP"
+                                text: qsTr("STOP")
                                 color: "#e2e8f0"
                                 font.pixelSize: 10
                                 font.weight: Font.Bold
@@ -437,7 +437,7 @@ Item {
 
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
-                            text: (typeof bagPlayback !== 'undefined') ? "Speed: " + bagPlayback.playbackRate.toFixed(1) + "x" : "Speed: 1.0x"
+                            text: (typeof bagPlayback !== 'undefined') ? qsTr("Speed: ") + bagPlayback.playbackRate.toFixed(1) + "x" : qsTr("Speed: 1.0x")
                             color: "#64748b"
                             font.pixelSize: 10
                             font.family: "Consolas"
@@ -501,13 +501,13 @@ Item {
                 spacing: 6
 
                 property var stats: [
-                    { label: "DAUER",   icon: "T", col: "#06b6d4",
+                    { label: qsTr("DURATION"),   icon: "T", col: "#06b6d4",
                       val: function(r){ return r.length > 1 ? r[r.length-1].t.toFixed(0)+"s" : "—" } },
-                    { label: "MAX ALT", icon: "A",  col: "#2563eb",
+                    { label: qsTr("MAX ALT"), icon: "A",  col: "#2563eb",
                       val: function(r){ if (!r.length) return "—"; var m=r[0].alt; for(var i=1;i<r.length;i++) if(r[i].alt>m) m=r[i].alt; return m.toFixed(1)+"m" } },
-                    { label: "MAX SPD", icon: "S",  col: "#22c55e",
+                    { label: qsTr("MAX SPD"), icon: "S",  col: "#22c55e",
                       val: function(r){ if (!r.length) return "—"; var m=r[0].spd; for(var i=1;i<r.length;i++) if(r[i].spd>m) m=r[i].spd; return m.toFixed(1)+"m/s" } },
-                    { label: "BATT D",  icon: "B", col: "#ef4444",
+                    { label: qsTr("BATT D"),  icon: "B", col: "#ef4444",
                       val: function(r){ return r.length > 1 ? (r[0].bat-r[r.length-1].bat).toFixed(0)+"%" : "—" } },
                 ]
 
@@ -555,7 +555,7 @@ Item {
                     Canvas {
                         id: altCanvas
                         anchors.fill: parent
-                        onPaint: root.drawChart(getContext("2d"), width, height, rows, "alt", 0, _altMax, "#2563eb", "Altitude (m) [0-120m]", true)
+                        onPaint: root.drawChart(getContext("2d"), width, height, rows, "alt", 0, _altMax, "#2563eb", qsTr("Altitude (m) [0-120m]"), true)
                     }
                     MouseArea {
                         anchors.fill: parent; hoverEnabled: true
@@ -571,7 +571,7 @@ Item {
                     Canvas {
                         id: spdCanvas
                         anchors.fill: parent
-                        onPaint: root.drawChart(getContext("2d"), width, height, rows, "spd", 0, _spdMax, "#22c55e", "Groundspeed (m/s) [0-30m/s]", true)
+                        onPaint: root.drawChart(getContext("2d"), width, height, rows, "spd", 0, _spdMax, "#22c55e", qsTr("Groundspeed (m/s) [0-30m/s]"), true)
                     }
                     MouseArea {
                         anchors.fill: parent; hoverEnabled: true
@@ -587,7 +587,7 @@ Item {
                     Canvas {
                         id: batCanvas
                         anchors.fill: parent
-                        onPaint: root.drawChart(getContext("2d"), width, height, rows, "bat", 0, 100, "#f59e0b", "Battery (%)", true)
+                        onPaint: root.drawChart(getContext("2d"), width, height, rows, "bat", 0, 100, "#f59e0b", qsTr("Battery (%)"), true)
                     }
                     MouseArea {
                         anchors.fill: parent; hoverEnabled: true
@@ -603,7 +603,7 @@ Item {
                     Canvas {
                         id: vzCanvas
                         anchors.fill: parent
-                        onPaint: root.drawChart(getContext("2d"), width, height, rows, "vz", -5, 5, "#8b5cf6", "Vertical Speed (m/s)", true)
+                        onPaint: root.drawChart(getContext("2d"), width, height, rows, "vz", -5, 5, "#8b5cf6", qsTr("Vertical Speed (m/s)"), true)
                     }
                     MouseArea {
                         anchors.fill: parent; hoverEnabled: true

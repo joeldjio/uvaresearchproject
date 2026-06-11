@@ -219,7 +219,7 @@ Rectangle {
                 Behavior on color { ColorAnimation { duration: 100 } }
                 Text {
                     anchors.centerIn: parent
-                    text: "＋ ADD"
+                    text: qsTr("＋ ADD")
                     color: "white"; font.pixelSize: 11; font.weight: Font.Bold
                 }
                 MouseArea {
@@ -235,7 +235,7 @@ Rectangle {
                 visible: false
                 width: dupText.implicitWidth + 16; height: 28; radius: 5
                 color: "#7f1d1d"; border.color: "#ef4444"; border.width: 1
-                Text { id: dupText; anchors.centerIn: parent; text: "Already connected!"; color: "#fca5a5"; font.pixelSize: 10; font.weight: Font.Bold }
+                Text { id: dupText; anchors.centerIn: parent; text: qsTr("Already connected!"); color: "#fca5a5"; font.pixelSize: 10; font.weight: Font.Bold }
                 Timer { id: duplicateTimer; interval: 2500; onTriggered: duplicateFlash.visible = false }
             }
         }
@@ -301,6 +301,17 @@ Rectangle {
 
         Item { Layout.fillWidth: true }
 
+        // Language Switcher
+        LanguageSwitcher {
+            id: langSwitcher
+            Layout.alignment: Qt.AlignVCenter
+            onLanguageChanged: function(languageCode) {
+                if (typeof i18n !== "undefined" && i18n) {
+                    i18n.setLanguage(languageCode)
+                }
+            }
+        }
+
         Rectangle { width: 1; height: 24; color: "#2d3748" }
 
         // Emergency Stop
@@ -311,7 +322,7 @@ Rectangle {
             Row {
                 anchors.centerIn: parent; spacing: 6
                 Text { text: "⛔"; font.pixelSize: 13; anchors.verticalCenter: parent.verticalCenter }
-                Text { id: estopLabel; text: "E-STOP"; color: "white"; font.pixelSize: 11; font.weight: Font.Bold; anchors.verticalCenter: parent.verticalCenter }
+                Text { id: estopLabel; text: qsTr("E-STOP"); color: "white"; font.pixelSize: 11; font.weight: Font.Bold; anchors.verticalCenter: parent.verticalCenter }
             }
             MouseArea { id: estopMouse; anchors.fill: parent; hoverEnabled: true; onClicked: swarm.emergencyStop() }
         }

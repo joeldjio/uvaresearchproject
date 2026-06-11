@@ -268,4 +268,3 @@ class BagPlaybackContext(QObject):
         """Cleanup resources"""
         self.stop()
 
-# Made with Bob

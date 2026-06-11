@@ -410,4 +410,3 @@ class PX4FormationController:
 
 __all__ = ["PX4FormationController", "ned_to_enu", "enu_to_ned"]
 
-# Made with Bob

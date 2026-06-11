@@ -352,4 +352,3 @@ class ROS2BagRecorder:
         if self._recording:
             self.stop_recording()
 
-# Made with Bob

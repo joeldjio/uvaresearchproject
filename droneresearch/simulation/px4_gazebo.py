@@ -328,4 +328,3 @@ class PX4GazeboCluster:
         if hasattr(self, '_processes'):
             self.stop()
 
-# Made with Bob

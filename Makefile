@@ -209,5 +209,3 @@ bump-version:
 build-installers:
 	@echo "Building installers..."
 	cd tools/installer && ./build.ps1
-
-# Made with Bob

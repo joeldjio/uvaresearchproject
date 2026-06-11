@@ -134,4 +134,3 @@ def test_velocity_conversion():
     assert enu_vn == pytest.approx(2.0)   # North velocity
     assert enu_vu == pytest.approx(0.5)   # Up velocity (climbing)
 
-# Made with Bob

@@ -304,7 +304,3 @@ All 16 tests should pass:
 - [PX4 SITL Automation](px4-sitl-automation.md) - Automated SITL setup
 - [Installation Guide](installation.md) - Setup instructions
 - [Project Overview](../project/overview.md) - Architecture overview
-
----
-
-**Made with Bob** 🤖

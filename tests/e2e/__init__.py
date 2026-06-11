@@ -11,4 +11,3 @@ Run:
     pytest tests/e2e/ -m e2e -v
 """
 
-# Made with Bob

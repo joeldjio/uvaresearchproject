@@ -224,4 +224,3 @@ class TestPX4GazeboCluster:
         assert len(cluster._processes) == 4  # 1 agent + 3 SITL
         assert mock_popen.call_count == 4
 
-# Made with Bob

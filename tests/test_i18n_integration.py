@@ -160,4 +160,3 @@ def test_pyqtslot_result_types(i18n_context):
     assert isinstance(result, bool)
 
 
-# Made with Bob

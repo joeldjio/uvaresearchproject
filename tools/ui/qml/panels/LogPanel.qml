@@ -61,7 +61,7 @@ Item {
                 }
 
                 Text {
-                    text: "SYSTEM LOG"
+                    text: qsTr("SYSTEM LOG")
                     color: "#e2e8f0"; font.pixelSize: 12; font.weight: Font.Bold
                     anchors.verticalCenter: parent.verticalCenter
                 }
@@ -83,7 +83,7 @@ Item {
                 Item { width: 1; height: parent.height }
 
                 Text {
-                    text: root.activeLogModel.count + " entries"
+                    text: root.activeLogModel.count + qsTr(" entries")
                     color: "#64748b"; font.pixelSize: 10
                     anchors.verticalCenter: parent.verticalCenter
                 }
@@ -102,7 +102,7 @@ Item {
                     color: "#0f2d1a"
                     border.color: "#166534"; border.width: 1
                     anchors.verticalCenter: parent.verticalCenter
-                    Text { anchors.centerIn: parent; text: "AUTO-SAVE AKTIV"; color: "#4ade80"; font.pixelSize: 9; font.weight: Font.Bold; font.letterSpacing: 1 }
+                    Text { anchors.centerIn: parent; text: qsTr("AUTO-SAVE ACTIVE"); color: "#4ade80"; font.pixelSize: 9; font.weight: Font.Bold; font.letterSpacing: 1 }
                 }
 
                 // Export current log to file
@@ -113,7 +113,7 @@ Item {
                     border.color: "#22c55e"; border.width: 1
                     anchors.verticalCenter: parent.verticalCenter
                     Behavior on color { ColorAnimation { duration: 100 } }
-                    Text { anchors.centerIn: parent; text: "EXPORT"; color: "#4ade80"; font.pixelSize: 9; font.weight: Font.Bold; font.letterSpacing: 1 }
+                    Text { anchors.centerIn: parent; text: qsTr("EXPORT"); color: "#4ade80"; font.pixelSize: 9; font.weight: Font.Bold; font.letterSpacing: 1 }
                     MouseArea {
                         id: exportMa; anchors.fill: parent; hoverEnabled: true
                         onClicked: {
@@ -132,7 +132,7 @@ Item {
                             }
                             var path = "logs/export_" + stamp + ".txt"
                             var ok = swarm.writeFile(path, lines.join("\n"))
-                            exportFeedback.text = ok ? ("✓ " + path) : "✗ Export fehlgeschlagen"
+                            exportFeedback.text = ok ? ("✓ " + path) : qsTr("✗ Export failed")
                             exportFeedback.color = ok ? "#4ade80" : "#fca5a5"
                             exportFeedback.visible = true
                             exportHideTimer.restart()
@@ -156,7 +156,7 @@ Item {
 
             TextField {
                 id: searchField; width: parent.width - 150; height: 28
-                placeholderText: "Search logs…"
+                placeholderText: qsTr("Search logs…")
                 background: Rectangle { color: "#1e2535"; radius: 5; border.color: "#2d3748"; border.width: 1 }
                 color: "#e2e8f0"; font.pixelSize: 11; leftPadding: 8
                 onTextChanged: logListView.filterText = text.toLowerCase()
@@ -166,7 +166,7 @@ Item {
                 width: 60; height: 28; radius: 5
                 color: clrM.containsMouse ? "#7f1d1d" : "#1e2535"
                 border.color: "#2d3748"; border.width: 1
-                Text { anchors.centerIn: parent; text: "CLEAR"; color: "#94a3b8"; font.pixelSize: 9; font.weight: Font.Bold }
+                Text { anchors.centerIn: parent; text: qsTr("CLEAR"); color: "#94a3b8"; font.pixelSize: 9; font.weight: Font.Bold }
                 MouseArea { id: clrM; anchors.fill: parent; hoverEnabled: true; onClicked: root.activeLogModel.clear() }
             }
         }
