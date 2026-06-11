@@ -394,9 +394,6 @@ class SwarmBackend(QObject):
         self._last_aggregate: Dict[str, dict] = {}
         # Timer is started lazily in add_drone() and stopped in remove_drone()
         # when no drones remain — saves ~5 wakeups/sec on idle.
-        
-        # i18n support
-        self._i18n_manager = None
 
     def _ensure_timer_state(self) -> None:
         """Start aggregation timer only when drones exist."""
@@ -451,32 +448,6 @@ class SwarmBackend(QObject):
         b = self._backends.get(drone_id)
         return b.get_gimbal_state() if b else {}
     
-    # ── i18n support ──────────────────────────────────────────────────────
-    
-    def set_i18n_manager(self, manager) -> None:
-        """Set the i18n manager for language switching.
-        
-        Args:
-            manager: I18nManager instance from tools.ui.i18n
-        """
-        self._i18n_manager = manager
-    
-    def setLanguage(self, language_code: str) -> bool:
-        """Switch application language (called from QML).
-        
-        Args:
-            language_code: Language code (e.g., "de", "en")
-            
-        Returns:
-            True if language switched successfully, False otherwise
-        """
-        if self._i18n_manager:
-            success = self._i18n_manager.set_language(language_code)
-            if success:
-                self.log_message.emit("INFO", f"Language switched to: {language_code}")
-            return success
-        return False
-
     def get_fsm_history(self, drone_id: str) -> list:
         b = self._backends.get(drone_id)
         return b.get_fsm_history() if b else []

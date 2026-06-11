@@ -39,7 +39,7 @@ Window {
         { id: "experiment", svg: "experiment", label: "Scenario",  color: "#f59e0b", title: "Experiment" },
         { id: "flightlog",  svg: "log",        label: "FlightLog", color: "#a78bfa", title: "Flight Log" },
         { id: "log",        svg: "log",        label: "Log",       color: "#64748b", title: "System Log" },
-        { id: "help",       svg: "log",        label: "Help",      color: "#fbbf24", title: "Hilfe / Feature-Übersicht" },
+        { id: "help",       svg: "log",        label: "Help",      color: "#fbbf24", title: "Help / Feature Reference" },
     ]
 
     property int currentTab: 0

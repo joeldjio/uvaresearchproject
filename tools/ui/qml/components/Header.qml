@@ -219,7 +219,7 @@ Rectangle {
                 Behavior on color { ColorAnimation { duration: 100 } }
                 Text {
                     anchors.centerIn: parent
-                    text: qsTr("＋ ADD")
+                    text: qsTr("+ ADD")
                     color: "white"; font.pixelSize: 11; font.weight: Font.Bold
                 }
                 MouseArea {
@@ -300,19 +300,6 @@ Rectangle {
         }
 
         Item { Layout.fillWidth: true }
-
-        // Language Switcher
-        LanguageSwitcher {
-            id: langSwitcher
-            Layout.alignment: Qt.AlignVCenter
-            onLanguageChanged: function(languageCode) {
-                if (typeof i18n !== "undefined" && i18n) {
-                    i18n.setLanguage(languageCode)
-                }
-            }
-        }
-
-        Rectangle { width: 1; height: 24; color: "#2d3748" }
 
         // Emergency Stop
         Rectangle {

@@ -4,15 +4,15 @@ import QtQuick.Layouts
 import "../components" as Cmp
 
 // ─────────────────────────────────────────────────────────────────────────────
-// HelpPanel — Vollständige Feature-Referenz der uavresearch gcs GCS
+// HelpPanel — Complete Feature Reference for UAVResearch GCS
 //
-// Modernisiert mit neuer Theme-Integration und verbesserter Accessibility
+// Modernized with new theme integration and improved accessibility
 // ─────────────────────────────────────────────────────────────────────────────
 Item {
     id: root
     anchors.fill: parent
 
-    // ── Inline section component mit modernem Design ─────────────────────────
+    // ── Inline section component with modern design ─────────────────────────
     component HelpSection: Rectangle {
         id: helpSection
         property string title: ""
@@ -177,12 +177,13 @@ Item {
             }
 
             // ── License + update banners ────────────────────────────────────
-            Cmp.LicenseStatusBanner {
-                width: parent.width
-            }
             Cmp.UpdateBanner {
                 width: parent.width
             }
+            Cmp.LicenseStatusBanner {
+                width: parent.width
+            }
+            
 
             // ── 1. Quickstart ───────────────────────────────────────────────
             HelpSection {
@@ -212,26 +213,26 @@ Item {
 
             // ── 2. Globale Konzepte ────────────────────────────────────────
             HelpSection {
-                title: "2 · GLOBALE KONZEPTE (musst du verstehen, bevor du irgendwas klickst)"
+                title: "2 · GLOBAL CONCEPTS (Must Understand Before Operating)"
                 accent: Cmp.Theme.info
                 body:
-                    "<b>Selected Drone vs. Mission-Targets</b><br>" +
-                    "&nbsp;&nbsp;• <b>Selected</b> (im Header / Combo-Box) = die <i>eine</i> Drohne, deren Telemetrie gerade im Telemetry-Tab und InstrBar angezeigt wird.<br>" +
-                    "&nbsp;&nbsp;• <b>Mission-Targets</b> (Häkchen-Set im Swarm-Tab) = Drohnen, die <i>Aktionen</i> empfangen (ARM, TAKEOFF, GOTO, MISSION, Mode-Switch). " +
-                    "Leeres Set → fällt automatisch auf Selected zurück.<br>" +
-                    "&nbsp;&nbsp;<span style='color:#f59e0b'>Folge:</span> Du kannst Drohne A <i>anschauen</i> (Selected) während Drohne B+C eine Mission fliegen (Targets).<br><br>" +
-                    "<b>FSM (Finite State Machine) pro Drohne</b><br>" +
-                    "&nbsp;&nbsp;Jede Drohne hat einen lokalen Zustand: <code>DISCONNECTED → IDLE → ARMING → ARMED → TAKEOFF → FLYING → MISSION → RTL → LANDING → IDLE</code>. " +
-                    "<code>EMERGENCY</code> und <code>ERROR</code> sind Sackgassen, aus denen nur Reconnect / Reset rauskommt. " +
-                    "Ungültige Übergänge werden im Log als <code>FSM rejected X → Y</code> protokolliert.<br><br>" +
-                    "<b>APF (Artificial Potential Field) — der Kollisionsschutz</b><br>" +
-                    "&nbsp;&nbsp;Läuft mit 10 Hz im Hintergrund. Schiebt Drohnen auseinander, sobald sie sich unter <i>min_distance</i> nähern. " +
-                    "Der Push wird als GOTO-Override an die jeweils <i>alphabetisch größere</i> Drohnen-ID geschickt → deterministisch, kein gegenseitiges Wackeln.<br>" +
-                    "&nbsp;&nbsp;<span style='color:#ef4444'>Wichtig:</span> APF kann Formation- und Mission-Befehle überschreiben. Wenn Formation-Slots enger sind als <i>min_distance</i>, gewinnt APF und die Formation kollabiert.<br><br>" +
-                    "<b>Höhen sind AGL</b> (above ground at launch). " +
-                    "Eine Takeoff-Höhe von 10 m bedeutet 10 m über dem Spawn-Punkt, <i>nicht</i> 10 m MSL.<br><br>" +
-                    "<b>Log-Persistenz:</b> alles, was du im Log-Tab siehst, wird parallel nach <code>tools/ui/syslogs/&lt;datum&gt;_&lt;zeit&gt;.txt</code> geschrieben. " +
-                    "Bei Bug-Reports diese Datei mitschicken."
+                    "<b>Selected Drone vs. Mission Targets</b><br>" +
+                    "&nbsp;&nbsp;• <b>Selected</b> (in header / combo box) = the <i>one</i> drone whose telemetry is currently displayed in Telemetry Tab and InstrBar.<br>" +
+                    "&nbsp;&nbsp;• <b>Mission Targets</b> (checkbox set in Swarm Tab) = drones that receive <i>actions</i> (ARM, TAKEOFF, GOTO, MISSION, Mode Switch). " +
+                    "Empty set → automatically falls back to Selected.<br>" +
+                    "&nbsp;&nbsp;<span style='color:#f59e0b'>Consequence:</span> You can <i>view</i> Drone A (Selected) while Drones B+C fly a mission (Targets).<br><br>" +
+                    "<b>FSM (Finite State Machine) per Drone</b><br>" +
+                    "&nbsp;&nbsp;Each drone has a local state: <code>DISCONNECTED → IDLE → ARMING → ARMED → TAKEOFF → FLYING → MISSION → RTL → LANDING → IDLE</code>. " +
+                    "<code>EMERGENCY</code> and <code>ERROR</code> are dead-end states requiring reconnect/reset. " +
+                    "Invalid transitions are logged as <code>FSM rejected X → Y</code>.<br><br>" +
+                    "<b>APF (Artificial Potential Field) — Collision Protection</b><br>" +
+                    "&nbsp;&nbsp;Runs at 10 Hz in background. Pushes drones apart when they approach below <i>min_distance</i>. " +
+                    "Push is sent as GOTO override to the <i>alphabetically larger</i> drone ID → deterministic, no mutual oscillation.<br>" +
+                    "&nbsp;&nbsp;<span style='color:#ef4444'>Important:</span> APF can override Formation and Mission commands. If formation slots are tighter than <i>min_distance</i>, APF wins and formation collapses.<br><br>" +
+                    "<b>Altitudes are AGL</b> (above ground at launch). " +
+                    "A takeoff altitude of 10 m means 10 m above spawn point, <i>not</i> 10 m MSL.<br><br>" +
+                    "<b>Log Persistence:</b> Everything you see in Log Tab is also written to <code>tools/ui/syslogs/&lt;datum&gt;_&lt;zeit&gt;.txt</code> geschrieben. " +
+                    "Include this file in bug reports."
             }
 
             // ── 3. Tab: Map ────────────────────────────────────────────────

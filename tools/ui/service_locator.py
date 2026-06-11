@@ -84,7 +84,7 @@ def build_default_locator(app=None) -> ServiceLocator:
     factory so that imports stay deferred until eager_init() runs.
     
     Args:
-        app: QApplication instance (required for i18n context)
+        app: QApplication instance
     """
     loc = ServiceLocator()
 
@@ -128,10 +128,6 @@ def build_default_locator(app=None) -> ServiceLocator:
 
         return LicenseManager()
 
-    def _i18n():
-        from tools.ui.context.i18n_context import I18nContext
-        return I18nContext(app) if app else None
-    
     loc.register_factory("swarm", _swarm)
     loc.register_factory("telemetryModel", _telemetry)
     loc.register_factory("experiment", _experiment)
@@ -140,8 +136,6 @@ def build_default_locator(app=None) -> ServiceLocator:
     loc.register_factory("bagPlayback", _bag_playback)
     loc.register_factory("updater", _updater)
     loc.register_factory("licenseManager", _license)
-    if app:
-        loc.register_factory("i18n", _i18n)
     return loc
 
 
@@ -157,15 +151,6 @@ def wire(locator: ServiceLocator) -> None:
     ros2 = locator["ros2"]
     bag_playback = locator["bagPlayback"]
     
-    # Initialize i18n manager and connect to swarm backend
-    from tools.ui.i18n import I18nManager
-    from PyQt6.QtWidgets import QApplication
-    app = QApplication.instance()
-    if app:
-        i18n_manager = I18nManager(app)
-        i18n_manager.load_language()  # Load saved language or default
-        swarm.backend.set_i18n_manager(i18n_manager)
-
     # Telemetry → models
     swarm.telemetryUpdated.connect(
         lambda snap: tele_model.update_all(snap) if isinstance(snap, dict) else None
