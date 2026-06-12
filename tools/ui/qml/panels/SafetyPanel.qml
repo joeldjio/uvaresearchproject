@@ -8,14 +8,31 @@ Item {
 
     // ── State ─────────────────────────────────────────────────────────────
     property var apfParams: ({ minSeparation: 3.0, maxSpeed: 5.0, repulsionGain: 3.0, attractionGain: 1.0, geofenceRadius: 50.0, geofenceAltMin: 1.0, geofenceAltMax: 30.0, obstacleRadius: 4.0 })
+    property var predParams: ({ timeHorizon: 10.0, minSeparation: 2.0, sampleRate: 0.5, criticalThreshold: 1.0, warningThreshold: 1.5 })
 
     function getApfValue(key, defaultVal) {
         return apfParams && apfParams[key] !== undefined ? apfParams[key] : defaultVal
     }
 
+    function getPredValue(key, defaultVal) {
+        return predParams && predParams[key] !== undefined ? predParams[key] : defaultVal
+    }
+
     property var violations: []
     property bool apfActive: safety ? safety.apfActive : false
     property int violationCount: safety ? safety.violationCount : 0
+
+    // Debounce timer for collision prediction config updates
+    Timer {
+        id: predConfigTimer
+        interval: 500  // 500ms delay
+        repeat: false
+        onTriggered: {
+            if (safety && safety.predictionEnabled) {
+                safety.configureCollisionPredictor(predParams)
+            }
+        }
+    }
 
     ScrollView {
         id: safetyScroll
@@ -222,6 +239,194 @@ Item {
                 }
             }
 
+            // ── Collision Prediction ────────────────────────────────────────
+            Text { text: "COLLISION PREDICTION"; color: "#64748b"; font.pixelSize: 9; font.weight: Font.Bold; font.letterSpacing: 1 }
+
+            Rectangle {
+                width: parent.width
+                height: predCol.implicitHeight + 20
+                radius: 8
+                color: "#1a2035"; border.color: "#2d3748"; border.width: 1
+
+                Column {
+                    id: predCol
+                    anchors { left: parent.left; right: parent.right; top: parent.top; margins: 10 }
+                    spacing: 10
+
+                    // Enable/Disable Toggle
+                    Row {
+                        spacing: 12
+                        width: parent.width
+
+                        Rectangle {
+                            width: 140; height: 36; radius: 6
+                            color: safety && safety.predictionEnabled ? "#15803d" : (predToggleM.containsMouse ? "#1e3a5f" : "#1e2535")
+                            border.color: safety && safety.predictionEnabled ? "#22c55e" : "#2563eb"
+                            border.width: 1
+
+                            Row {
+                                anchors.centerIn: parent
+                                spacing: 6
+
+                                Rectangle {
+                                    width: 8; height: 8; radius: 4
+                                    color: safety && safety.predictionEnabled ? "#22c55e" : "#64748b"
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+
+                                Text {
+                                    text: safety && safety.predictionEnabled ? "ENABLED" : "DISABLED"
+                                    color: "#e2e8f0"
+                                    font.pixelSize: 11
+                                    font.weight: Font.Bold
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+                            }
+
+                            MouseArea {
+                                id: predToggleM
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                onClicked: {
+                                    if (safety) {
+                                        var enabled = safety.predictionEnabled
+                                        safety.enableCollisionPrediction(!enabled)
+                                    }
+                                }
+                            }
+                        }
+
+                        Text {
+                            text: safety && safety.predictionCount > 0
+                                  ? safety.predictionCount + " collision(s) predicted"
+                                  : "No collisions predicted"
+                            color: safety && safety.predictionCount > 0 ? "#ef4444" : "#64748b"
+                            font.pixelSize: 10
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                    }
+
+                    // Info Text
+                    Text {
+                        text: "Predicts collisions based on current trajectories.\nWorks with PX4, ArduPilot, and Mock backends."
+                        color: "#64748b"
+                        font.pixelSize: 9
+                        wrapMode: Text.WordWrap
+                        width: parent.width
+                    }
+
+                    // Parameter Grid
+                    GridLayout {
+                        width: parent.width
+                        columns: 2
+                        columnSpacing: 12
+                        rowSpacing: 6
+                        visible: safety && safety.predictionEnabled
+
+                        // Time Horizon
+                        Text { text: "Time Horizon"; color: "#94a3b8"; font.pixelSize: 10 }
+                        Row {
+                            spacing: 4
+                            Slider {
+                                id: horizonSlider
+                                from: 5.0; to: 30.0; value: root.getPredValue("timeHorizon", 10.0)
+                                width: 120
+                                onValueChanged: {
+                                    if (predParams) predParams.timeHorizon = value
+                                    predConfigTimer.restart()
+                                }
+                            }
+                            Text {
+                                text: horizonSlider.value.toFixed(1) + " s"
+                                color: "#e2e8f0"; font.pixelSize: 10
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+                        }
+
+                        // Min Separation
+                        Text { text: "Min Separation"; color: "#94a3b8"; font.pixelSize: 10 }
+                        Row {
+                            spacing: 4
+                            Slider {
+                                id: predSepSlider
+                                from: 0.5; to: 5.0; value: root.getPredValue("minSeparation", 2.0)
+                                width: 120
+                                onValueChanged: {
+                                    if (predParams) predParams.minSeparation = value
+                                    predConfigTimer.restart()
+                                }
+                            }
+                            Text {
+                                text: predSepSlider.value.toFixed(1) + " m"
+                                color: "#e2e8f0"; font.pixelSize: 10
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+                        }
+
+                        // Sample Rate
+                        Text { text: "Sample Rate"; color: "#94a3b8"; font.pixelSize: 10 }
+                        Row {
+                            spacing: 4
+                            Slider {
+                                id: sampleSlider
+                                from: 0.1; to: 2.0; value: root.getPredValue("sampleRate", 0.5)
+                                width: 120
+                                onValueChanged: {
+                                    if (predParams) predParams.sampleRate = value
+                                    predConfigTimer.restart()
+                                }
+                            }
+                            Text {
+                                text: sampleSlider.value.toFixed(1) + " s"
+                                color: "#e2e8f0"; font.pixelSize: 10
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+                        }
+
+                        // Critical Threshold
+                        Text { text: "Critical Threshold"; color: "#94a3b8"; font.pixelSize: 10 }
+                        Row {
+                            spacing: 4
+                            Slider {
+                                id: critSlider
+                                from: 0.5; to: 2.0; value: root.getPredValue("criticalThreshold", 1.0)
+                                width: 120
+                                onValueChanged: {
+                                    if (predParams) predParams.criticalThreshold = value
+                                    predConfigTimer.restart()
+                                }
+                            }
+                            Text {
+                                text: critSlider.value.toFixed(1) + " m"
+                                color: "#ef4444"; font.pixelSize: 10
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+                        }
+
+                        // Warning Threshold
+                        Text { text: "Warning Threshold"; color: "#94a3b8"; font.pixelSize: 10 }
+                        Row {
+                            spacing: 4
+                            Slider {
+                                id: warnSlider
+                                from: 1.0; to: 3.0; value: root.getPredValue("warningThreshold", 1.5)
+                                width: 120
+                                onValueChanged: {
+                                    if (predParams) predParams.warningThreshold = value
+                                    if (safety && safety.predictionEnabled) {
+                                        safety.configureCollisionPredictor(predParams)
+                                    }
+                                }
+                            }
+                            Text {
+                                text: warnSlider.value.toFixed(1) + " m"
+                                color: "#f59e0b"; font.pixelSize: 10
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+                        }
+                    }
+                }
+            }
 
             // ── Safety Log ──────────────────────────────────────────────────
             Text { text: "SAFETY LOG"; color: "#64748b"; font.pixelSize: 9; font.weight: Font.Bold; font.letterSpacing: 1 }
@@ -261,6 +466,20 @@ Item {
 
         function onApfLogMessage(text) {
             safetyLogModel.append({ txt: text })
+        }
+
+        function onCollisionPredicted(predictions) {
+            // Predictions are automatically visualized on map
+            // Log critical predictions
+            for (var i = 0; i < predictions.length; i++) {
+                var pred = predictions[i]
+                if (pred.severity === "critical") {
+                    safetyLogModel.append({
+                        txt: "[PREDICTION] 🚨 " + pred.droneA + " ↔ " + pred.droneB +
+                             " collision in " + pred.timeToCollision + "s"
+                    })
+                }
+            }
         }
 
         function onGeofenceBreached(droneId, reason) {

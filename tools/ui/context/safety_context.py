@@ -7,6 +7,7 @@ QML Signals:
   - violationsChanged(violationsList)  -> List of {droneA, droneB, distance}
   - apfLogMessage(text)                -> APF status messages
   - geofenceBreached(droneId, reason)   -> Geofence violation alert
+  - collisionPredicted(predictionsList) -> List of predicted collisions
 
 QML Slots:
   - configureAPF(params)                 -> Configure APF parameters
@@ -14,6 +15,8 @@ QML Slots:
   - addObstacle(x, y, z)                 -> Add static obstacle
   - clearObstacles()                     -> Clear all obstacles
   - setGeofence(radius, altMin, altMax)  -> Update geofence
+  - enableCollisionPrediction(enabled)   -> Enable/disable collision prediction
+  - configureCollisionPredictor(params)  -> Configure prediction parameters
 """
 
 import math
@@ -27,6 +30,15 @@ try:
 except ImportError:
     _APFSafetyFilter = None
     _Pose3D = None
+
+try:
+    from droneresearch.safety.collision_predictor import (
+        CollisionPredictor as _CollisionPredictor,
+        DroneState as _DroneState,
+    )
+except ImportError:
+    _CollisionPredictor = None
+    _DroneState = None
 
 
 class _DronePosition(NamedTuple):
@@ -53,6 +65,10 @@ class SafetyContext(QObject):
         str, float, float, float, arguments=["droneId", "lat", "lon", "alt"]
     )
 
+    # Collision prediction signal
+    collisionPredicted = pyqtSignal("QVariant", arguments=["predictions"])
+    predictionEnabledChanged = pyqtSignal()
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self._apf = None
@@ -63,6 +79,11 @@ class SafetyContext(QObject):
         self._ref_lon = 0.0
         self._ref_lon_scale = 111_320.0
         self._ref_set = False
+
+        # Collision prediction
+        self._predictor = None
+        self._prediction_enabled = False
+        self._last_predictions: List[Dict] = []
 
         # Rate-limit tables: key → last_emit_timestamp (monotonic seconds)
         self._violation_log_ts: Dict[Tuple[str, str], float] = {}
@@ -82,6 +103,14 @@ class SafetyContext(QObject):
     @pyqtProperty(int, notify=safetyStatusChanged)
     def violationCount(self) -> int:
         return len(self._last_violations)
+
+    @pyqtProperty(bool, notify=predictionEnabledChanged)
+    def predictionEnabled(self) -> bool:
+        return self._prediction_enabled
+
+    @pyqtProperty(int, notify=safetyStatusChanged)
+    def predictionCount(self) -> int:
+        return len(self._last_predictions)
 
     # ── APF Configuration ───────────────────────────────────────────────────
     @pyqtSlot("QVariant")
@@ -333,6 +362,9 @@ class SafetyContext(QObject):
                     self._geofence_log_ts[gkey] = now
                     self.geofenceBreached.emit(did, reason)
 
+        # Run collision prediction
+        self._run_collision_prediction()
+
     def _emit_avoidance(
         self, mover: str, other: str, poses: Dict[str, Any], now: float
     ) -> None:
@@ -371,15 +403,147 @@ class SafetyContext(QObject):
         self._avoidance_cmd_ts[mover] = now
         self.avoidanceTriggered.emit(mover, target_lat, target_lon, target_alt)
 
+    # ── Collision Prediction ────────────────────────────────────────────────
+    @pyqtSlot(bool)
+    def enableCollisionPrediction(self, enabled: bool) -> None:
+        """Enable or disable collision prediction."""
+        if _CollisionPredictor is None or _DroneState is None:
+            self.apfLogMessage.emit(
+                "[Prediction] ERROR: collision_predictor module not available"
+            )
+            return
+
+        self._prediction_enabled = enabled
+        self.predictionEnabledChanged.emit()
+
+        if enabled and self._predictor is None:
+            # Initialize with default parameters
+            self._predictor = _CollisionPredictor(
+                time_horizon=10.0,
+                min_separation=2.0,
+                sample_rate=0.5
+            )
+            self.apfLogMessage.emit("[Prediction] Enabled (10s horizon)")
+        elif not enabled:
+            self._last_predictions = []
+            self.collisionPredicted.emit([])
+            self.apfLogMessage.emit("[Prediction] Disabled")
+
+    @pyqtSlot("QVariant")
+    def configureCollisionPredictor(self, params=None) -> None:
+        """Configure collision predictor parameters.
+
+        params dict keys:
+            timeHorizon, minSeparation, sampleRate,
+            criticalThreshold, warningThreshold
+        """
+        if _CollisionPredictor is None:
+            self.apfLogMessage.emit(
+                "[Prediction] ERROR: collision_predictor module not available"
+            )
+            return
+
+        try:
+            # Convert QJSValue to dict
+            if params is None:
+                p = {}
+            elif hasattr(params, "toVariant"):
+                p = params.toVariant() or {}
+            elif isinstance(params, dict):
+                p = params
+            else:
+                try:
+                    p = dict(params)
+                except Exception:
+                    p = {}
+
+            def _g(key, default):
+                try:
+                    v = p[key]
+                    return float(v) if v is not None else default
+                except (KeyError, TypeError):
+                    return default
+
+            time_horizon = _g("timeHorizon", 10.0)
+            min_sep = _g("minSeparation", 2.0)
+            sample_rate = _g("sampleRate", 0.5)
+            crit_thresh = _g("criticalThreshold", 1.0)
+            warn_thresh = _g("warningThreshold", 1.5)
+
+            self._predictor = _CollisionPredictor(
+                time_horizon=time_horizon,
+                min_separation=min_sep,
+                sample_rate=sample_rate,
+                critical_threshold=crit_thresh,
+                warning_threshold=warn_thresh
+            )
+            self._prediction_enabled = True
+            self.predictionEnabledChanged.emit()
+            self.apfLogMessage.emit(
+                f"[Prediction] Configured: horizon={time_horizon}s, min_sep={min_sep}m"
+            )
+
+        except Exception as e:
+            self.apfLogMessage.emit(f"[Prediction] Configuration error: {e}")
+
+    def _run_collision_prediction(self) -> None:
+        """Run collision prediction and emit results."""
+        if not self._prediction_enabled or self._predictor is None:
+            return
+        if _DroneState is None or not self._drone_positions:
+            return
+
+        import time
+        now = time.monotonic()
+
+        # Convert drone positions to DroneState objects
+        states = {}
+        for did, pos in self._drone_positions.items():
+            # Calculate velocity from position changes (simple finite difference)
+            # In a real implementation, we'd get velocity from telemetry
+            states[did] = _DroneState(
+                x=pos.x,
+                y=pos.y,
+                z=pos.z,
+                vx=0.0,  # TODO: Calculate from position history
+                vy=0.0,
+                vz=0.0,
+                armed=pos.armed
+            )
+
+        # Run prediction
+        predictions = self._predictor.predict(states)
+
+        # Convert to QML-friendly format
+        pred_list = [p.to_dict() for p in predictions]
+
+        # Only emit if predictions changed
+        if pred_list != self._last_predictions:
+            self._last_predictions = pred_list
+            self.collisionPredicted.emit(pred_list)
+            self.safetyStatusChanged.emit()
+
+            # Log critical predictions
+            for pred in predictions:
+                if pred.severity == "critical":
+                    self.apfLogMessage.emit(
+                        f"[Prediction] 🚨 CRITICAL: {pred.drone_a} ↔ {pred.drone_b} "
+                        f"collision in {pred.time_to_collision:.1f}s "
+                        f"(distance: {pred.min_distance:.2f}m)"
+                    )
+
     # ── Utility ─────────────────────────────────────────────────────────────
     @pyqtSlot(result=str)
     def getAPFStatus(self) -> str:
         """Get human-readable APF status."""
         if not self._apf:
             return "APF not configured"
-        return (
+        status = (
             f"APF Active | "
             f"MinSep: {self._apf.min_separation}m | "
             f"Geofence: R={self._apf.geofence.radius}m | "
             f"Violations: {len(self._last_violations)}"
         )
+        if self._prediction_enabled:
+            status += f" | Predictions: {len(self._last_predictions)}"
+        return status

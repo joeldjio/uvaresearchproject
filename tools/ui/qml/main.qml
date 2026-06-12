@@ -439,6 +439,16 @@ Window {
                         source: "MapView.qml"
                         onLoaded: {
                             item.mapPickSelected.connect(root.deliverMapPick)
+                            item.waypointMoved.connect(root.handleWaypointMoved)
+                            
+                            // Connect collision prediction visualization
+                            if (typeof safety !== "undefined" && safety) {
+                                safety.collisionPredicted.connect(function(predictions) {
+                                    if (mapLoader.item && mapLoader.item.updateCollisionPredictions) {
+                                        mapLoader.item.updateCollisionPredictions(predictions)
+                                    }
+                                })
+                            }
                         }
                     }
 

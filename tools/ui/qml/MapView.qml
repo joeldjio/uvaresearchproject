@@ -34,6 +34,14 @@ Item {
         webView.runJavaScript("setPickMode(" + enabled + ")")
     }
 
+    function updateCollisionPredictions(predictions) {
+        webView.runJavaScript("updateCollisionPredictions(" + JSON.stringify(predictions) + ")")
+    }
+
+    function clearCollisionPredictions() {
+        webView.runJavaScript("clearCollisionVisualization()")
+    }
+
     // ── Map ──────────────────────────────────────────────────────────────
     WebEngineView {
         id: webView
@@ -615,6 +623,106 @@ function updateBehaviorTreeVisualization(missionType, activeDrones) {
         weight: 2
       }).addTo(map);
       formationCircles.push(circle);
+    }
+  });
+}
+
+// ── Collision Prediction Visualization ──────────────────────────────────────
+var collisionLines = [], collisionMarkers = [], collisionZones = [];
+
+function clearCollisionVisualization() {
+  collisionLines.forEach(function(line) { map.removeLayer(line); });
+  collisionLines = [];
+  collisionMarkers.forEach(function(marker) { map.removeLayer(marker); });
+  collisionMarkers = [];
+  collisionZones.forEach(function(zone) { map.removeLayer(zone); });
+  collisionZones = [];
+}
+
+function updateCollisionPredictions(predictions) {
+  clearCollisionVisualization();
+  
+  if (!predictions || predictions.length === 0) return;
+  
+  predictions.forEach(function(pred) {
+    // Get drone positions
+    var droneA = droneMarkers[pred.droneA];
+    var droneB = droneMarkers[pred.droneB];
+    
+    if (!droneA || !droneB || !droneA._lastData || !droneB._lastData) return;
+    
+    var posA = [droneA._lastData.lat, droneA._lastData.lon];
+    var posB = [droneB._lastData.lat, droneB._lastData.lon];
+    
+    // Determine color based on severity
+    var colors = {
+      "critical": "#ef4444",  // red
+      "warning": "#f59e0b",   // amber
+      "caution": "#eab308"    // yellow
+    };
+    var color = colors[pred.severity] || "#64748b";
+    
+    // Draw warning line between drones
+    var line = L.polyline([posA, posB], {
+      color: color,
+      weight: 3,
+      opacity: 0.8,
+      dashArray: "10, 5"
+    }).addTo(map);
+    collisionLines.push(line);
+    
+    // Add tooltip to line
+    var tooltipText = pred.droneA + " ↔ " + pred.droneB +
+                     "<br>Collision in " + pred.timeToCollision + "s" +
+                     "<br>Min distance: " + pred.minDistance + "m" +
+                     "<br>Severity: " + pred.severity.toUpperCase();
+    line.bindTooltip(tooltipText, {permanent: false, sticky: true});
+    
+    // Convert collision point from local NED to lat/lon
+    // This requires the reference point from SafetyContext
+    // For now, we will mark the midpoint between drones
+    var midLat = (droneA._lastData.lat + droneB._lastData.lat) / 2;
+    var midLon = (droneA._lastData.lon + droneB._lastData.lon) / 2;
+    
+    // Draw collision zone circle
+    var radius = pred.minDistance * 2; // meters
+    var zone = L.circle([midLat, midLon], {
+      radius: radius,
+      color: color,
+      fillColor: color,
+      fillOpacity: 0.15,
+      weight: 2,
+      dashArray: "5, 5"
+    }).addTo(map);
+    collisionZones.push(zone);
+    
+    // Draw collision point marker
+    var icon = L.divIcon({
+      className: "",
+      iconSize: [32, 32],
+      iconAnchor: [16, 16],
+      html: \'<div style="width:32px;height:32px;border-radius:50%;border:3px solid \' + color + \';background:rgba(239,68,68,0.2);display:flex;align-items:center;justify-content:center;font-size:18px;">⚠</div>\'
+    });
+    
+    var marker = L.marker([midLat, midLon], {
+      icon: icon,
+      zIndexOffset: 1500
+    }).addTo(map);
+    
+    marker.bindTooltip(tooltipText, {permanent: false, direction: "top"});
+    collisionMarkers.push(marker);
+    
+    // Pulse animation for critical collisions
+    if (pred.severity === "critical") {
+      var pulseCircle = L.circle([midLat, midLon], {
+        radius: radius * 1.5,
+        color: color,
+        fillColor: "none",
+        weight: 2,
+        opacity: 0.6,
+        dashArray: "3, 3"
+      }).addTo(map);
+      collisionZones.push(pulseCircle);
     }
   });
 }
