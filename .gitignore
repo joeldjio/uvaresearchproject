@@ -46,4 +46,10 @@ tools/installer/out/
 .bob/rules-*/AGENTS.md
 AGENTS.md
 docs/ANWENDUNGSBESCHREIBUNG.md
+
+# Audit reports and internal planning (keep local only)
+docs/api/api-audit-2026-06.md
+docs/ui/system-integration-audit-2026-06.md
+docs/project/escape-integration-roadmap.md
+docs/project/master-implementation-plan-2026.md
 docs/PX4_OPTIMIERUNGEN_UND_FEATURES.md

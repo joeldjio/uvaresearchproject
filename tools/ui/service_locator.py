@@ -118,6 +118,11 @@ def build_default_locator(app=None) -> ServiceLocator:
 
         return BagPlaybackContext()
 
+    def _mission():
+        from tools.ui.context.mission_context import MissionContext
+
+        return MissionContext()
+
     def _updater():
         from tools.ui.updater import UpdaterContext
 
@@ -132,6 +137,7 @@ def build_default_locator(app=None) -> ServiceLocator:
     loc.register_factory("telemetryModel", _telemetry)
     loc.register_factory("experiment", _experiment)
     loc.register_factory("safety", _safety)
+    loc.register_factory("mission", _mission)
     loc.register_factory("ros2", _ros2)
     loc.register_factory("bagPlayback", _bag_playback)
     loc.register_factory("updater", _updater)
@@ -148,14 +154,21 @@ def wire(locator: ServiceLocator) -> None:
     tele_model = locator["telemetryModel"]
     experiment = locator["experiment"]
     safety = locator["safety"]
+    mission = locator["mission"]
     ros2 = locator["ros2"]
     bag_playback = locator["bagPlayback"]
+    
+    # Inject swarm context into mission context for mission upload
+    mission.set_swarm_context(swarm)
     
     # Telemetry → models
     swarm.telemetryUpdated.connect(
         lambda snap: tele_model.update_all(snap) if isinstance(snap, dict) else None
     )
     swarm.telemetryUpdated.connect(safety.updateDronePositions)
+    
+    # Mission logs → swarm log
+    mission.logMessage.connect(swarm.logMessage)
 
     # Drone count change notifications
     swarm.droneAdded.connect(lambda _: swarm.countsChanged.emit())

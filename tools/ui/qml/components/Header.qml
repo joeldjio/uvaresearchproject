@@ -64,7 +64,7 @@ Rectangle {
         // Logo + title
         Text { text: "◉"; color: "#2563eb"; font.pixelSize: 22 }
         Text {
-            text: "uavresearch gcs"
+            text: "UAV Research GCS"
             color: "#e2e8f0"; font.pixelSize: 15; font.weight: Font.Bold; font.letterSpacing: 0.5
         }
         Text {

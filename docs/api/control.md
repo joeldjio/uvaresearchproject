@@ -582,3 +582,212 @@ def run_mission(self, waypoints, wait=True, timeout=600):
     if wait:
         return self._mission.wait_done(timeout=timeout)
     return True
+
+---
+
+## FieldCoveragePlanner
+
+Generate waypoint patterns for efficient field coverage in agricultural operations.
+
+### Constructor
+
+```python
+FieldCoveragePlanner()
+```
+
+**Example:**
+```python
+from droneresearch.control.field_coverage import FieldCoveragePlanner
+
+planner = FieldCoveragePlanner()
+planner.set_home_position(47.3977, 8.5456)
+```
+
+---
+
+### set_home_position()
+
+Set home position for GPS coordinate conversions.
+
+```python
+set_home_position(lat: float, lon: float) -> None
+```
+
+**Parameters:**
+- `lat` (float): Home latitude in degrees
+- `lon` (float): Home longitude in degrees
+
+**Example:**
+```python
+planner.set_home_position(47.3977, 8.5456)  # Zurich
+```
+
+---
+
+### generate_coverage_waypoints()
+
+Generate waypoints for field coverage based on boundary and configuration.
+
+```python
+generate_coverage_waypoints(
+    boundary: FieldBoundary,
+    config: CoverageConfig
+) -> List[Tuple[float, float, float]]
+```
+
+**Parameters:**
+- `boundary` (FieldBoundary): Field boundary definition
+- `config` (CoverageConfig): Coverage configuration
+
+**Returns:**
+- List of waypoints as `(lat, lon, alt)` tuples
+
+**Raises:**
+- `ValueError`: If home position not set or invalid configuration
+
+**Example:**
+```python
+from droneresearch.control.field_coverage import (
+    FieldBoundary,
+    CoverageConfig,
+    CoveragePattern
+)
+
+boundary = FieldBoundary(corners=[
+    (47.3977, 8.5456),
+    (47.3987, 8.5456),
+    (47.3987, 8.5466),
+    (47.3977, 8.5466),
+])
+
+config = CoverageConfig(
+    pattern=CoveragePattern.PARALLEL_LINES,
+    altitude=20.0,
+    line_spacing=10.0,
+    overlap=0.2
+)
+
+waypoints = planner.generate_coverage_waypoints(boundary, config)
+```
+
+---
+
+### estimate_coverage_time()
+
+Estimate time to complete coverage mission.
+
+```python
+estimate_coverage_time(
+    waypoints: List[Tuple[float, float, float]],
+    speed: float
+) -> float
+```
+
+**Parameters:**
+- `waypoints` (List): List of `(lat, lon, alt)` waypoints
+- `speed` (float): Flight speed in m/s
+
+**Returns:**
+- Estimated time in seconds
+
+**Example:**
+```python
+waypoints = planner.generate_coverage_waypoints(boundary, config)
+time_seconds = planner.estimate_coverage_time(waypoints, speed=5.0)
+print(f"Mission time: {time_seconds / 60:.1f} minutes")
+```
+
+---
+
+## FieldBoundary
+
+Field boundary definition using GPS coordinates.
+
+### Constructor
+
+```python
+@dataclass
+class FieldBoundary:
+    corners: List[Tuple[float, float]]  # [(lat, lon), ...]
+```
+
+**Parameters:**
+- `corners` (List): List of GPS coordinates defining field boundary (minimum 3 corners)
+
+**Example:**
+```python
+from droneresearch.control.field_coverage import FieldBoundary
+
+# Rectangular field
+boundary = FieldBoundary(corners=[
+    (47.3977, 8.5456),  # SW corner
+    (47.3987, 8.5456),  # NW corner
+    (47.3987, 8.5466),  # NE corner
+    (47.3977, 8.5466),  # SE corner
+])
+```
+
+---
+
+## CoverageConfig
+
+Configuration for field coverage planning.
+
+### Constructor
+
+```python
+@dataclass
+class CoverageConfig:
+    pattern: CoveragePattern = CoveragePattern.PARALLEL_LINES
+    altitude: float = 20.0        # meters AGL
+    overlap: float = 0.2          # 20% overlap (0-1)
+    line_spacing: float = 10.0    # meters between lines
+    speed: float = 5.0            # m/s
+    heading: float = 0.0          # degrees (0=North, 90=East)
+```
+
+**Parameters:**
+- `pattern` (CoveragePattern): Coverage pattern type
+- `altitude` (float): Flight altitude in meters AGL (must be positive)
+- `overlap` (float): Overlap between passes (0-1, default 0.2)
+- `line_spacing` (float): Distance between parallel lines in meters (must be positive)
+- `speed` (float): Flight speed in m/s (must be positive)
+- `heading` (float): Pattern orientation in degrees (0=North, 90=East)
+
+**Example:**
+```python
+from droneresearch.control.field_coverage import CoverageConfig, CoveragePattern
+
+config = CoverageConfig(
+    pattern=CoveragePattern.PARALLEL_LINES,
+    altitude=25.0,
+    line_spacing=15.0,
+    overlap=0.3,
+    speed=8.0,
+    heading=45.0
+)
+```
+
+---
+
+## CoveragePattern
+
+Enum defining coverage pattern types.
+
+```python
+class CoveragePattern(Enum):
+    PARALLEL_LINES = 0  # Parallel lines with alternating direction
+    SPIRAL = 1          # Spiral from outside to inside
+    GRID = 2            # Grid pattern (both directions)
+    ZIGZAG = 3          # Zigzag pattern (no turns at ends)
+```
+
+**Example:**
+```python
+from droneresearch.control.field_coverage import CoveragePattern
+
+# Use in configuration
+config = CoverageConfig(pattern=CoveragePattern.SPIRAL)
+```
+
+---

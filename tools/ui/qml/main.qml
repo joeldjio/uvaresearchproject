@@ -32,6 +32,7 @@ Window {
     readonly property var tabs: [
         { id: "map",        svg: "map",        label: "Map",       color: "#06b6d4", title: "Map View" },
         { id: "dashboard",  svg: "dashboard",  label: "Telemetry", color: "#2563eb", title: "Dashboard" },
+        { id: "mission",    svg: "mission",    label: "Mission",   color: "#10b981", title: "Mission Planning" },
         { id: "swarm",      svg: "swarm",      label: "Swarm",     color: "#22c55e", title: "Swarm Control" },
         { id: "safety",     svg: "safety",     label: "Safety",    color: "#ef4444", title: "Safety / APF" },
         { id: "gimbal",     svg: "experiment", label: "Gimbal",    color: "#8b5cf6", title: "Gimbal / Camera" },
@@ -167,6 +168,62 @@ Window {
         }
     }
 
+    // ── Auto-set mission home position from first drone ───────────────────────
+    Timer {
+        interval: 2000
+        running: true
+        repeat: true
+        onTriggered: {
+            if (typeof mission !== "undefined" && mission && typeof swarm !== "undefined" && swarm) {
+                var ids = swarm.droneIds()
+                if (ids && ids.length > 0 && telemetryModel.count > 0) {
+                    var snap = telemetryModel.snapshotFor(ids[0])
+                    if (snap && snap.lat && snap.lon && snap.lat !== 0 && snap.lon !== 0) {
+                        mission.setHomePosition(snap.lat, snap.lon)
+                        running = false  // Stop after first successful set
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Field Coverage Planning handlers ──────────────────────────────────────
+    function handleBoundaryPoint(lat, lon) {
+        try {
+            if (typeof mission !== "undefined" && mission) {
+                if (mission.drawingMode === true) {
+                    mission.addBoundaryPoint(lat, lon)
+                }
+            }
+        } catch (e) {
+            console.error("[MAIN] handleBoundaryPoint error:", e)
+        }
+    }
+
+    function syncFieldBoundaryToMap() {
+        try {
+            if (!mapLoader.item || typeof mission === "undefined" || !mission) return
+            var points = mission.getBoundaryPoints()
+            if (points && mapLoader.item.updateFieldBoundary) {
+                mapLoader.item.updateFieldBoundary(points)
+            }
+        } catch (e) {
+            console.error("[MAIN] syncFieldBoundaryToMap error:", e)
+        }
+    }
+
+    function syncCoverageWaypointsToMap() {
+        try {
+            if (!mapLoader.item || typeof mission === "undefined" || !mission) return
+            var waypoints = mission.getCoverageWaypoints()
+            if (waypoints && mapLoader.item.updateCoverageWaypoints) {
+                mapLoader.item.updateCoverageWaypoints(waypoints)
+            }
+        } catch (e) {
+            console.error("[MAIN] syncCoverageWaypointsToMap error:", e)
+        }
+    }
+
     // ── Waypoint-to-Safety sync ───────────────────────────────────────────────
     Connections {
         target: Cmp.AppState
@@ -268,7 +325,7 @@ Window {
 
                             delegate: Item {
                                 id: navBtn
-                                width: 58; height: 56
+                                width: 58; height: 50
 
                                 readonly property bool active: root.currentTab === index
 
@@ -364,6 +421,19 @@ Window {
                                                         rrect(b.x, by, 3.5, bh, 1); ctx.fill()
                                                     })
                                                     ctx.beginPath(); ctx.moveTo(1, 20.5); ctx.lineTo(21, 20.5); ctx.stroke()
+                                                } else if (k === "mission") {
+                                                    // Route/path icon
+                                                    ctx.lineWidth = 1.5
+                                                    ctx.globalAlpha = 0.5
+                                                    ctx.beginPath()
+                                                    ctx.moveTo(3, 18); ctx.lineTo(7, 10); ctx.lineTo(11, 14); ctx.lineTo(15, 6); ctx.lineTo(19, 12)
+                                                    ctx.stroke()
+                                                    ctx.globalAlpha = 1.0
+                                                    ctx.lineWidth = 1.2
+                                                    // Waypoint markers
+                                                    ;[{x:3,y:18},{x:7,y:10},{x:11,y:14},{x:15,y:6},{x:19,y:12}].forEach(function(p){
+                                                        ctx.beginPath(); ctx.arc(p.x, p.y, 2, 0, Math.PI*2); ctx.fill()
+                                                    })
                                                 } else if (k === "swarm") {
                                                     function miniDrone(dx, dy, s) {
                                                         ctx.beginPath(); ctx.arc(dx, dy, s*1.5, 0, Math.PI*2); ctx.stroke()
@@ -460,6 +530,7 @@ Window {
                         onLoaded: {
                             item.mapPickSelected.connect(root.deliverMapPick)
                             item.waypointMoved.connect(root.handleWaypointMoved)
+                            item.boundaryPointSelected.connect(root.handleBoundaryPoint)
                             
                             // Connect collision prediction visualization
                             if (typeof safety !== "undefined" && safety) {
@@ -468,6 +539,37 @@ Window {
                                         mapLoader.item.updateCollisionPredictions(predictions)
                                     }
                                 })
+                            }
+                        }
+                        
+                        // Connect mission signals after a delay to ensure mission context is ready
+                        Timer {
+                            interval: 500
+                            running: true
+                            repeat: false
+                            onTriggered: {
+                                if (typeof mission !== "undefined" && mission && mapLoader.item) {
+                                    try {
+                                        mission.fieldBoundaryChanged.connect(root.syncFieldBoundaryToMap)
+                                        mission.coverageGenerated.connect(root.syncCoverageWaypointsToMap)
+                                        mission.coverageCleared.connect(function() {
+                                            if (mapLoader.item && mapLoader.item.clearFieldCoverage) {
+                                                mapLoader.item.clearFieldCoverage()
+                                            }
+                                        })
+                                        mission.drawingModeChanged.connect(function(active) {
+                                            if (mapLoader.item && mapLoader.item.setBoundaryDrawMode) {
+                                                mapLoader.item.setBoundaryDrawMode(active)
+                                            }
+                                            if (active) {
+                                                root.selectTab(0)
+                                            }
+                                        })
+                                        console.log("[MAIN] Mission signals connected successfully")
+                                    } catch (e) {
+                                        console.error("[MAIN] Failed to connect mission signals:", e)
+                                    }
+                                }
                             }
                         }
                     }
@@ -519,13 +621,28 @@ Window {
                                 color: clrM.containsMouse ? "#7f1d1d" : "#1e2535"
                                 border.color: "#ef4444"; border.width: 1
                                 anchors.verticalCenter: parent.verticalCenter
-                                visible: globalMissionWaypoints.count > 0
+                                // Always visible now
                                 Row {
                                     anchors.centerIn: parent; spacing: 4
                                     Cmp.Icon { name: "trash"; size: 11; color: "#fecaca"; anchors.verticalCenter: parent.verticalCenter }
                                     Text { text: "CLEAR"; color: "#fecaca"; font.pixelSize: 9; font.weight: Font.Bold; anchors.verticalCenter: parent.verticalCenter }
                                 }
-                                MouseArea { id: clrM; anchors.fill: parent; hoverEnabled: true; onClicked: { globalMissionWaypoints.clear(); root.syncWaypointsToMap() } }
+                                MouseArea {
+                                    id: clrM
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    onClicked: {
+                                        // Clear everything: waypoints, boundary, coverage
+                                        globalMissionWaypoints.clear()
+                                        root.syncWaypointsToMap()
+                                        if (typeof mission !== "undefined" && mission) {
+                                            mission.clearFieldBoundary()
+                                        }
+                                        if (mapLoader.item && mapLoader.item.clearFieldCoverage) {
+                                            mapLoader.item.clearFieldCoverage()
+                                        }
+                                    }
+                                }
                             }
 
                             // ── MISSION STARTEN ─────────────────────────
@@ -684,6 +801,8 @@ Window {
                                     item.experiment = experiment
                                 if (item && item.hasOwnProperty("globalWaypoints"))
                                     item.globalWaypoints = globalMissionWaypoints
+                                if (item && item.hasOwnProperty("mission") && typeof mission !== "undefined")
+                                    item.mission = mission
                             }
                         }
                     }

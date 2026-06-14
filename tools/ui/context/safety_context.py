@@ -40,6 +40,15 @@ except ImportError:
     _CollisionPredictor = None
     _DroneState = None
 
+try:
+    from droneresearch.safety.battery_monitor import (
+        BatteryMonitor as _BatteryMonitor,
+        BatteryStatus as _BatteryStatus,
+    )
+except ImportError:
+    _BatteryMonitor = None
+    _BatteryStatus = None
+
 
 class _DronePosition(NamedTuple):
     x: float
@@ -69,6 +78,11 @@ class SafetyContext(QObject):
     collisionPredicted = pyqtSignal("QVariant", arguments=["predictions"])
     predictionEnabledChanged = pyqtSignal()
 
+    # Battery Monitor signals
+    batteryMonitorEnabledChanged = pyqtSignal()
+    batteryStatusChanged = pyqtSignal("QVariant", arguments=["status"])
+    rtlTriggered = pyqtSignal(str, str, arguments=["droneId", "reason"])
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self._apf = None
@@ -86,6 +100,12 @@ class SafetyContext(QObject):
         self._prediction_waypoint_aware = False
         self._last_predictions: List[Dict] = []
         self._drone_waypoints: Dict[str, List[Tuple[float, float, float]]] = {}
+
+        # Battery Monitor
+        self._battery_monitor = None
+        self._battery_monitor_enabled = False
+        self._battery_home_positions: Dict[str, Tuple[float, float, float]] = {}
+        self._last_battery_status: Dict[str, Dict] = {}
 
         # Rate-limit tables: key → last_emit_timestamp (monotonic seconds)
         self._violation_log_ts: Dict[Tuple[str, str], float] = {}
@@ -597,3 +617,166 @@ class SafetyContext(QObject):
         if self._prediction_enabled:
             status += f" | Predictions: {len(self._last_predictions)}"
         return status
+
+
+    # ── Battery Monitor ─────────────────────────────────────────────────────
+    @pyqtProperty(bool, notify=batteryMonitorEnabledChanged)
+    def batteryMonitorEnabled(self) -> bool:
+        return self._battery_monitor_enabled
+
+    @pyqtSlot("QVariant")
+    def configureBatteryMonitor(self, params=None) -> None:
+        """Configure battery monitor with parameters from QML.
+        
+        params dict keys:
+            criticalThreshold, warningThreshold, safetyMargin,
+            historySize, minSamplesForPrediction
+        """
+        if _BatteryMonitor is None:
+            self.apfLogMessage.emit(
+                "[Battery] ERROR: battery_monitor module not available"
+            )
+            return
+
+        try:
+            # Convert QJSValue to dict
+            if params is None:
+                p = {}
+            elif hasattr(params, "toVariant"):
+                p = params.toVariant() or {}
+            elif isinstance(params, dict):
+                p = params
+            else:
+                try:
+                    p = dict(params)
+                except Exception:
+                    p = {}
+
+            def _g(key, default):
+                try:
+                    v = p[key]
+                    return float(v) if v is not None else default
+                except (KeyError, TypeError):
+                    return default
+
+            crit_thresh = _g("criticalThreshold", 20.0)
+            warn_thresh = _g("warningThreshold", 30.0)
+            safety_margin = _g("safetyMargin", 1.2)
+            history_size = int(_g("historySize", 100))
+            min_samples = int(_g("minSamplesForPrediction", 10))
+
+            self._battery_monitor = _BatteryMonitor(
+                critical_threshold=crit_thresh,
+                warning_threshold=warn_thresh,
+                safety_margin=safety_margin,
+                history_size=history_size,
+                min_samples_for_prediction=min_samples
+            )
+            self._battery_monitor_enabled = True
+            self.batteryMonitorEnabledChanged.emit()
+            self.apfLogMessage.emit(
+                f"[Battery] Configured: crit={crit_thresh}%, margin={safety_margin}x"
+            )
+
+        except Exception as e:
+            self.apfLogMessage.emit(f"[Battery] Configuration error: {e}")
+
+    @pyqtSlot()
+    def disableBatteryMonitor(self) -> None:
+        """Disable battery monitoring."""
+        if self._battery_monitor:
+            # Stop monitoring all drones
+            for drone_id in list(self._last_battery_status.keys()):
+                self._battery_monitor.stop_monitoring(drone_id)
+        
+        self._battery_monitor = None
+        self._battery_monitor_enabled = False
+        self._last_battery_status = {}
+        self.batteryMonitorEnabledChanged.emit()
+        self.apfLogMessage.emit("[Battery] Disabled")
+
+    @pyqtSlot("QVariant")
+    def updateBatteryTelemetry(self, telemetry_dict: dict) -> None:
+        """Update battery monitor with telemetry data.
+        
+        telemetry_dict: {droneId: {battery_pct, lat, lon, alt_rel}, ...}
+        """
+        if not self._battery_monitor_enabled or self._battery_monitor is None:
+            return
+        
+        if not isinstance(telemetry_dict, dict):
+            return
+
+        for drone_id, telem in telemetry_dict.items():
+            if not isinstance(telem, dict):
+                continue
+            
+            # Start monitoring if not already
+            if drone_id not in self._last_battery_status:
+                self._battery_monitor.start_monitoring(drone_id)
+                # Set home position from first telemetry
+                lat = telem.get("lat", 0.0)
+                lon = telem.get("lon", 0.0)
+                if lat != 0.0 and lon != 0.0:
+                    self._battery_home_positions[drone_id] = (lat, lon, 0.0)
+            
+            # Update monitor
+            self._battery_monitor.update(drone_id, telem)
+            
+            # Check RTL status
+            home_pos = self._battery_home_positions.get(drone_id)
+            if home_pos:
+                should_rtl, reason = self._battery_monitor.should_trigger_rtl(
+                    drone_id, home_pos
+                )
+                
+                if should_rtl:
+                    # Emit RTL trigger signal
+                    self.rtlTriggered.emit(drone_id, reason)
+                    self.apfLogMessage.emit(
+                        f"[Battery] RTL TRIGGERED: {drone_id} - {reason}"
+                    )
+                
+                # Get battery status
+                status = self._battery_monitor.get_battery_status(drone_id, home_pos)
+                if status:
+                    status_dict = {
+                        "droneId": drone_id,
+                        "batteryPct": status.battery_pct,
+                        "voltage": status.voltage,
+                        "current": status.current,
+                        "timeRemaining": status.estimated_time_remaining,
+                        "rtlTimeRequired": status.rtl_time_required,
+                        "rtlBatteryRequired": status.rtl_battery_required,
+                        "shouldRtl": status.should_rtl,
+                        "rtlReason": status.rtl_reason
+                    }
+                    
+                    # Only emit if status changed significantly
+                    last_status = self._last_battery_status.get(drone_id, {})
+                    if (abs(status_dict["batteryPct"] - last_status.get("batteryPct", 0)) > 0.5 or
+                        status_dict["shouldRtl"] != last_status.get("shouldRtl", False)):
+                        self._last_battery_status[drone_id] = status_dict
+                        self.batteryStatusChanged.emit(status_dict)
+
+    @pyqtSlot(str, float, float, float)
+    def setDroneHomePosition(self, drone_id: str, lat: float, lon: float, alt: float) -> None:
+        """Set home position for a drone."""
+        self._battery_home_positions[drone_id] = (lat, lon, alt)
+
+    @pyqtSlot(str)
+    def resetRtlTrigger(self, drone_id: str) -> None:
+        """Reset RTL trigger for a drone."""
+        if self._battery_monitor:
+            self._battery_monitor.reset_rtl_trigger(drone_id)
+            self.apfLogMessage.emit(f"[Battery] RTL trigger reset for {drone_id}")
+
+    @pyqtSlot(str, result="QVariant")
+    def getBatteryStatus(self, drone_id: str) -> dict:
+        """Get battery status for a specific drone."""
+        return self._last_battery_status.get(drone_id, {})
+
+    @pyqtSlot(result="QVariant")
+    def getAllBatteryStatus(self) -> dict:
+        """Get battery status for all monitored drones."""
+        return self._last_battery_status.copy()

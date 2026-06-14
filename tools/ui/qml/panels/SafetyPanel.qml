@@ -9,6 +9,7 @@ Item {
     // ── State ─────────────────────────────────────────────────────────────
     property var apfParams: ({ minSeparation: 3.0, maxSpeed: 5.0, repulsionGain: 3.0, attractionGain: 1.0, geofenceRadius: 50.0, geofenceAltMin: 1.0, geofenceAltMax: 30.0, obstacleRadius: 4.0 })
     property var predParams: ({ timeHorizon: 10.0, minSeparation: 2.0, sampleRate: 0.5, criticalThreshold: 1.0, warningThreshold: 1.5 })
+    property var batteryParams: ({ criticalThreshold: 20.0, warningThreshold: 30.0, safetyMargin: 1.2, historySize: 100, minSamplesForPrediction: 10 })
 
     function getApfValue(key, defaultVal) {
         return apfParams && apfParams[key] !== undefined ? apfParams[key] : defaultVal
@@ -30,6 +31,9 @@ Item {
         onTriggered: {
             if (safety && safety.predictionEnabled) {
                 safety.configureCollisionPredictor(predParams)
+                safetyLogModel.append({
+                    txt: "[CONFIG] Collision Prediction: horizon=" + predParams.timeHorizon.toFixed(1) + "s, minSep=" + predParams.minSeparation.toFixed(1) + "m"
+                })
             }
         }
     }
@@ -79,10 +83,34 @@ Item {
                                 width: 120
                                 onValueChanged: if (apfParams) apfParams.minSeparation = value
                             }
-                            Text {
-                                text: sepSlider.value.toFixed(1) + " m"
-                                color: "#e2e8f0"; font.pixelSize: 10
+                            Column {
+                                spacing: 2
                                 anchors.verticalCenter: parent.verticalCenter
+                                
+                                Text {
+                                    text: sepSlider.value.toFixed(1) + " m"
+                                    color: "#e2e8f0"
+                                    font.pixelSize: 10
+                                }
+                                
+                                Text {
+                                    text: {
+                                        var val = sepSlider.value;
+                                        if (val < 1.5) return "Very tight";
+                                        if (val < 3.0) return "Tight";
+                                        if (val < 5.0) return "Normal";
+                                        return "Safe";
+                                    }
+                                    color: {
+                                        var val = sepSlider.value;
+                                        if (val < 1.5) return "#ef4444";
+                                        if (val < 3.0) return "#f59e0b";
+                                        if (val < 5.0) return "#22c55e";
+                                        return "#3b82f6";
+                                    }
+                                    font.pixelSize: 8
+                                    font.italic: true
+                                }
                             }
                         }
 
@@ -113,10 +141,34 @@ Item {
                                 width: 120
                                 onValueChanged: if (apfParams) apfParams.repulsionGain = value
                             }
-                            Text {
-                                text: repSlider.value.toFixed(1)
-                                color: "#e2e8f0"; font.pixelSize: 10
+                            Column {
+                                spacing: 2
                                 anchors.verticalCenter: parent.verticalCenter
+                                
+                                Text {
+                                    text: repSlider.value.toFixed(1)
+                                    color: "#e2e8f0"
+                                    font.pixelSize: 10
+                                }
+                                
+                                Text {
+                                    text: {
+                                        var val = repSlider.value;
+                                        if (val < 1.0) return "Weak";
+                                        if (val < 3.0) return "Normal";
+                                        if (val < 6.0) return "Strong";
+                                        return "Very strong";
+                                    }
+                                    color: {
+                                        var val = repSlider.value;
+                                        if (val < 1.0) return "#ef4444";
+                                        if (val < 3.0) return "#22c55e";
+                                        if (val < 6.0) return "#f59e0b";
+                                        return "#3b82f6";
+                                    }
+                                    font.pixelSize: 8
+                                    font.italic: true
+                                }
                             }
                         }
 
@@ -336,10 +388,34 @@ Item {
                                     predConfigTimer.restart()
                                 }
                             }
-                            Text {
-                                text: horizonSlider.value.toFixed(1) + " s"
-                                color: "#e2e8f0"; font.pixelSize: 10
+                            Column {
+                                spacing: 2
                                 anchors.verticalCenter: parent.verticalCenter
+                                
+                                Text {
+                                    text: horizonSlider.value.toFixed(1) + " s"
+                                    color: "#e2e8f0"
+                                    font.pixelSize: 10
+                                }
+                                
+                                Text {
+                                    text: {
+                                        var val = horizonSlider.value;
+                                        if (val < 8.0) return "Short";
+                                        if (val < 15.0) return "Normal";
+                                        if (val < 22.0) return "Long";
+                                        return "Very long";
+                                    }
+                                    color: {
+                                        var val = horizonSlider.value;
+                                        if (val < 8.0) return "#ef4444";
+                                        if (val < 15.0) return "#22c55e";
+                                        if (val < 22.0) return "#f59e0b";
+                                        return "#3b82f6";
+                                    }
+                                    font.pixelSize: 8
+                                    font.italic: true
+                                }
                             }
                         }
 
@@ -511,6 +587,249 @@ Item {
                 }
             }
 
+            // ── Battery Monitor ──────────────────────────────────────────────
+            Text { text: "BATTERY MONITOR"; color: "#64748b"; font.pixelSize: 9; font.weight: Font.Bold; font.letterSpacing: 1 }
+
+            Rectangle {
+                width: parent.width
+                height: batteryCol.implicitHeight + 20
+                radius: 8
+                color: "#1a2035"; border.color: "#2d3748"; border.width: 1
+
+                Column {
+                    id: batteryCol
+                    anchors { left: parent.left; right: parent.right; top: parent.top; margins: 10 }
+                    spacing: 10
+
+                    // Enable/Disable Toggle
+                    Row {
+                        spacing: 12
+                        width: parent.width
+
+                        Rectangle {
+                            width: 140; height: 36; radius: 6
+                            color: safety && safety.batteryMonitorEnabled ? "#15803d" : (battToggleM.containsMouse ? "#1e3a5f" : "#1e2535")
+                            border.color: safety && safety.batteryMonitorEnabled ? "#22c55e" : "#2563eb"
+                            border.width: 1
+
+                            Row {
+                                anchors.centerIn: parent
+                                spacing: 6
+
+                                Rectangle {
+                                    width: 8; height: 8; radius: 4
+                                    color: safety && safety.batteryMonitorEnabled ? "#22c55e" : "#64748b"
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+
+                                Text {
+                                    text: safety && safety.batteryMonitorEnabled ? "ENABLED" : "DISABLED"
+                                    color: "#e2e8f0"
+                                    font.pixelSize: 11
+                                    font.weight: Font.Bold
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+                            }
+
+                            MouseArea {
+                                id: battToggleM
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                onClicked: {
+                                    if (safety) {
+                                        var enabled = safety.batteryMonitorEnabled
+                                        if (enabled) {
+                                            safety.disableBatteryMonitor()
+                                        } else {
+                                            safety.configureBatteryMonitor(batteryParams)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        Text {
+                            text: "Predictive RTL based on battery drain & distance"
+                            color: "#64748b"
+                            font.pixelSize: 10
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                    }
+
+                    // Info Text
+                    Text {
+                        text: "Monitors battery levels and triggers RTL before critical threshold.\nWorks with all autopilot types (ArduPilot, PX4, etc.)."
+                        color: "#64748b"
+                        font.pixelSize: 9
+                        wrapMode: Text.WordWrap
+                        width: parent.width
+                    }
+
+                    // Parameter Grid
+                    GridLayout {
+                        width: parent.width
+                        columns: 2
+                        columnSpacing: 12
+                        rowSpacing: 6
+                        visible: safety && safety.batteryMonitorEnabled
+
+                        // Critical Threshold
+                        Text { text: "Critical Threshold"; color: "#94a3b8"; font.pixelSize: 10 }
+                        Row {
+                            spacing: 4
+                            Slider {
+                                id: battCritSlider
+                                from: 10.0; to: 30.0; value: 20.0
+                                width: 120
+                                onValueChanged: {
+                                    if (batteryParams) batteryParams.criticalThreshold = value
+                                    battConfigTimer.restart()
+                                }
+                            }
+                            Text {
+                                text: battCritSlider.value.toFixed(1) + " %"
+                                color: "#ef4444"; font.pixelSize: 10
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+                        }
+
+                        // Warning Threshold
+                        Text { text: "Warning Threshold"; color: "#94a3b8"; font.pixelSize: 10 }
+                        Row {
+                            spacing: 4
+                            Slider {
+                                id: battWarnSlider
+                                from: 20.0; to: 50.0; value: 30.0
+                                width: 120
+                                onValueChanged: {
+                                    if (batteryParams) batteryParams.warningThreshold = value
+                                    battConfigTimer.restart()
+                                }
+                            }
+                            Text {
+                                text: battWarnSlider.value.toFixed(1) + " %"
+                                color: "#f59e0b"; font.pixelSize: 10
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+                        }
+
+                        // Safety Margin
+                        Text { text: "Safety Margin"; color: "#94a3b8"; font.pixelSize: 10 }
+                        Row {
+                            spacing: 4
+                            Slider {
+                                id: safetyMarginSlider
+                                from: 1.0; to: 2.0; value: 1.2
+                                stepSize: 0.1
+                                width: 120
+                                onValueChanged: {
+                                    if (batteryParams) batteryParams.safetyMargin = value
+                                    battConfigTimer.restart()
+                                }
+                            }
+                            Column {
+                                spacing: 2
+                                anchors.verticalCenter: parent.verticalCenter
+                                
+                                Text {
+                                    text: safetyMarginSlider.value.toFixed(1) + "x (" + ((safetyMarginSlider.value - 1.0) * 100).toFixed(0) + "% buffer)"
+                                    color: "#22c55e"
+                                    font.pixelSize: 10
+                                }
+                                
+                                Text {
+                                    text: {
+                                        var val = safetyMarginSlider.value;
+                                        if (val < 1.15) return "Aggressive";
+                                        if (val < 1.35) return "Standard";
+                                        if (val < 1.75) return "Conservative";
+                                        return "Very safe";
+                                    }
+                                    color: {
+                                        var val = safetyMarginSlider.value;
+                                        if (val < 1.15) return "#ef4444";  // red
+                                        if (val < 1.35) return "#22c55e";  // green
+                                        if (val < 1.75) return "#f59e0b";  // orange
+                                        return "#3b82f6";  // blue
+                                    }
+                                    font.pixelSize: 8
+                                    font.italic: true
+                                }
+                            }
+                        }
+
+                        // Min Samples
+                        Text { text: "Min Samples"; color: "#94a3b8"; font.pixelSize: 10 }
+                        Row {
+                            spacing: 4
+                            Slider {
+                                id: minSamplesSlider
+                                from: 5; to: 20; value: 10
+                                stepSize: 1
+                                width: 120
+                                onValueChanged: {
+                                    if (batteryParams) batteryParams.minSamplesForPrediction = value
+                                    battConfigTimer.restart()
+                                }
+                            }
+                            Text {
+                                text: minSamplesSlider.value.toFixed(0) + " samples"
+                                color: "#e2e8f0"; font.pixelSize: 10
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+                        }
+                    }
+
+                    // Safety Margin Explanation
+                    Rectangle {
+                        width: parent.width
+                        height: marginExplainCol.implicitHeight + 12
+                        radius: 6
+                        color: "#0d1117"
+                        border.color: "#334155"
+                        border.width: 1
+                        visible: safety && safety.batteryMonitorEnabled
+
+                        Column {
+                            id: marginExplainCol
+                            anchors { left: parent.left; right: parent.right; top: parent.top; margins: 6 }
+                            spacing: 4
+
+                            Text {
+                                text: "Safety Margin Explanation:"
+                                color: "#94a3b8"
+                                font.pixelSize: 9
+                                font.weight: Font.Bold
+                            }
+
+                            Text {
+                                text: "• 1.1x (10%) - Ideal conditions, experienced pilots\n" +
+                                      "• 1.2x (20%) - Normal conditions (default)\n" +
+                                      "• 1.5x (50%) - Windy/difficult conditions\n" +
+                                      "• 2.0x (100%) - Extreme safety, long distances"
+                                color: "#64748b"
+                                font.pixelSize: 8
+                                lineHeight: 1.3
+                                width: parent.width
+                                wrapMode: Text.WordWrap
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Debounce timer for battery config updates
+            Timer {
+                id: battConfigTimer
+                interval: 500
+                repeat: false
+                onTriggered: {
+                    if (safety && safety.batteryMonitorEnabled) {
+                        safety.configureBatteryMonitor(batteryParams)
+                    }
+                }
+            }
+
             // ── Safety Log ──────────────────────────────────────────────────
             Text { text: "SAFETY LOG"; color: "#64748b"; font.pixelSize: 9; font.weight: Font.Bold; font.letterSpacing: 1 }
 
@@ -567,6 +886,21 @@ Item {
 
         function onGeofenceBreached(droneId, reason) {
             safetyLogModel.append({ txt: "[GEOFENCE] " + droneId + ": " + reason })
+        }
+
+        function onRtlTriggered(droneId, reason) {
+            safetyLogModel.append({
+                txt: "[BATTERY] RTL TRIGGERED: " + droneId + " - " + reason
+            })
+        }
+
+        function onBatteryStatusChanged(status) {
+            // Log warnings when battery is getting low
+            if (status.shouldRtl && !status.rtlReason.includes("already triggered")) {
+                safetyLogModel.append({
+                    txt: "[BATTERY] " + status.droneId + ": " + status.batteryPct.toFixed(1) + "% - " + status.rtlReason
+                })
+            }
         }
     }
 

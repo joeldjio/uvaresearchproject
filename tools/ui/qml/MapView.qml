@@ -22,6 +22,7 @@ Item {
     }
 
     property bool pickMode: false
+    property bool boundaryDrawMode: false
     property string currentMapType: "dark"
 
     function setMapType(typeName) {
@@ -32,6 +33,23 @@ Item {
     function setPickMode(enabled) {
         pickMode = enabled
         webView.runJavaScript("setPickMode(" + enabled + ")")
+    }
+
+    function setBoundaryDrawMode(enabled) {
+        boundaryDrawMode = enabled
+        webView.runJavaScript("setBoundaryDrawMode(" + enabled + ")")
+    }
+
+    function updateFieldBoundary(points) {
+        webView.runJavaScript("updateFieldBoundary(" + JSON.stringify(points) + ")")
+    }
+
+    function updateCoverageWaypoints(waypoints) {
+        webView.runJavaScript("updateCoverageWaypoints(" + JSON.stringify(waypoints) + ")")
+    }
+
+    function clearFieldCoverage() {
+        webView.runJavaScript("clearFieldCoverage()")
     }
 
     function updateCollisionPredictions(predictions) {
@@ -64,6 +82,16 @@ Item {
                     if (kv[0] === "lon") lon = parseFloat(kv[1])
                 }
                 root.mapPickSelected(lat, lon)
+            } else if (url.startsWith("qrc://boundary-point?")) {
+                req.reject()
+                var params = url.substring("qrc://boundary-point?".length).split("&")
+                var lat = 0, lon = 0
+                for (var i = 0; i < params.length; i++) {
+                    var kv = params[i].split("=")
+                    if (kv[0] === "lat") lat = parseFloat(kv[1])
+                    if (kv[0] === "lon") lon = parseFloat(kv[1])
+                }
+                root.boundaryPointSelected(lat, lon)
             } else if (url.startsWith("qrc://waypoint-moved?")) {
                 req.reject()
                 var params = url.substring("qrc://waypoint-moved?".length).split("&")
@@ -180,6 +208,7 @@ Item {
 
     signal mapPickSelected(real lat, real lon)
     signal waypointMoved(int index, real lat, real lon)
+    signal boundaryPointSelected(real lat, real lon)
 
     // Drone-color palette (mirrors Python DRONE_COLORS)
     readonly property var droneColors: [
@@ -466,9 +495,104 @@ function setPickMode(enabled) {
   map.getContainer().style.cursor = enabled ? "crosshair" : "";
 }
 
+// ── Field Coverage Planning ──────────────────────────────────────────────────
+var _boundaryDrawMode = false;
+var boundaryMarkers = [], boundaryLine = null;
+var coverageWaypointMarkers = [], coverageWaypointLine = null;
+
+function setBoundaryDrawMode(enabled) {
+  _boundaryDrawMode = enabled;
+  map.getContainer().style.cursor = enabled ? "crosshair" : "";
+}
+
+function updateFieldBoundary(points) {
+  // Clear existing boundary
+  boundaryMarkers.forEach(function(m){ map.removeLayer(m); });
+  boundaryMarkers = [];
+  if (boundaryLine) { map.removeLayer(boundaryLine); boundaryLine = null; }
+  
+  if (!points || points.length === 0) return;
+  
+  var latlngs = [];
+  points.forEach(function(pt, i) {
+    var icon = L.divIcon({
+      className:"",
+      iconSize:[18,18],
+      iconAnchor:[9,9],
+      html:\'<div style="width:18px;height:18px;border-radius:50%;border:2px solid #22c55e;background:#14532d;display:flex;align-items:center;justify-content:center;color:#bbf7d0;font-size:8px;font-weight:bold;">\' + (i+1) + \'</div>\'
+    });
+    
+    var marker = L.marker([pt.lat, pt.lon], {icon: icon})
+      .bindTooltip("Boundary Point " + (i+1), {direction:"top"})
+      .addTo(map);
+    
+    boundaryMarkers.push(marker);
+    latlngs.push([pt.lat, pt.lon]);
+  });
+  
+  // Close the polygon
+  if (latlngs.length >= 3) {
+    latlngs.push(latlngs[0]);
+    boundaryLine = L.polyline(latlngs, {
+      color: "#22c55e",
+      weight: 2,
+      opacity: 0.7,
+      dashArray: "5, 5"
+    }).addTo(map);
+  }
+}
+
+function updateCoverageWaypoints(waypoints) {
+  // Clear existing coverage waypoints
+  coverageWaypointMarkers.forEach(function(m){ map.removeLayer(m); });
+  coverageWaypointMarkers = [];
+  if (coverageWaypointLine) { map.removeLayer(coverageWaypointLine); coverageWaypointLine = null; }
+  
+  if (!waypoints || waypoints.length === 0) return;
+  
+  var latlngs = [];
+  waypoints.forEach(function(wp, i) {
+    var icon = L.divIcon({
+      className:"",
+      iconSize:[16,16],
+      iconAnchor:[8,8],
+      html:\'<div style="width:16px;height:16px;border-radius:50%;border:2px solid #3b82f6;background:#1e3a8a;display:flex;align-items:center;justify-content:center;color:#93c5fd;font-size:7px;font-weight:bold;">\' + (i+1) + \'</div>\'
+    });
+    
+    var marker = L.marker([wp.lat, wp.lon], {icon: icon})
+      .bindTooltip("Coverage WP" + (i+1) + ": " + wp.alt + "m", {direction:"top"})
+      .addTo(map);
+    
+    coverageWaypointMarkers.push(marker);
+    latlngs.push([wp.lat, wp.lon]);
+  });
+  
+  // Draw coverage path
+  if (latlngs.length > 1) {
+    coverageWaypointLine = L.polyline(latlngs, {
+      color: "#3b82f6",
+      weight: 2,
+      opacity: 0.6,
+      dashArray: "4, 4"
+    }).addTo(map);
+  }
+}
+
+function clearFieldCoverage() {
+  boundaryMarkers.forEach(function(m){ map.removeLayer(m); });
+  boundaryMarkers = [];
+  if (boundaryLine) { map.removeLayer(boundaryLine); boundaryLine = null; }
+  
+  coverageWaypointMarkers.forEach(function(m){ map.removeLayer(m); });
+  coverageWaypointMarkers = [];
+  if (coverageWaypointLine) { map.removeLayer(coverageWaypointLine); coverageWaypointLine = null; }
+}
+
 map.on("click", function(e) {
   if (_pickMode) {
     window.location = "qrc://pick?lat=" + e.latlng.lat + "&lon=" + e.latlng.lng;
+  } else if (_boundaryDrawMode) {
+    window.location = "qrc://boundary-point?lat=" + e.latlng.lat + "&lon=" + e.latlng.lng;
   }
 });
 
