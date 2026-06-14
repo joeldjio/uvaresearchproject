@@ -267,6 +267,22 @@ def wire(locator: ServiceLocator) -> None:
 
     # ROS2 logs → swarm log
     ros2.ros2LogMessage.connect(swarm.logMessage)
+    
+    # ROS2 bridge status → swarm log (notify when bridge starts/stops)
+    ros2.bridgeStatusChanged.connect(
+        lambda drone_id, active: swarm.logMessage.emit(
+            "INFO",
+            f"[{drone_id}] ROS2 Bridge {'🟢 Started' if active else '🔴 Stopped'}"
+        )
+    )
+    
+    # ROS2 connection status → swarm log
+    ros2.connectionStatusChanged.connect(
+        lambda drone_id, status: swarm.logMessage.emit(
+            "WARN" if "error" in status.lower() or "lost" in status.lower() else "INFO",
+            f"[{drone_id}] ROS2 Connection: {status}"
+        )
+    )
 
     # Bag playback logs → swarm log
     bag_playback.errorOccurred.connect(
