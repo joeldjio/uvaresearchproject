@@ -48,6 +48,10 @@ class MissionEngine:
         self._req_events: dict = {}
         self._ack_event = threading.Event()
         self._ack_result: int = -1
+        # Async upload state
+        self._upload_thread: Optional[threading.Thread] = None
+        self._upload_progress_callback: Optional[Callable[[int, int], None]] = None
+        self._upload_complete_callback: Optional[Callable[[bool], None]] = None
 
         connection.on("message", self._on_message)
 
@@ -109,6 +113,76 @@ class MissionEngine:
             self._req_events = {}
             self._ack_event.clear()
 
+    def upload_async(
+        self,
+        on_progress: Optional[Callable[[int, int], None]] = None,
+        on_complete: Optional[Callable[[bool], None]] = None
+    ) -> bool:
+        """
+        Upload waypoints asynchronously in a background thread.
+        
+        This is the non-blocking version of upload() that should be used
+        from UI threads to prevent freezing.
+        
+        Args:
+            on_progress: Callback(current, total) called after each waypoint upload
+            on_complete: Callback(success) called when upload finishes
+        
+        Returns:
+            True if upload thread started successfully, False if already uploading
+        
+        Example:
+            def progress(current, total):
+                print(f"Uploading {current}/{total}")
+            
+            def complete(success):
+                print(f"Upload {'succeeded' if success else 'failed'}")
+            
+            mission.upload_async(on_progress=progress, on_complete=complete)
+        """
+        # Check if already uploading
+        if self._upload_thread is not None and self._upload_thread.is_alive():
+            return False
+        
+        self._upload_progress_callback = on_progress
+        self._upload_complete_callback = on_complete
+        
+        # Start upload in background thread
+        self._upload_thread = threading.Thread(
+            target=self._upload_worker,
+            daemon=True,
+            name="mission-upload"
+        )
+        self._upload_thread.start()
+        return True
+    
+    def _upload_worker(self):
+        """Worker thread for async upload."""
+        try:
+            # Call the blocking upload() method
+            success = self.upload()
+            
+            # Notify completion
+            if self._upload_complete_callback:
+                try:
+                    self._upload_complete_callback(success)
+                except Exception as e:
+                    print(f"[mission] upload complete callback error: {e}")
+        except Exception as e:
+            print(f"[mission] upload worker error: {e}")
+            if self._upload_complete_callback:
+                try:
+                    self._upload_complete_callback(False)
+                except Exception:
+                    pass
+        finally:
+            self._upload_progress_callback = None
+            self._upload_complete_callback = None
+    
+    def is_uploading(self) -> bool:
+        """Check if an async upload is in progress."""
+        return self._upload_thread is not None and self._upload_thread.is_alive()
+
     def _do_upload(self, mav, n: int) -> bool:
         """Send MISSION_COUNT and choose handshake vs. push-all path."""
         try:
@@ -144,6 +218,12 @@ class MissionEngine:
                     return False
             if not self._send_item(mav, seq):
                 return False
+            # Report progress after each waypoint
+            if self._upload_progress_callback:
+                try:
+                    self._upload_progress_callback(seq + 1, n)
+                except Exception as e:
+                    print(f"[mission] progress callback error: {e}")
         # Wait for final MISSION_ACK.
         if not self._ack_event.wait(timeout=5.0):
             print("[mission] timeout waiting for MISSION_ACK")
@@ -156,11 +236,24 @@ class MissionEngine:
             return False
         if not self._send_item(mav, 0):
             return False
+        # Report progress for first item
+        if self._upload_progress_callback:
+            try:
+                self._upload_progress_callback(1, n)
+            except Exception as e:
+                print(f"[mission] progress callback error: {e}")
+        
         for seq in range(1, n):
             if self._abort_event.wait(0.05):
                 return False
             if not self._send_item(mav, seq):
                 return False
+            # Report progress after each waypoint
+            if self._upload_progress_callback:
+                try:
+                    self._upload_progress_callback(seq + 1, n)
+                except Exception as e:
+                    print(f"[mission] progress callback error: {e}")
         return True
 
     def _send_item(self, mav, seq: int) -> bool:
