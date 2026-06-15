@@ -70,6 +70,13 @@ class ROS2Context(QObject):
     nodeStatusChanged   = pyqtSignal(str,          arguments=["status"])
     missionStatusChanged = pyqtSignal(str, "QVariant", arguments=["droneId", "status"])
     connectionStatusChanged = pyqtSignal(str, str, arguments=["droneId", "status"])
+    
+    # Confirmation signals for immediate UI feedback (Improvement 8)
+    armConfirmed = pyqtSignal(str, arguments=["droneId"])
+    disarmConfirmed = pyqtSignal(str, arguments=["droneId"])
+    takeoffConfirmed = pyqtSignal(str, float, arguments=["droneId", "altitude"])
+    landConfirmed = pyqtSignal(str, arguments=["droneId"])
+    rtlConfirmed = pyqtSignal(str, arguments=["droneId"])
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -248,6 +255,8 @@ class ROS2Context(QObject):
         if b:
             b.arm()
             self.ros2LogMessage.emit("INFO", f"[ROS2] {drone_id} ARM sent via uXRCE-DDS")
+            # Emit confirmation signal for immediate UI feedback
+            self.armConfirmed.emit(drone_id)
 
     @pyqtSlot(str)
     def disarmBridge(self, drone_id: str) -> None:
@@ -255,6 +264,8 @@ class ROS2Context(QObject):
         if b:
             b.disarm()
             self.ros2LogMessage.emit("INFO", f"[ROS2] {drone_id} DISARM sent via uXRCE-DDS")
+            # Emit confirmation signal for immediate UI feedback
+            self.disarmConfirmed.emit(drone_id)
 
     @pyqtSlot(str, float)
     def takeoffBridge(self, drone_id: str, altitude: float) -> None:
@@ -262,6 +273,8 @@ class ROS2Context(QObject):
         if b:
             b.takeoff(altitude)
             self.ros2LogMessage.emit("INFO", f"[ROS2] {drone_id} TAKEOFF {altitude}m via uXRCE-DDS")
+            # Emit confirmation signal for immediate UI feedback
+            self.takeoffConfirmed.emit(drone_id, altitude)
 
     @pyqtSlot(str)
     def landBridge(self, drone_id: str) -> None:
@@ -269,6 +282,8 @@ class ROS2Context(QObject):
         if b:
             b.land()
             self.ros2LogMessage.emit("INFO", f"[ROS2] {drone_id} LAND via uXRCE-DDS")
+            # Emit confirmation signal for immediate UI feedback
+            self.landConfirmed.emit(drone_id)
 
     @pyqtSlot(str)
     def rtlBridge(self, drone_id: str) -> None:
@@ -276,6 +291,8 @@ class ROS2Context(QObject):
         if b:
             b.rtl()
             self.ros2LogMessage.emit("INFO", f"[ROS2] {drone_id} RTL via uXRCE-DDS")
+            # Emit confirmation signal for immediate UI feedback
+            self.rtlConfirmed.emit(drone_id)
 
     # ── Topic snapshot ────────────────────────────────────────────────────
 
