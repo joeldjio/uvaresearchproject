@@ -4,6 +4,36 @@ Custom exception types for DroneResearch platform.
 Provides explicit exception hierarchy for better error handling and recovery.
 All exceptions inherit from DroneResearchError base class.
 
+Exception Hierarchy
+-------------------
+DroneResearchError (base)
+├── ConnectionError
+│   ├── HeartbeatTimeoutError
+│   └── InvalidConnectionStringError
+├── CommandError
+│   ├── CommandRejectedError
+│   └── CommandTimeoutError
+├── MissionError
+│   ├── MissionUploadError
+│   ├── MissionAbortedError
+│   └── InvalidWaypointError
+├── StateTransitionError
+├── ConfigurationError
+│   └── InvalidParameterError
+├── ROS2Error
+│   ├── ROS2NotAvailableError
+│   ├── ROS2InitError
+│   └── TopicTimeoutError
+├── SafetyViolationError
+│   ├── GeofenceBreachError
+│   ├── CollisionRiskError
+│   └── BatteryLowError
+├── DependencyError
+├── TimeoutError
+└── DataError
+    ├── LogFileError
+    └── InvalidDataFormatError
+
 Usage:
     from droneresearch.exceptions import ConnectionError, TimeoutError
     

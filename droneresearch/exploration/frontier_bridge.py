@@ -359,3 +359,5 @@ if _ROS2_OK:
             req = EmptySrv.Request()
             if self._svc_save.wait_for_service(timeout_sec=2.0):
                 self._svc_save.call_async(req)
+            else:
+                self.get_logger().warn("exploration/save_octomap service not available")
