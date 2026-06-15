@@ -6,6 +6,7 @@ from __future__ import annotations
 import pytest
 
 from droneresearch.control.mission import MissionEngine, Waypoint
+from droneresearch.control.mission_validation import calculate_distance
 from tests.conftest import FakeConnection
 
 
@@ -184,11 +185,8 @@ def test_upload_skip_validation():
 
 def test_calculate_distance():
     """Test distance calculation between waypoints."""
-    conn = FakeConnection()
-    mission = MissionEngine(conn)
-    
     # Munich to ~1km north
-    dist = mission._calculate_distance(48.0, 11.0, 48.009, 11.0)
+    dist = calculate_distance(48.0, 11.0, 48.009, 11.0)
     
     # Should be approximately 1000m (1km)
     assert 900 < dist < 1100
@@ -196,10 +194,7 @@ def test_calculate_distance():
 
 def test_calculate_distance_zero():
     """Test distance calculation for same point."""
-    conn = FakeConnection()
-    mission = MissionEngine(conn)
-    
-    dist = mission._calculate_distance(48.0, 11.0, 48.0, 11.0)
+    dist = calculate_distance(48.0, 11.0, 48.0, 11.0)
     
     assert dist == 0.0
 

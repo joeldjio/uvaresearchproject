@@ -12,13 +12,13 @@ Usage:
     mission.wait_done()
 """
 
-import math
 import threading
 import time
 from dataclasses import dataclass, field
 from typing import Callable, List, Optional, Tuple
 
 from droneresearch.core.connection import MAVLinkConnection
+from droneresearch.control.mission_validation import validate_waypoints, calculate_distance
 
 
 @dataclass
@@ -111,50 +111,17 @@ class MissionEngine:
             errors.append("No MAVLink connection")
             return False, errors
         
-        # Check waypoint count
-        if len(self._waypoints) == 0:
-            errors.append("Mission has no waypoints")
-            return False, errors
+        # Convert Waypoint objects to dicts for validation
+        waypoints_dict = [
+            {"lat": wp.lat, "lon": wp.lon, "alt": wp.alt}
+            for wp in self._waypoints
+        ]
         
-        # Validate each waypoint
-        for i, wp in enumerate(self._waypoints):
-            # Latitude range
-            if not (-90 <= wp.lat <= 90):
-                errors.append(f"WP{i}: Invalid latitude {wp.lat} (must be -90 to 90)")
-            
-            # Longitude range
-            if not (-180 <= wp.lon <= 180):
-                errors.append(f"WP{i}: Invalid longitude {wp.lon} (must be -180 to 180)")
-            
-            # Altitude range (reasonable limits)
-            if wp.alt < 0:
-                errors.append(f"WP{i}: Negative altitude {wp.alt}m")
-            elif wp.alt > 500:
-                errors.append(f"WP{i}: Altitude {wp.alt}m exceeds 500m limit")
-            
-            # Check spacing to previous waypoint
-            if i > 0:
-                prev = self._waypoints[i - 1]
-                dist = self._calculate_distance(prev.lat, prev.lon, wp.lat, wp.lon)
-                if dist < 1.0:
-                    errors.append(f"WP{i}: Too close to WP{i-1} ({dist:.2f}m < 1m)")
+        # Use shared validation logic
+        is_valid, validation_errors = validate_waypoints(waypoints_dict)
+        errors.extend(validation_errors)
         
-        is_valid = len(errors) == 0
-        return is_valid, errors
-    
-    def _calculate_distance(self, lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-        """Calculate distance between two coordinates in meters (Haversine formula)."""
-        R = 6371000  # Earth radius in meters
-        
-        lat1_rad = math.radians(lat1)
-        lat2_rad = math.radians(lat2)
-        dlat = math.radians(lat2 - lat1)
-        dlon = math.radians(lon2 - lon1)
-        
-        a = math.sin(dlat / 2) ** 2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon / 2) ** 2
-        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-        
-        return R * c
+        return len(errors) == 0, errors
 
     # ── Upload & control ──────────────────────────────────────────────────
 

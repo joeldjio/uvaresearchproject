@@ -14,9 +14,16 @@ from __future__ import annotations
 import threading
 import time
 import logging
-from typing import Optional, List, Dict, Callable
+from typing import Optional, List, Dict, Callable, Tuple
 from concurrent.futures import ThreadPoolExecutor, Future
 from enum import Enum
+
+# Import shared validation logic
+try:
+    from droneresearch.control.mission_validation import validate_waypoints
+    _VALIDATION_OK = True
+except ImportError:
+    _VALIDATION_OK = False
 
 try:
     import rclpy
@@ -155,7 +162,32 @@ class PX4MissionUploader:
         
         logger.info(f"PX4MissionUploader initialized (namespace: {namespace or '/'})")
     
-    def upload(self, waypoints: List[Dict], timeout: float = 10.0) -> bool:
+    def validate(self, waypoints: List[Dict]) -> Tuple[bool, List[str]]:
+        """
+        Validate mission waypoints before upload.
+        
+        Checks:
+        - Minimum waypoint count (at least 1)
+        - Valid coordinates (lat: -90 to 90, lon: -180 to 180)
+        - Reasonable altitudes (0 to 500m)
+        - Waypoint spacing (warn if < 1m apart)
+        
+        Args:
+            waypoints: List of waypoint dicts with keys: lat, lon, alt
+        
+        Returns:
+            (is_valid, list_of_errors)
+        """
+        if not _VALIDATION_OK:
+            # Fallback: basic validation if shared module not available
+            errors = []
+            if len(waypoints) == 0:
+                errors.append("Mission has no waypoints")
+            return len(errors) == 0, errors
+        
+        return validate_waypoints(waypoints)
+    
+    def upload(self, waypoints: List[Dict], timeout: float = 10.0, validate_first: bool = True) -> bool:
         """
         Upload waypoints to PX4.
         
@@ -166,7 +198,19 @@ class PX4MissionUploader:
         
         Returns:
             True if upload successful (or if ACK not available)
+        
+        Args:
+            validate_first: Run pre-flight validation before upload (default: True)
         """
+        # Pre-flight validation
+        if validate_first:
+            is_valid, errors = self.validate(waypoints)
+            if not is_valid:
+                logger.error("Pre-flight validation failed:")
+                for error in errors:
+                    logger.error(f"  - {error}")
+                return False
+        
         if not waypoints:
             logger.warning("No waypoints to upload")
             return False
