@@ -148,9 +148,11 @@ class APFSafetyFilter:
         obstacle_radius: float = 4.0,
         dt:              float = 0.05,   # 20 Hz
         damping_coeff:   float = 0.3,    # velocity damping coefficient
+        max_acceleration: float = 2.0,   # m/s² - limits jerky movements (Improvement 9)
     ):
         self.min_separation  = min_separation
         self.max_speed       = max_speed
+        self.max_acceleration = max_acceleration
         self.repulsion_gain  = repulsion_gain
         self.attraction_gain = attraction_gain
         self.obstacle_radius = obstacle_radius
@@ -163,6 +165,7 @@ class APFSafetyFilter:
         )
         self._obstacles: List[Pose3D] = []   # static obstacles
         self._prev_positions: Dict[str, Pose3D] = {}  # for velocity calculation
+        self._prev_velocities: Dict[str, Pose3D] = {}  # for acceleration limiting
 
     def add_obstacle(self, x: float, y: float, z: float = 0.0):
         """Add a static obstacle (e.g. building, tree)."""
@@ -198,6 +201,9 @@ class APFSafetyFilter:
             if drone_id in self._prev_positions:
                 prev = self._prev_positions[drone_id]
                 velocity = (pos - prev) * (1.0 / self.dt)  # velocity = delta_pos / dt
+            
+            # Store previous velocity for acceleration limiting
+            prev_velocity = self._prev_velocities.get(drone_id, Pose3D(0, 0, 0))
 
             # Attractive force: toward desired position
             diff_x = des.x - pos.x
@@ -263,17 +269,40 @@ class APFSafetyFilter:
                 attr_clamped.z + rep.z + damping.z,
             ).clamp(self.max_speed * self.dt)
 
+            # Acceleration limiting (Improvement 9: prevents jerky movements)
+            # Calculate desired velocity from total displacement
+            desired_velocity = total * (1.0 / self.dt)
+            
+            # Limit acceleration: delta_v = desired_v - prev_v
+            delta_v = desired_velocity - prev_velocity
+            acceleration = delta_v * (1.0 / self.dt)
+            
+            # Clamp acceleration magnitude
+            if acceleration.norm() > self.max_acceleration:
+                acceleration = acceleration.normalized() * self.max_acceleration
+                delta_v = acceleration * self.dt
+            
+            # Apply limited velocity change
+            new_velocity = prev_velocity + delta_v
+            
+            # Clamp velocity magnitude (redundant safety check)
+            if new_velocity.norm() > self.max_speed:
+                new_velocity = new_velocity.normalized() * self.max_speed
+            
+            # Calculate new position from limited velocity
+            limited_displacement = new_velocity * self.dt
             candidate = Pose3D(
-                pos.x + total.x,
-                pos.y + total.y,
-                pos.z + total.z,
+                pos.x + limited_displacement.x,
+                pos.y + limited_displacement.y,
+                pos.z + limited_displacement.z,
             )
 
             # Apply geofence
             safe[drone_id] = self.geofence.clip(candidate)
             
-            # Store current position for next velocity calculation
+            # Store current position and velocity for next iteration
             self._prev_positions[drone_id] = pos
+            self._prev_velocities[drone_id] = new_velocity
 
         return safe
 
