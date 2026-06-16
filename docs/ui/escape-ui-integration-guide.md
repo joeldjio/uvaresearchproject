@@ -1,12 +1,17 @@
 # ESCAPE Framework UI Integration Guide
 
-**Version:** 0.4.0  
-**Target Panels:** SafetyPanel, SwarmPanel, ExperimentPanel  
+**Version:** 0.4.0
+**Target Panels:** SafetyPanel, SwarmPanel
 **Language:** English
 
 ## Overview
 
 This guide describes how to integrate ESCAPE framework features into existing UI panels without creating a separate ESCAPE panel. Features are distributed across relevant panels based on their functionality.
+
+**Integration Points:**
+- **SafetyPanel:** Perception-Based Avoidance + Adaptive Safety Margins + Distributed Mapping
+- **SwarmPanel:** Distributed Task Allocation
+- **MapView:** 3D Visualization (obstacles + occupancy map)
 
 ---
 
@@ -763,13 +768,11 @@ Rectangle {
 
 ---
 
-## 3. ExperimentPanel Integration
+## 3. SafetyPanel Integration (continued)
 
-**File:** `tools/ui/qml/panels/ExperimentPanel.qml`
+### 1.3 Distributed Mapping Consensus
 
-### 3.1 Distributed Mapping Consensus
-
-**Location:** Add new section after experiment controls
+**Location:** Add new section after Adaptive Safety Margins in SafetyPanel
 
 ```qml
 // ── DISTRIBUTED MAPPING ───────────────────────────────────────
@@ -1060,7 +1063,7 @@ Rectangle {
 
 ---
 
-## 4. Context Integration
+## 3. Context Integration
 
 ### 4.1 Update `tools/ui/context/__init__.py`
 
@@ -1094,7 +1097,7 @@ class MainWindow(QMainWindow):
 
 ---
 
-## 5. 3D Visualization (MapView.qml)
+## 4. 3D Visualization (MapView.qml)
 
 ### 5.1 Obstacle Visualization
 
@@ -1142,9 +1145,9 @@ Repeater {
 
 ---
 
-## 6. Testing
+## 5. Testing
 
-### 6.1 Manual Testing Checklist
+### 5.1 Manual Testing Checklist
 
 **Perception:**
 - [ ] Obstacles appear when point cloud data received
@@ -1170,7 +1173,7 @@ Repeater {
 - [ ] Cleanup removes old voxels
 - [ ] Clear button empties map
 
-### 6.2 Integration Test
+### 5.2 Integration Test
 
 ```python
 # tests/test_escape_ui_integration.py
@@ -1194,9 +1197,9 @@ def test_adaptive_margins_update():
 
 ---
 
-## 7. Documentation Updates
+## 6. Documentation Updates
 
-### 7.1 User Guide
+### 6.1 User Guide
 
 Add section to `docs/ui/ui-documentation.md`:
 
@@ -1230,13 +1233,12 @@ Add section to `docs/ui/ui-documentation.md`:
 
 ---
 
-## 8. Summary
+## 7. Summary
 
 **Integration Points:**
-- SafetyPanel: Perception + Adaptive Margins
-- SwarmPanel: Task Allocation
-- ExperimentPanel: Distributed Mapping
-- MapView: 3D visualization
+- **SafetyPanel:** Perception + Adaptive Margins + Distributed Mapping
+- **SwarmPanel:** Task Allocation
+- **MapView:** 3D visualization (obstacles + occupancy map)
 
 **Context Requirements:**
 - ESCAPEContext with all ESCAPE features
