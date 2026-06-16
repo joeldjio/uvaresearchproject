@@ -169,6 +169,104 @@ Item {
         }
         Keys.onEscapePressed: root.deliverMapPick(0, 0)
         focus: visible
+
+    // ── ESCAPE 3D Visualization Overlays ──────────────────────────────────
+    
+    // Obstacle Visualization (red spheres)
+    Repeater {
+        model: escape ? escape.obstacles : []
+        delegate: Rectangle {
+            id: obstacleMarker
+            width: 20; height: 20; radius: 10
+            color: "#ef4444"
+            border.color: "#dc2626"
+            border.width: 2
+            opacity: 0.7
+            z: 5
+            
+            // Position based on obstacle coordinates
+            // Note: This is a simplified 2D projection
+            // Real implementation would need proper lat/lon conversion
+            x: parent.width / 2 + modelData.x * 10
+            y: parent.height / 2 - modelData.y * 10
+            
+            // Tooltip showing coordinates
+            Rectangle {
+                anchors { bottom: parent.top; horizontalCenter: parent.horizontalCenter; bottomMargin: 4 }
+                width: tooltipText.width + 8
+                height: 16
+                radius: 3
+                color: "#1e2535"
+                border.color: "#ef4444"
+                border.width: 1
+                visible: obstacleMouseArea.containsMouse
+                
+                Text {
+                    id: tooltipText
+                    anchors.centerIn: parent
+                    text: "Obstacle (" + modelData.x.toFixed(1) + ", " + 
+                          modelData.y.toFixed(1) + ", " + modelData.z.toFixed(1) + ")"
+                    color: "#e2e8f0"
+                    font.pixelSize: 9
+                    font.family: "Consolas"
+                }
+            }
+            
+            MouseArea {
+                id: obstacleMouseArea
+                anchors.fill: parent
+                hoverEnabled: true
+            }
+        }
+    }
+    
+    // Occupancy Map Visualization (red cubes/voxels)
+    Repeater {
+        model: escape ? escape.occupiedVoxels : []
+        delegate: Rectangle {
+            id: voxelMarker
+            width: 12; height: 12
+            color: "#dc2626"
+            border.color: "#991b1b"
+            border.width: 1
+            opacity: 0.5
+            z: 4
+            
+            // Position based on voxel grid coordinates
+            // Note: This is a simplified 2D projection
+            x: parent.width / 2 + modelData.x * 5
+            y: parent.height / 2 - modelData.y * 5
+            
+            // Tooltip showing voxel info
+            Rectangle {
+                anchors { bottom: parent.top; horizontalCenter: parent.horizontalCenter; bottomMargin: 2 }
+                width: voxelTooltipText.width + 6
+                height: 14
+                radius: 2
+                color: "#1e2535"
+                border.color: "#dc2626"
+                border.width: 1
+                visible: voxelMouseArea.containsMouse
+                
+                Text {
+                    id: voxelTooltipText
+                    anchors.centerIn: parent
+                    text: "Voxel (" + modelData.x + ", " + modelData.y + ", " + 
+                          modelData.z + ") - " + modelData.votes + " vote(s)"
+                    color: "#e2e8f0"
+                    font.pixelSize: 8
+                    font.family: "Consolas"
+                }
+            }
+            
+            MouseArea {
+                id: voxelMouseArea
+                anchors.fill: parent
+                hoverEnabled: true
+            }
+        }
+    }
+
     }
 
     // Called from main.qml on telemetry

@@ -961,6 +961,512 @@ Item {
                     }
                 }
             }
+            // ── Perception-Based Collision Avoidance ────────────────────────
+            Text { text: "PERCEPTION-BASED COLLISION AVOIDANCE"; color: "#64748b"; font.pixelSize: 9; font.weight: Font.Bold; font.letterSpacing: 1 }
+
+            Rectangle {
+                width: parent.width
+                height: perceptionCol.implicitHeight + 20
+                radius: 8
+                color: "#1a2035"; border.color: "#2d3748"; border.width: 1
+
+                Column {
+                    id: perceptionCol
+                    anchors { left: parent.left; right: parent.right; top: parent.top; margins: 10 }
+                    spacing: 10
+
+                    // Enable/Disable Toggle
+                    Row {
+                        spacing: 12
+                        width: parent.width
+
+                        Rectangle {
+                            width: 140; height: 36; radius: 6
+                            color: escape && escape.perceptionEnabled ? "#15803d" : (perceptionToggleM.containsMouse ? "#1e3a5f" : "#1e2535")
+                            border.color: escape && escape.perceptionEnabled ? "#22c55e" : "#2563eb"
+                            border.width: 1
+
+                            Row {
+                                anchors.centerIn: parent
+                                spacing: 6
+
+                                Rectangle {
+                                    width: 8; height: 8; radius: 4
+                                    color: escape && escape.perceptionEnabled ? "#22c55e" : "#64748b"
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+
+                                Text {
+                                    text: escape && escape.perceptionEnabled ? "ENABLED" : "DISABLED"
+                                    color: "#e2e8f0"
+                                    font.pixelSize: 11
+                                    font.weight: Font.Bold
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+                            }
+
+                            MouseArea {
+                                id: perceptionToggleM
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                onClicked: {
+                                    if (escape) {
+                                        escape.perceptionEnabled = !escape.perceptionEnabled
+                                    }
+                                }
+                            }
+                        }
+
+                        Text {
+                            text: escape && escape.obstacleCount > 0
+                                  ? escape.obstacleCount + " obstacle(s) detected"
+                                  : "No obstacles detected"
+                            color: escape && escape.obstacleCount > 0 ? "#f59e0b" : "#64748b"
+                            font.pixelSize: 10
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                    }
+
+                    // Info Text
+                    Text {
+                        text: "Uses depth camera data to detect and avoid obstacles in real-time.\nIntegrates with APF for dynamic collision avoidance."
+                        color: "#64748b"
+                        font.pixelSize: 9
+                        wrapMode: Text.WordWrap
+                        width: parent.width
+                    }
+
+                    // Obstacle List
+                    Rectangle {
+                        width: parent.width
+                        height: 120
+                        radius: 6
+                        color: "#0d1117"
+                        border.color: "#2d3748"
+                        border.width: 1
+                        visible: escape && escape.perceptionEnabled
+
+                        ListView {
+                            id: obstacleList
+                            anchors { fill: parent; margins: 8 }
+                            model: escape ? escape.obstacles : []
+                            clip: true
+                            delegate: Row {
+                                spacing: 8
+                                width: obstacleList.width
+
+                                Rectangle {
+                                    width: 6; height: 6; radius: 3
+                                    color: "#ef4444"
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+
+                                Text {
+                                    text: "Obstacle at (" + modelData.x.toFixed(1) + ", " + 
+                                          modelData.y.toFixed(1) + ", " + modelData.z.toFixed(1) + ") m"
+                                    color: "#e2e8f0"
+                                    font.pixelSize: 10
+                                    font.family: "Consolas"
+                                }
+                            }
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "No obstacles detected"
+                                color: "#64748b"
+                                font.pixelSize: 10
+                                visible: obstacleList.count === 0
+                            }
+                        }
+                    }
+
+                    // Action Buttons
+                    Row {
+                        spacing: 8
+                        visible: escape && escape.perceptionEnabled
+
+                        Rectangle {
+                            width: 100; height: 32; radius: 6
+                            color: clearObstaclesM.containsMouse ? "#ef4444" : "#1e2535"
+                            border.color: "#ef4444"
+                            border.width: 1
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "Clear All"
+                                color: "#ef4444"
+                                font.pixelSize: 11
+                            }
+
+                            MouseArea {
+                                id: clearObstaclesM
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                onClicked: {
+                                    if (escape) escape.clearObstacles()
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ── Adaptive Safety Margins ─────────────────────────────────────
+            Text { text: "ADAPTIVE SAFETY MARGINS"; color: "#64748b"; font.pixelSize: 9; font.weight: Font.Bold; font.letterSpacing: 1 }
+
+            Rectangle {
+                width: parent.width
+                height: adaptiveCol.implicitHeight + 20
+                radius: 8
+                color: "#1a2035"; border.color: "#2d3748"; border.width: 1
+
+                Column {
+                    id: adaptiveCol
+                    anchors { left: parent.left; right: parent.right; top: parent.top; margins: 10 }
+                    spacing: 10
+
+                    // Enable/Disable Toggle
+                    Row {
+                        spacing: 12
+                        width: parent.width
+
+                        Rectangle {
+                            width: 140; height: 36; radius: 6
+                            color: escape && escape.adaptiveMarginsEnabled ? "#15803d" : (adaptiveToggleM.containsMouse ? "#1e3a5f" : "#1e2535")
+                            border.color: escape && escape.adaptiveMarginsEnabled ? "#22c55e" : "#2563eb"
+                            border.width: 1
+
+                            Row {
+                                anchors.centerIn: parent
+                                spacing: 6
+
+                                Rectangle {
+                                    width: 8; height: 8; radius: 4
+                                    color: escape && escape.adaptiveMarginsEnabled ? "#22c55e" : "#64748b"
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+
+                                Text {
+                                    text: escape && escape.adaptiveMarginsEnabled ? "ENABLED" : "DISABLED"
+                                    color: "#e2e8f0"
+                                    font.pixelSize: 11
+                                    font.weight: Font.Bold
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+                            }
+
+                            MouseArea {
+                                id: adaptiveToggleM
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                onClicked: {
+                                    if (escape) {
+                                        escape.adaptiveMarginsEnabled = !escape.adaptiveMarginsEnabled
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Info Text
+                    Text {
+                        text: "Dynamically adjusts safety margins based on environmental conditions.\nAdapts to wind speed, GPS uncertainty, and drone velocity."
+                        color: "#64748b"
+                        font.pixelSize: 9
+                        wrapMode: Text.WordWrap
+                        width: parent.width
+                    }
+
+                    // Environmental Conditions
+                    GridLayout {
+                        width: parent.width
+                        columns: 2
+                        columnSpacing: 12
+                        rowSpacing: 8
+                        visible: escape && escape.adaptiveMarginsEnabled
+
+                        // Wind Speed
+                        Text { text: "Wind Speed"; color: "#94a3b8"; font.pixelSize: 10 }
+                        Row {
+                            spacing: 4
+                            Slider {
+                                id: windSlider
+                                from: 0.0; to: 15.0
+                                value: escape ? escape.windSpeed : 0.0
+                                width: 120
+                                onValueChanged: {
+                                    if (escape) escape.setWindSpeed(value)
+                                }
+                            }
+                            Text {
+                                text: windSlider.value.toFixed(1) + " m/s"
+                                color: windSlider.value > 10.0 ? "#ef4444" : 
+                                       windSlider.value > 5.0 ? "#f59e0b" : "#22c55e"
+                                font.pixelSize: 10
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+                        }
+
+                        // GPS Uncertainty
+                        Text { text: "GPS Uncertainty"; color: "#94a3b8"; font.pixelSize: 10 }
+                        Row {
+                            spacing: 4
+                            Slider {
+                                id: gpsSlider
+                                from: 0.0; to: 5.0
+                                value: 0.0
+                                width: 120
+                                Component.onCompleted: {
+                                    if (escape) value = escape.gpsUncertainty
+                                }
+                                onValueChanged: {
+                                    if (escape) escape.setGpsUncertainty(value)
+                                }
+                            }
+                            Text {
+                                text: gpsSlider.value.toFixed(2) + " m"
+                                color: gpsSlider.value > 2.0 ? "#ef4444" : 
+                                       gpsSlider.value > 1.0 ? "#f59e0b" : "#22c55e"
+                                font.pixelSize: 10
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+                        }
+                    }
+
+                    // Drone Margins Display
+                    Rectangle {
+                        width: parent.width
+                        height: 100
+                        radius: 6
+                        color: "#0d1117"
+                        border.color: "#2d3748"
+                        border.width: 1
+                        visible: escape && escape.adaptiveMarginsEnabled
+
+                        ListView {
+                            id: marginsList
+                            anchors { fill: parent; margins: 8 }
+                            model: escape ? escape.droneMargins : []
+                            clip: true
+                            delegate: Row {
+                                spacing: 12
+                                width: marginsList.width
+
+                                Text {
+                                    text: modelData.droneId
+                                    color: "#3b82f6"
+                                    font.pixelSize: 10
+                                    font.weight: Font.Bold
+                                    width: 60
+                                }
+
+                                Text {
+                                    text: "Margin: " + modelData.margin.toFixed(2) + " m"
+                                    color: "#e2e8f0"
+                                    font.pixelSize: 10
+                                    font.family: "Consolas"
+                                }
+
+                                Text {
+                                    text: "Velocity: " + modelData.velocity.toFixed(1) + " m/s"
+                                    color: "#94a3b8"
+                                    font.pixelSize: 9
+                                }
+                            }
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "No active drones"
+                                color: "#64748b"
+                                font.pixelSize: 10
+                                visible: marginsList.count === 0
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ── Distributed Mapping Consensus ───────────────────────────────
+            Text { text: "DISTRIBUTED MAPPING CONSENSUS"; color: "#64748b"; font.pixelSize: 9; font.weight: Font.Bold; font.letterSpacing: 1 }
+
+            Rectangle {
+                width: parent.width
+                height: mappingCol.implicitHeight + 20
+                radius: 8
+                color: "#1a2035"; border.color: "#2d3748"; border.width: 1
+
+                Column {
+                    id: mappingCol
+                    anchors { left: parent.left; right: parent.right; top: parent.top; margins: 10 }
+                    spacing: 10
+
+                    // Enable/Disable Toggle
+                    Row {
+                        spacing: 12
+                        width: parent.width
+
+                        Rectangle {
+                            width: 140; height: 36; radius: 6
+                            color: escape && escape.mappingEnabled ? "#15803d" : (mappingToggleM.containsMouse ? "#1e3a5f" : "#1e2535")
+                            border.color: escape && escape.mappingEnabled ? "#22c55e" : "#2563eb"
+                            border.width: 1
+
+                            Row {
+                                anchors.centerIn: parent
+                                spacing: 6
+
+                                Rectangle {
+                                    width: 8; height: 8; radius: 4
+                                    color: escape && escape.mappingEnabled ? "#22c55e" : "#64748b"
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+
+                                Text {
+                                    text: escape && escape.mappingEnabled ? "ENABLED" : "DISABLED"
+                                    color: "#e2e8f0"
+                                    font.pixelSize: 11
+                                    font.weight: Font.Bold
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+                            }
+
+                            MouseArea {
+                                id: mappingToggleM
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                onClicked: {
+                                    if (escape) {
+                                        escape.mappingEnabled = !escape.mappingEnabled
+                                    }
+                                }
+                            }
+                        }
+
+                        Text {
+                            text: escape && escape.voxelCount > 0
+                                  ? escape.voxelCount + " voxel(s) mapped"
+                                  : "No voxels mapped"
+                            color: escape && escape.voxelCount > 0 ? "#22c55e" : "#64748b"
+                            font.pixelSize: 10
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                    }
+
+                    // Info Text
+                    Text {
+                        text: "Builds a shared 3D occupancy map through swarm consensus.\nEach drone contributes observations, merged via distributed voting."
+                        color: "#64748b"
+                        font.pixelSize: 9
+                        wrapMode: Text.WordWrap
+                        width: parent.width
+                    }
+
+                    // Map Statistics
+                    GridLayout {
+                        width: parent.width
+                        columns: 2
+                        columnSpacing: 12
+                        rowSpacing: 6
+                        visible: escape && escape.mappingEnabled
+
+                        Text { text: "Voxel Size"; color: "#94a3b8"; font.pixelSize: 10 }
+                        Text {
+                            text: "0.5 m"
+                            color: "#e2e8f0"
+                            font.pixelSize: 10
+                        }
+
+                        Text { text: "Consensus Threshold"; color: "#94a3b8"; font.pixelSize: 10 }
+                        Text {
+                            text: "2 votes"
+                            color: "#e2e8f0"
+                            font.pixelSize: 10
+                        }
+
+                        Text { text: "Occupied Voxels"; color: "#94a3b8"; font.pixelSize: 10 }
+                        Text {
+                            text: escape ? escape.voxelCount.toString() : "0"
+                            color: "#22c55e"
+                            font.pixelSize: 10
+                            font.weight: Font.Bold
+                        }
+                    }
+
+                    // Voxel List (scrollable)
+                    Rectangle {
+                        width: parent.width
+                        height: 100
+                        radius: 6
+                        color: "#0d1117"
+                        border.color: "#2d3748"
+                        border.width: 1
+                        visible: escape && escape.mappingEnabled
+
+                        ListView {
+                            id: voxelList
+                            anchors { fill: parent; margins: 8 }
+                            model: escape ? escape.occupiedVoxels : []
+                            clip: true
+                            delegate: Row {
+                                spacing: 8
+                                width: voxelList.width
+
+                                Rectangle {
+                                    width: 6; height: 6; radius: 3
+                                    color: "#22c55e"
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+
+                                Text {
+                                    text: "Voxel (" + modelData.x + ", " + modelData.y + ", " + modelData.z + 
+                                          ") - " + modelData.votes + " vote(s)"
+                                    color: "#e2e8f0"
+                                    font.pixelSize: 10
+                                    font.family: "Consolas"
+                                }
+                            }
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "No voxels mapped yet"
+                                color: "#64748b"
+                                font.pixelSize: 10
+                                visible: voxelList.count === 0
+                            }
+                        }
+                    }
+
+                    // Action Buttons
+                    Row {
+                        spacing: 8
+                        visible: escape && escape.mappingEnabled
+
+                        Rectangle {
+                            width: 120; height: 32; radius: 6
+                            color: cleanupMapM.containsMouse ? "#3b82f6" : "#1e2535"
+                            border.color: "#3b82f6"
+                            border.width: 1
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "Cleanup Map"
+                                color: "#3b82f6"
+                                font.pixelSize: 11
+                            }
+
+                            MouseArea {
+                                id: cleanupMapM
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                onClicked: {
+                                    if (escape) escape.cleanupMap()
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
 
             // ── Safety Log ──────────────────────────────────────────────────
             Text { text: "SAFETY LOG"; color: "#64748b"; font.pixelSize: 9; font.weight: Font.Bold; font.letterSpacing: 1 }

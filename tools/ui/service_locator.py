@@ -123,6 +123,11 @@ def build_default_locator(app=None) -> ServiceLocator:
 
         return MissionContext()
 
+    def _escape():
+        from tools.ui.context.escape_context import ESCAPEContext
+
+        return ESCAPEContext()
+
     def _updater():
         from tools.ui.updater import UpdaterContext
 
@@ -138,6 +143,7 @@ def build_default_locator(app=None) -> ServiceLocator:
     loc.register_factory("experiment", _experiment)
     loc.register_factory("safety", _safety)
     loc.register_factory("mission", _mission)
+    loc.register_factory("escape", _escape)
     loc.register_factory("ros2", _ros2)
     loc.register_factory("bagPlayback", _bag_playback)
     loc.register_factory("updater", _updater)
@@ -157,6 +163,7 @@ def wire(locator: ServiceLocator) -> None:
     mission = locator["mission"]
     ros2 = locator["ros2"]
     bag_playback = locator["bagPlayback"]
+    escape = locator["escape"]
     
     # Inject swarm context into mission context for mission upload
     mission.set_swarm_context(swarm)
@@ -207,9 +214,12 @@ def wire(locator: ServiceLocator) -> None:
             else "WARN"
             if "WARN" in text
             else "INFO",
-            f"[SAFETY] {text}",
+            f"[APF] {text}",
         )
     )
+    
+    # ESCAPE logs → swarm log
+    escape.logMessage.connect(swarm.logMessage)
     safety.geofenceBreached.connect(
         lambda did, reason: swarm.logMessage.emit(
             "ERROR", f"[{did}] 🚨 GEOFENCE BREACH: {reason}"

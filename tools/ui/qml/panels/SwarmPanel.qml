@@ -1019,6 +1019,282 @@ Item {
                         }
                     }
                 }
+                // ── DISTRIBUTED TASK ALLOCATION ───────────────────────────
+                Text { text: "DISTRIBUTED TASK ALLOCATION"; color: "#64748b"; font.pixelSize: 9; font.weight: Font.Bold; font.letterSpacing: 1 }
+
+                Rectangle {
+                    width: parent.width; height: taskAllocCol.implicitHeight + 20; radius: 8
+                    color: "#1a2035"; border.color: "#2d3748"; border.width: 1
+
+                    Column {
+                        id: taskAllocCol
+                        anchors { left: parent.left; right: parent.right; top: parent.top; margins: 10 }
+                        spacing: 10
+
+                        // Enable/Disable Toggle
+                        Row {
+                            spacing: 12
+                            width: parent.width
+
+                            Rectangle {
+                                width: 140; height: 36; radius: 6
+                                color: escape && escape.taskAllocationEnabled ? "#15803d" : (taskAllocToggleM.containsMouse ? "#1e3a5f" : "#1e2535")
+                                border.color: escape && escape.taskAllocationEnabled ? "#22c55e" : "#2563eb"
+                                border.width: 1
+
+                                Row {
+                                    anchors.centerIn: parent
+                                    spacing: 6
+
+                                    Rectangle {
+                                        width: 8; height: 8; radius: 4
+                                        color: escape && escape.taskAllocationEnabled ? "#22c55e" : "#64748b"
+                                        anchors.verticalCenter: parent.verticalCenter
+                                    }
+
+                                    Text {
+                                        text: escape && escape.taskAllocationEnabled ? "ENABLED" : "DISABLED"
+                                        color: "#e2e8f0"
+                                        font.pixelSize: 11
+                                        font.weight: Font.Bold
+                                        anchors.verticalCenter: parent.verticalCenter
+                                    }
+                                }
+
+                                MouseArea {
+                                    id: taskAllocToggleM
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    onClicked: {
+                                        if (escape) {
+                                            escape.taskAllocationEnabled = !escape.taskAllocationEnabled
+                                        }
+                                    }
+                                }
+                            }
+
+                            Text {
+                                text: escape && escape.taskCount > 0
+                                      ? escape.taskCount + " task(s) allocated"
+                                      : "No tasks allocated"
+                                color: escape && escape.taskCount > 0 ? "#22c55e" : "#64748b"
+                                font.pixelSize: 10
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+                        }
+
+                        // Info Text
+                        Text {
+                            text: "Auction-based task allocation for swarm coordination.\nDrones bid on tasks based on distance, battery, and workload."
+                            color: "#64748b"
+                            font.pixelSize: 9
+                            wrapMode: Text.WordWrap
+                            width: parent.width
+                        }
+
+                        // Task Announcement
+                        Rectangle {
+                            width: parent.width
+                            height: announceCol.implicitHeight + 16
+                            radius: 6
+                            color: "#0d1117"
+                            border.color: "#2d3748"
+                            border.width: 1
+                            visible: escape && escape.taskAllocationEnabled
+
+                            Column {
+                                id: announceCol
+                                anchors { left: parent.left; right: parent.right; top: parent.top; margins: 8 }
+                                spacing: 8
+
+                                Text {
+                                    text: "Announce New Task"
+                                    color: "#94a3b8"
+                                    font.pixelSize: 10
+                                    font.weight: Font.Bold
+                                }
+
+                                GridLayout {
+                                    width: parent.width
+                                    columns: 2
+                                    columnSpacing: 8
+                                    rowSpacing: 6
+
+                                    Text { text: "Task ID"; color: "#94a3b8"; font.pixelSize: 9 }
+                                    TextField {
+                                        id: taskIdField
+                                        Layout.fillWidth: true
+                                        height: 28
+                                        placeholderText: "e.g., TASK_001"
+                                        color: "#e2e8f0"
+                                        font.pixelSize: 10
+                                        background: Rectangle {
+                                            color: "#1e2535"
+                                            radius: 4
+                                            border.color: "#2d3748"
+                                            border.width: 1
+                                        }
+                                    }
+
+                                    Text { text: "Position X"; color: "#94a3b8"; font.pixelSize: 9 }
+                                    TextField {
+                                        id: taskXField
+                                        Layout.fillWidth: true
+                                        height: 28
+                                        placeholderText: "meters"
+                                        color: "#e2e8f0"
+                                        font.pixelSize: 10
+                                        background: Rectangle {
+                                            color: "#1e2535"
+                                            radius: 4
+                                            border.color: "#2d3748"
+                                            border.width: 1
+                                        }
+                                    }
+
+                                    Text { text: "Position Y"; color: "#94a3b8"; font.pixelSize: 9 }
+                                    TextField {
+                                        id: taskYField
+                                        Layout.fillWidth: true
+                                        height: 28
+                                        placeholderText: "meters"
+                                        color: "#e2e8f0"
+                                        font.pixelSize: 10
+                                        background: Rectangle {
+                                            color: "#1e2535"
+                                            radius: 4
+                                            border.color: "#2d3748"
+                                            border.width: 1
+                                        }
+                                    }
+
+                                    Text { text: "Position Z"; color: "#94a3b8"; font.pixelSize: 9 }
+                                    TextField {
+                                        id: taskZField
+                                        Layout.fillWidth: true
+                                        height: 28
+                                        placeholderText: "meters"
+                                        color: "#e2e8f0"
+                                        font.pixelSize: 10
+                                        background: Rectangle {
+                                            color: "#1e2535"
+                                            radius: 4
+                                            border.color: "#2d3748"
+                                            border.width: 1
+                                        }
+                                    }
+                                }
+
+                                Rectangle {
+                                    width: 120; height: 32; radius: 6
+                                    color: announceTaskM.containsMouse ? "#3b82f6" : "#1e2535"
+                                    border.color: "#3b82f6"
+                                    border.width: 1
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: "Announce Task"
+                                        color: "#3b82f6"
+                                        font.pixelSize: 11
+                                    }
+
+                                    MouseArea {
+                                        id: announceTaskM
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        onClicked: {
+                                            if (escape && taskIdField.text && taskXField.text && taskYField.text && taskZField.text) {
+                                                escape.announceTask(
+                                                    taskIdField.text,
+                                                    parseFloat(taskXField.text),
+                                                    parseFloat(taskYField.text),
+                                                    parseFloat(taskZField.text)
+                                                )
+                                                taskIdField.text = ""
+                                                taskXField.text = ""
+                                                taskYField.text = ""
+                                                taskZField.text = ""
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Allocated Tasks List
+                        Rectangle {
+                            width: parent.width
+                            height: 120
+                            radius: 6
+                            color: "#0d1117"
+                            border.color: "#2d3748"
+                            border.width: 1
+                            visible: escape && escape.taskAllocationEnabled
+
+                            ListView {
+                                id: tasksList
+                                anchors { fill: parent; margins: 8 }
+                                model: escape ? escape.tasks : []
+                                clip: true
+                                delegate: Column {
+                                    spacing: 4
+                                    width: tasksList.width
+
+                                    Row {
+                                        spacing: 12
+                                        width: parent.width
+
+                                        Rectangle {
+                                            width: 6; height: 6; radius: 3
+                                            color: modelData.status === "allocated" ? "#22c55e" : 
+                                                   modelData.status === "bidding" ? "#f59e0b" : "#64748b"
+                                            anchors.verticalCenter: parent.verticalCenter
+                                        }
+
+                                        Text {
+                                            text: modelData.taskId
+                                            color: "#3b82f6"
+                                            font.pixelSize: 10
+                                            font.weight: Font.Bold
+                                            width: 80
+                                        }
+
+                                        Text {
+                                            text: "→ " + (modelData.assignedDrone || "Unassigned")
+                                            color: modelData.assignedDrone ? "#22c55e" : "#64748b"
+                                            font.pixelSize: 10
+                                            width: 100
+                                        }
+
+                                        Text {
+                                            text: "(" + modelData.x.toFixed(1) + ", " + 
+                                                  modelData.y.toFixed(1) + ", " + 
+                                                  modelData.z.toFixed(1) + ")"
+                                            color: "#94a3b8"
+                                            font.pixelSize: 9
+                                            font.family: "Consolas"
+                                        }
+                                    }
+
+                                    Rectangle {
+                                        width: parent.width
+                                        height: 1
+                                        color: "#2d3748"
+                                    }
+                                }
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "No tasks announced yet"
+                                    color: "#64748b"
+                                    font.pixelSize: 10
+                                    visible: tasksList.count === 0
+                                }
+                            }
+                        }
+                    }
+                }
+
 
                 // ── SWARM ROLLE & FORMATION ───────────────────────────────
                 Text { text: qsTr("SWARM ROLE & FORMATION"); color: "#64748b"; font.pixelSize: 9; font.weight: Font.Bold; font.letterSpacing: 1 }
