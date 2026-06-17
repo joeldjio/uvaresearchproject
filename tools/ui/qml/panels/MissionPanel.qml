@@ -83,7 +83,7 @@ Rectangle {
                                 
                                 Text {
                                     anchors.centerIn: parent
-                                    text: "📐 Coverage"
+                                    text: "▦ Coverage"
                                     color: mission && !mission.seedingModeEnabled ? "#0f172a" : "#94a3b8"
                                     font.pixelSize: 10
                                     font.weight: Font.Bold
@@ -104,7 +104,7 @@ Rectangle {
                                 
                                 Text {
                                     anchors.centerIn: parent
-                                    text: "🌱 Seeding"
+                                    text: "◉ Seeding"
                                     color: mission && mission.seedingModeEnabled ? "#ffffff" : "#94a3b8"
                                     font.pixelSize: 10
                                     font.weight: Font.Bold
@@ -130,6 +130,7 @@ Rectangle {
                 radius: 8
                 border.color: "#334155"
                 border.width: 1
+                visible: mission && !mission.seedingModeEnabled
 
                 Column {
                     id: coverageColumn
@@ -899,6 +900,135 @@ Rectangle {
                         wrapMode: Text.WordWrap
                         width: parent.width
                     }
+
+                    Rectangle { width: parent.width; height: 1; color: "#2d3748" }
+
+                    // Field Boundary (shared with coverage mode)
+                    Column {
+                        width: parent.width
+                        spacing: 6
+
+                        Row {
+                            width: parent.width
+                            spacing: 8
+
+                            Text {
+                                text: "Field Boundary"
+                                color: "#94a3b8"
+                                font.pixelSize: 10
+                                font.weight: Font.Bold
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+
+                            Text {
+                                text: mission ? mission.fieldBoundaryPoints + " points" : "0 points"
+                                color: "#64748b"
+                                font.pixelSize: 9
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+                        }
+
+                        Row {
+                            width: parent.width
+                            spacing: 6
+
+                            Rectangle {
+                                width: (parent.width - 6) / 2
+                                height: 32
+                                radius: 6
+                                color: drawBoundarySeedingM.containsMouse ? "#1e40af" : "#1e3a8a"
+                                border.color: "#3b82f6"
+                                border.width: 1
+                                opacity: mission && mission.missionLocked ? 0.4 : 1.0
+
+                                Row {
+                                    anchors.centerIn: parent
+                                    spacing: 6
+
+                                    Cmp.Icon {
+                                        name: mission && mission.missionLocked ? "lock" : "edit"
+                                        size: 12
+                                        color: "#93c5fd"
+                                        anchors.verticalCenter: parent.verticalCenter
+                                    }
+
+                                    Text {
+                                        text: mission && mission.missionLocked ? "LOCKED" : "DRAW ON MAP"
+                                        color: "#93c5fd"
+                                        font.pixelSize: 9
+                                        font.weight: Font.Bold
+                                        font.letterSpacing: 0.5
+                                        anchors.verticalCenter: parent.verticalCenter
+                                    }
+                                }
+
+                                MouseArea {
+                                    id: drawBoundarySeedingM
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    enabled: !(mission && mission.missionLocked)
+                                    onClicked: {
+                                        if (mission) {
+                                            mission.startDrawingBoundary()
+                                            root.Window.window.selectTabById("map")
+                                        }
+                                    }
+                                }
+                            }
+
+                            Rectangle {
+                                width: (parent.width - 6) / 2
+                                height: 32
+                                radius: 6
+                                color: mission && mission.drawingMode
+                                    ? (finishSeedingM.containsMouse ? "#15803d" : "#166534")
+                                    : (clearBoundarySeedingM.containsMouse ? "#991b1b" : "#7f1d1d")
+                                border.color: mission && mission.drawingMode ? "#22c55e" : "#ef4444"
+                                border.width: 1
+                                opacity: (mission && mission.drawingMode) || (mission && mission.fieldBoundaryPoints > 0) ? 1 : 0.5
+
+                                Row {
+                                    anchors.centerIn: parent
+                                    spacing: 6
+
+                                    Cmp.Icon {
+                                        name: mission && mission.drawingMode ? "check" : "x"
+                                        size: 12
+                                        color: mission && mission.drawingMode ? "#bbf7d0" : "#fecaca"
+                                        anchors.verticalCenter: parent.verticalCenter
+                                    }
+
+                                    Text {
+                                        text: mission && mission.drawingMode ? "FINISH" : "CLEAR"
+                                        color: mission && mission.drawingMode ? "#bbf7d0" : "#fecaca"
+                                        font.pixelSize: 9
+                                        font.weight: Font.Bold
+                                        font.letterSpacing: 0.5
+                                        anchors.verticalCenter: parent.verticalCenter
+                                    }
+                                }
+
+                                MouseArea {
+                                    id: finishSeedingM
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    visible: mission && mission.drawingMode
+                                    onClicked: if (mission) mission.finishDrawingBoundary()
+                                }
+
+                                MouseArea {
+                                    id: clearBoundarySeedingM
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    visible: !(mission && mission.drawingMode)
+                                    enabled: mission && mission.fieldBoundaryPoints > 0
+                                    onClicked: if (mission) mission.clearBoundary()
+                                }
+                            }
+                        }
+                    }
+
+                    Rectangle { width: parent.width; height: 1; color: "#2d3748" }
 
                     // Seeding Parameters
                     Grid {

@@ -304,12 +304,13 @@ def test_waypoint_sequence():
     )
     
     # Find first seed drop sequence
+    # New sequence: NAV (with hold) -> SERVO_OPEN -> SERVO_CLOSE
     for i, wp in enumerate(waypoints):
-        if wp.cmd == MAV_CMD_DO_SET_SERVO:
-            # Should be: NAV -> SERVO_OPEN -> DELAY -> SERVO_CLOSE
-            assert waypoints[i-1].cmd == MAV_CMD_NAV_WAYPOINT
-            assert waypoints[i].cmd == MAV_CMD_DO_SET_SERVO  # Open
-            assert waypoints[i+1].cmd == MAV_CMD_NAV_DELAY
+        if wp.cmd == MAV_CMD_NAV_WAYPOINT and wp.hold > 0:
+            # This is a seed drop waypoint
+            assert waypoints[i].cmd == MAV_CMD_NAV_WAYPOINT
+            assert waypoints[i].hold > 0  # Has hold time for seed drop
+            assert waypoints[i+1].cmd == MAV_CMD_DO_SET_SERVO  # Open
             assert waypoints[i+2].cmd == MAV_CMD_DO_SET_SERVO  # Close
             break
 

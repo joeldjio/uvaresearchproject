@@ -324,6 +324,7 @@ class MissionContext(QObject):
     def startDrawingBoundary(self):
         with self._lock:
             self._drawing_mode = True
+            self.logMessage.emit("INFO", f"[MISSION] Drawing mode set to: {self._drawing_mode}")
             self.drawingModeChanged.emit(True)
             self.logMessage.emit("INFO", "[MISSION] Click map to define boundary (5min timeout)")
             # Start 5-minute timeout
@@ -946,10 +947,23 @@ class MissionContext(QObject):
                     for wp in waypoints:
                         mission.add(wp)
                     
-                    if not mission.upload():
+                    # Validate before upload
+                    is_valid, errors = mission.validate()
+                    if not is_valid:
                         self.logMessage.emit(
                             "ERROR",
-                            f"[{drone_id}] ❌ Upload failed"
+                            f"[{drone_id}] ❌ Validation failed:"
+                        )
+                        for error in errors[:5]:  # Show first 5 errors
+                            self.logMessage.emit("ERROR", f"  - {error}")
+                        if len(errors) > 5:
+                            self.logMessage.emit("ERROR", f"  ... and {len(errors)-5} more errors")
+                        continue
+                    
+                    if not mission.upload(validate_first=False):  # Already validated
+                        self.logMessage.emit(
+                            "ERROR",
+                            f"[{drone_id}] ❌ Upload failed (protocol error)"
                         )
                         continue
                     
@@ -958,9 +972,36 @@ class MissionContext(QObject):
                         f"[{drone_id}] ✅ Seeding mission uploaded ({len(waypoints)} WP)"
                     )
                     
-                    # Auto-sequence: ARM → TAKEOFF → START
+                    # Check drone state and execute appropriate sequence
                     drone_obj = backend._drone
+                    fsm_state = backend.fsm_state if hasattr(backend, 'fsm_state') else "UNKNOWN"
                     
+                    self.logMessage.emit("INFO", f"[{drone_id}] Current state: {fsm_state}")
+                    
+                    # If already flying, just start the mission
+                    if fsm_state in ["FLYING", "MISSION"]:
+                        self.logMessage.emit("INFO", f"[{drone_id}] 🌱 Starting seeding mission...")
+                        if mission.start():
+                            success_count += 1
+                            self.logMessage.emit(
+                                "INFO",
+                                f"[{drone_id}] ✅ Seeding mission started!"
+                            )
+                            
+                            # Mark mission as active
+                            if self._swarm_context is not None:
+                                with self._swarm_context._state_lock:
+                                    if drone_id not in self._swarm_context._mission_active:
+                                        self._swarm_context._mission_active[drone_id] = threading.Event()
+                                    self._swarm_context._mission_active[drone_id].clear()
+                        else:
+                            self.logMessage.emit(
+                                "WARN",
+                                f"[{drone_id}] ⚠ Failed to start (set AUTO mode manually)"
+                            )
+                        continue
+                    
+                    # If on ground, execute full sequence: ARM → TAKEOFF → START
                     if not drone_obj.armed:
                         self.logMessage.emit("INFO", f"[{drone_id}] 🔧 Arming...")
                         if not drone_obj.arm(timeout=10.0):
@@ -1032,20 +1073,20 @@ class MissionContext(QObject):
     def getSeedingWaypoints(self):
         """Return seeding waypoints for QML/JavaScript map display.
         
-        Only returns NAV waypoints (cmd=16) for visualization, skipping servo/delay commands.
+        Returns NAV waypoints with 'isSeedPoint' flag for visualization.
         """
         try:
             with self._lock:
-                # Filter to only NAV_WAYPOINT commands for map display
-                return [
-                    {
-                        "lat": float(wp.lat),
-                        "lon": float(wp.lon),
-                        "alt": float(wp.alt)
-                    }
-                    for wp in self._seeding_waypoints
-                    if wp.cmd == 16  # MAV_CMD_NAV_WAYPOINT only
-                ]
+                waypoints = []
+                for wp in self._seeding_waypoints:
+                    if wp.cmd == 16:  # MAV_CMD_NAV_WAYPOINT only
+                        waypoints.append({
+                            "lat": float(wp.lat),
+                            "lon": float(wp.lon),
+                            "alt": float(wp.alt),
+                            "isSeedPoint": wp.hold > 0.0  # Seed points have hold time
+                        })
+                return waypoints
         except Exception as e:
             self.logMessage.emit("ERROR", f"[SEEDING] getSeedingWaypoints failed: {e}")
             return []

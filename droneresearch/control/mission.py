@@ -119,7 +119,7 @@ class MissionEngine:
         
         # Convert Waypoint objects to dicts for validation
         waypoints_dict = [
-            {"lat": wp.lat, "lon": wp.lon, "alt": wp.alt}
+            {"lat": wp.lat, "lon": wp.lon, "alt": wp.alt, "cmd": wp.cmd}
             for wp in self._waypoints
         ]
         

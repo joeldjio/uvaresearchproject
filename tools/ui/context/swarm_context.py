@@ -708,6 +708,31 @@ class SwarmContext(QObject):
                 "ERROR", f"[{drone_id}] 🛑 EMERGENCY STOP — force-disarmed"
             )
 
+    @pyqtSlot(str)
+    def emergencyStopSelected(self, drone_id: str) -> None:
+        """Stop mission and execute RTL for the specified drone."""
+        if not drone_id:
+            self.logMessage.emit("WARNING", "[SWARM] No drone ID provided for E-STOP")
+            return
+        
+        b = self._backend.get_backend(drone_id)
+        if not b:
+            self.logMessage.emit("WARNING", f"[{drone_id}] Backend not found")
+            return
+        
+        # Stop any running mission
+        if hasattr(b, 'mission_engine') and b.mission_engine:
+            b.mission_engine.clear()
+        
+        # Execute RTL
+        if b.is_connected:
+            b.rtl()
+            self.logMessage.emit(
+                "WARNING", f"[{drone_id}] ⛔ E-STOP — Mission stopped, executing RTL"
+            )
+        else:
+            self.logMessage.emit("WARNING", f"[{drone_id}] Not connected")
+
     @pyqtSlot(str, result=str)
     def droneFsmState(self, drone_id: str) -> str:
         b = self._backend.get_backend(drone_id)

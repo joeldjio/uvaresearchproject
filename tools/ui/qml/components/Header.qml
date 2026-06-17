@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import "../components" as Cmp
 
 Rectangle {
     id: root
@@ -311,7 +312,19 @@ Rectangle {
                 Text { text: "⛔"; font.pixelSize: 13; anchors.verticalCenter: parent.verticalCenter }
                 Text { id: estopLabel; text: qsTr("E-STOP"); color: "white"; font.pixelSize: 11; font.weight: Font.Bold; anchors.verticalCenter: parent.verticalCenter }
             }
-            MouseArea { id: estopMouse; anchors.fill: parent; hoverEnabled: true; onClicked: swarm.emergencyStop() }
+            MouseArea {
+                id: estopMouse
+                anchors.fill: parent
+                hoverEnabled: true
+                onClicked: {
+                    var droneId = Cmp.AppState.selectedDroneId
+                    if (droneId && droneId !== "") {
+                        swarm.emergencyStopSelected(droneId)
+                    } else {
+                        console.log("E-STOP: No drone selected")
+                    }
+                }
+            }
         }
     }
 }

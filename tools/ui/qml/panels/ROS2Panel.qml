@@ -697,7 +697,7 @@ Item {
                         // Info text
                         Text {
                             width: parent.width
-                            text: "💾 Bags saved to: <project_root>/bags/"
+                            text: "◉ Bags saved to: <project_root>/bags/"
                             color: "#64748b"
                             font.pixelSize: 8
                             wrapMode: Text.WordWrap

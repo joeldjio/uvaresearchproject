@@ -171,6 +171,21 @@ class SeedingMissionPlanner:
             add_rtl=False  # We'll add RTL manually if needed
         )
         
+        # Estimate total waypoints before generation
+        total_distance = self._estimate_total_distance(base_waypoints)
+        estimated_seeds = int(total_distance / seed_spacing)
+        estimated_waypoints = len(base_waypoints) + (estimated_seeds * 3)  # 3 WP per seed
+        
+        # Warn if too many waypoints (ArduPilot limit is ~700)
+        MAX_WAYPOINTS = 700
+        if estimated_waypoints > MAX_WAYPOINTS:
+            raise ValueError(
+                f"Mission would generate {estimated_waypoints} waypoints "
+                f"(limit: {MAX_WAYPOINTS}). "
+                f"Increase seed_spacing (current: {seed_spacing}m) or reduce field size. "
+                f"Recommended seed_spacing: {(total_distance / (MAX_WAYPOINTS / 3)):.1f}m"
+            )
+        
         # Convert to Waypoint objects and insert seed drop commands
         mission_waypoints = self._insert_seed_drops(
             base_waypoints,
@@ -198,6 +213,9 @@ class SeedingMissionPlanner:
         """
         Insert seed drop commands between navigation waypoints.
         
+        Interpolates additional waypoints between coverage waypoints based on seed_spacing,
+        ensuring seeds are dropped at regular intervals along each row.
+        
         Args:
             base_waypoints: List of (lat, lon, alt) tuples from coverage planner
             config: Seeding configuration
@@ -207,45 +225,89 @@ class SeedingMissionPlanner:
         """
         mission_waypoints = []
         
-        for i, (lat, lon, alt) in enumerate(base_waypoints):
-            # Add navigation waypoint
-            mission_waypoints.append(Waypoint(
-                lat=lat,
-                lon=lon,
-                alt=alt,
-                speed=config.speed,
-                cmd=MAV_CMD_NAV_WAYPOINT
-            ))
+        # Process each pair of consecutive base waypoints
+        for i in range(len(base_waypoints) - 1):
+            curr_lat, curr_lon, curr_alt = base_waypoints[i]
+            next_lat, next_lon, next_alt = base_waypoints[i + 1]
             
-            # Calculate if we should drop a seed at this waypoint
-            # Drop seeds along the rows (not at turn points)
-            if i > 0 and self._should_drop_seed(i, base_waypoints, config):
+            # Calculate distance between waypoints
+            distance = self._calculate_distance(
+                (curr_lat, curr_lon),
+                (next_lat, next_lon)
+            )
+            
+            # Skip if waypoints are too close (< 1m)
+            if distance < 1.0:
+                continue
+            
+            # Calculate number of seed drops needed
+            num_seeds = int(distance / config.seed_spacing)
+            
+            # If no seeds fit, add a single waypoint at midpoint
+            if num_seeds == 0:
+                mid_lat = (curr_lat + next_lat) / 2
+                mid_lon = (curr_lon + next_lon) / 2
+                mid_alt = (curr_alt + next_alt) / 2
+                
+                mission_waypoints.append(Waypoint(
+                    lat=mid_lat,
+                    lon=mid_lon,
+                    alt=mid_alt,
+                    speed=config.speed,
+                    hold=config.drop_duration,
+                    cmd=MAV_CMD_NAV_WAYPOINT
+                ))
+                
+                # Add servo commands
+                mission_waypoints.append(Waypoint(
+                    lat=mid_lat, lon=mid_lon, alt=mid_alt,
+                    cmd=MAV_CMD_DO_SET_SERVO,
+                    hold=float(config.servo_channel),
+                    radius=float(config.servo_open_pwm)
+                ))
+                mission_waypoints.append(Waypoint(
+                    lat=mid_lat, lon=mid_lon, alt=mid_alt,
+                    cmd=MAV_CMD_DO_SET_SERVO,
+                    hold=float(config.servo_channel),
+                    radius=float(config.servo_close_pwm)
+                ))
+                continue
+            
+            # Interpolate seed drop waypoints
+            for j in range(1, num_seeds + 1):
+                # Calculate interpolation factor
+                t = (j * config.seed_spacing) / distance
+                
+                # Interpolate position
+                seed_lat = curr_lat + t * (next_lat - curr_lat)
+                seed_lon = curr_lon + t * (next_lon - curr_lon)
+                seed_alt = curr_alt + t * (next_alt - curr_alt)
+                
+                # Add navigation waypoint with hold time
+                mission_waypoints.append(Waypoint(
+                    lat=seed_lat,
+                    lon=seed_lon,
+                    alt=seed_alt,
+                    speed=config.speed,
+                    hold=config.drop_duration,
+                    cmd=MAV_CMD_NAV_WAYPOINT
+                ))
+                
                 # Add servo open command
                 mission_waypoints.append(Waypoint(
-                    lat=lat,
-                    lon=lon,
-                    alt=alt,
+                    lat=seed_lat,
+                    lon=seed_lon,
+                    alt=seed_alt,
                     cmd=MAV_CMD_DO_SET_SERVO,
-                    # Use hold field for servo channel (param1)
-                    # Use radius field for PWM value (param2)
                     hold=float(config.servo_channel),
                     radius=float(config.servo_open_pwm)
                 ))
                 
-                # Add delay command to keep dispenser open
-                mission_waypoints.append(Waypoint(
-                    lat=lat,
-                    lon=lon,
-                    alt=alt,
-                    cmd=MAV_CMD_NAV_DELAY,
-                    hold=config.drop_duration
-                ))
-                
                 # Add servo close command
                 mission_waypoints.append(Waypoint(
-                    lat=lat,
-                    lon=lon,
-                    alt=alt,
+                    lat=seed_lat,
+                    lon=seed_lon,
+                    alt=seed_alt,
                     cmd=MAV_CMD_DO_SET_SERVO,
                     hold=float(config.servo_channel),
                     radius=float(config.servo_close_pwm)
@@ -286,6 +348,26 @@ class SeedingMissionPlanner:
         # This is a simplified approach - in practice, you'd track
         # cumulative distance along the row
         return distance >= config.seed_spacing
+    
+    def _estimate_total_distance(
+        self,
+        waypoints: List[Tuple[float, float, float]]
+    ) -> float:
+        """
+        Estimate total distance covered by waypoint path.
+        
+        Args:
+            waypoints: List of (lat, lon, alt) tuples
+            
+        Returns:
+            Total distance in meters
+        """
+        total = 0.0
+        for i in range(len(waypoints) - 1):
+            lat1, lon1, _ = waypoints[i]
+            lat2, lon2, _ = waypoints[i + 1]
+            total += self._calculate_distance((lat1, lon1), (lat2, lon2))
+        return total
     
     def _calculate_distance(
         self,

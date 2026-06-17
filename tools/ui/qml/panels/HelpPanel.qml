@@ -656,7 +656,7 @@ Item {
                     
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        text: qsTr("💡 For issues: collect System Log + syslogs/*.txt + console output.")
+                        text: qsTr("ⓘ For issues: collect System Log + syslogs/*.txt + console output.")
                         color: Cmp.Theme.textSecondary
                         font.pixelSize: Cmp.Theme.fontSm
                         font.italic: true

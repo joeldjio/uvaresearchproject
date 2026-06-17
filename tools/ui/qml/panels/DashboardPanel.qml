@@ -296,7 +296,7 @@ Item {
                     model: [
                         { label: "ALTITUDE",   icon: "▲", key: "alt_rel",     unit: "m",   fmt: 1, color: "#2563eb" },
                         { label: "SPEED",      icon: "→", key: "groundspeed", unit: "m/s", fmt: 1, color: "#22c55e" },
-                        { label: "HEADING",    icon: "◎", key: "yaw",         unit: "°",   fmt: 0, color: "#8b5cf6" },
+                        { label: "HEADING",    icon: "◎", key: "yaw",         unit: "°",   fmt: 2, color: "#8b5cf6" },
                         { label: "CLIMB",      icon: "↕", key: "climb",       unit: "m/s", fmt: 2, color: "#f59e0b" },
                         { label: "SATELLITES", icon: "◈", key: "satellites",  unit: "sat", fmt: 0, color: "#06b6d4" },
                         { label: "THROTTLE",   icon: "⚡", key: "throttle",   unit: "%",   fmt: 0, color: "#f97316" },
