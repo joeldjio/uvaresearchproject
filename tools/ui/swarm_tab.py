@@ -3,15 +3,15 @@ Swarm Tab — Multi-drone management, formation control, parallel commands.
 """
 import threading
 
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QGroupBox, QLabel, QPushButton, QLineEdit,
     QComboBox, QDoubleSpinBox, QSpinBox, QFrame,
     QTableWidget, QTableWidgetItem, QHeaderView,
     QScrollArea,
 )
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QColor
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor
 
 from tools.ui.style import STATE_COLORS, DRONE_COLORS
 from tools.ui.widgets import StateBadge, MetricCard, section_header, h_separator, BatteryBar

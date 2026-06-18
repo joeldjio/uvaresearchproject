@@ -7,9 +7,9 @@ pillow>=10.0
 
 # UI runtime libs that PyInstaller must be able to import while
 # analysing tools/ui/*. Same versions as production.
-PyQt6>=6.6
-PyQt6-WebEngine>=6.6
-pyqtgraph>=0.13
+# Migrated from PyQt6 to PySide6 for commercial compatibility (LGPL v3)
+PySide6>=6.6
+PySide6-Addons>=6.6
 
 # Core platform deps (already in requirements.txt but listed here so
 # `pip install -r tools/installer/requirements_build.txt` is sufficient

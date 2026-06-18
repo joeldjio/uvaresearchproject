@@ -19,7 +19,7 @@
 
 **UAVResearch GCS** is a professional ground control station designed for researchers, developers, and drone enthusiasts who need:
 
-- 🖥️ **Modern Desktop UI** - PyQt6/QML interface with dark theme and 3D visualization
+- 🖥️ **Modern Desktop UI** - PySide6/QML interface with dark theme and 3D visualization
 - 🗺️ **Interactive Map** - Real-time drone tracking on OpenStreetMap with Leaflet.js
 - 🤖 **Swarm Control** - Manage multiple drones with formation flying and coordination
 - 📊 **Live Telemetry** - Real-time monitoring of position, battery, GPS, and flight mode
@@ -94,7 +94,7 @@ cd uavresearchproject
 
 # Install with UI dependencies
 pip install -e .
-pip install PyQt6 PyQt6-WebEngine pyqtgraph
+pip install -r requirements.txt
 
 # With ROS2 support (optional)
 pip install -e ".[ros]"
@@ -466,7 +466,7 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 1. **Setup**:
    ```bash
    pip install -e .
-   pip install PyQt6 PyQt6-WebEngine pyqtgraph
+   pip install -r requirements.txt
    ```
 
 2. **Run in development mode**:
@@ -538,3 +538,129 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 **Made with ❤️ for the drone research community**
 
 **⭐ Star us on GitHub if you find this project useful!**
+
+
+---
+
+## 📄 License & Commercial Use
+
+### Project License
+
+**UAVResearch GCS** is licensed under the **MIT License**, allowing:
+- ✅ Commercial use
+- ✅ Modification
+- ✅ Distribution
+- ✅ Private use
+- ✅ Sublicensing
+
+See [`LICENSE`](LICENSE) for full terms.
+
+### Third-Party Components
+
+This project uses the following open-source components:
+
+| Component | License | Commercial Use | Notes |
+|-----------|---------|----------------|-------|
+| **PySide6** | LGPL v3 | ✅ Yes | Qt for Python (dynamically linked) |
+| **pymavlink** | LGPL v3+ | ✅ Yes | MAVLink protocol library |
+| **pyserial** | BSD-3-Clause | ✅ Yes | Serial communication |
+| **psutil** | BSD-3-Clause | ✅ Yes | System monitoring |
+| **ROS2** | Apache 2.0 | ✅ Yes | Optional dependency |
+| **pytest** | MIT | ✅ Yes | Development only |
+
+**Full license texts:** See [`THIRD_PARTY_LICENSES.txt`](THIRD_PARTY_LICENSES.txt)  
+**Copyright notices:** See [`NOTICE.txt`](NOTICE.txt)
+
+### PySide6 Migration (2026-06)
+
+The project migrated from PyQt6 (GPL v3) to PySide6 (LGPL v3) to enable commercial use without GPL restrictions.
+
+**Key Benefits:**
+- ✅ Commercial closed-source distribution allowed
+- ✅ No license fees (LGPL v3 is free)
+- ✅ No source code disclosure required
+- ✅ LGPL compliance via dynamic linking (standard in Python)
+
+**Migration Details:** See [`docs/security/PYSIDE6_MIGRATION_GUIDE.md`](docs/security/PYSIDE6_MIGRATION_GUIDE.md)  
+**License Audit:** See [`docs/security/LICENSE_AUDIT_2026-06.md`](docs/security/LICENSE_AUDIT_2026-06.md)
+
+### LGPL Compliance
+
+PySide6 and pymavlink are used under LGPL v3, which requires:
+
+1. **Dynamic Linking** ✅ - Python naturally uses dynamic linking
+2. **User Replacement** ✅ - Users can replace via `pip install PySide6`
+3. **License Notice** ✅ - Included in `THIRD_PARTY_LICENSES.txt`
+4. **No Modifications** ✅ - No changes made to LGPL libraries
+
+### Research Paper Citations
+
+This project implements algorithms from:
+
+- **APF Safety Filter:** Shibu et al., "SkySim" (arXiv:2602.01226, 2025)
+- **Vision-based Flocking:** Schilling et al., IEEE RA-L 2021
+- **Frontier Exploration:** Batinovic et al., IEEE RA-L 2021
+
+### Commercial Distribution Checklist
+
+When distributing UAVResearch GCS commercially:
+
+- [x] Include `LICENSE` (MIT)
+- [x] Include `THIRD_PARTY_LICENSES.txt`
+- [x] Include `NOTICE.txt`
+- [x] Document PySide6 dynamic linking
+- [x] Provide instructions for replacing PySide6/pymavlink
+- [x] No modifications to LGPL libraries
+
+**Legal Disclaimer:** This is not legal advice. Consult a lawyer for commercial distribution.
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+### Development Setup
+
+```bash
+# Clone repository
+git clone https://github.com/joeldjio/uavresearchproject.git
+cd uavresearchproject
+
+# Install dependencies
+pip install -r requirements.txt
+pip install -e ".[dev]"
+
+# Run tests
+pytest tests/
+
+# Run UI
+python -m tools.ui
+```
+
+---
+
+## 📞 Support
+
+- **Documentation:** [`docs/`](docs/)
+- **Issues:** [GitHub Issues](https://github.com/joeldjio/uavresearchproject/issues)
+- **Discussions:** [GitHub Discussions](https://github.com/joeldjio/uavresearchproject/discussions)
+
+---
+
+## 🙏 Acknowledgments
+
+- **ArduPilot Team** - MAVLink protocol and pymavlink library
+- **Qt Company** - PySide6 (Qt for Python)
+- **Open Source Robotics Foundation** - ROS2 framework
+- **Research Community** - Papers and algorithms implemented
+
+---
+
+**Made with ❤️ for drone research**

@@ -36,15 +36,15 @@ import urllib.request
 from pathlib import Path
 from typing import Optional
 
-from PyQt6.QtCore import (
+from PySide6.QtCore import (
     QObject,
     QThread,
     QTimer,
-    pyqtProperty,
-    pyqtSignal,
-    pyqtSlot,
+    Property,
+    Signal,
+    Slot,
 )
-from PyQt6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication
 
 from tools.ui._version import GITHUB_REPO, INSTALLER_ASSET_PREFIX, VERSION
 
@@ -75,12 +75,12 @@ def _is_newer(remote: str, local: str) -> bool:
 # Worker objects — run on a QThread, NEVER touch UI directly.
 # ──────────────────────────────────────────────────────────────────────
 class _CheckWorker(QObject):
-    found = pyqtSignal(str, str, str, str)  # version, asset_url, notes, sha256_url
-    uptodate = pyqtSignal()
-    failed = pyqtSignal(str)
-    finished = pyqtSignal()
+    found = Signal(str, str, str, str)  # version, asset_url, notes, sha256_url
+    uptodate = Signal()
+    failed = Signal(str)
+    finished = Signal()
 
-    @pyqtSlot()
+    @Slot()
     def run(self) -> None:
         try:
             req = urllib.request.Request(
@@ -131,10 +131,10 @@ class _CheckWorker(QObject):
 
 
 class _DownloadWorker(QObject):
-    progress = pyqtSignal(int)  # 0..100
-    completed = pyqtSignal(str)  # local path
-    failed = pyqtSignal(str)
-    finished = pyqtSignal()
+    progress = Signal(int)  # 0..100
+    completed = Signal(str)  # local path
+    failed = Signal(str)
+    finished = Signal()
 
     def __init__(
         self, url: str, sha256_url: str = "", parent: Optional[QObject] = None
@@ -143,7 +143,7 @@ class _DownloadWorker(QObject):
         self._url = url
         self._sha256_url = sha256_url
 
-    @pyqtSlot()
+    @Slot()
     def run(self) -> None:
         try:
             target = Path(tempfile.gettempdir()) / Path(self._url).name
@@ -232,11 +232,11 @@ class UpdaterContext(QObject):
                                      the default browser as a fallback.
     """
 
-    stateChanged = pyqtSignal()
-    latestVersionChanged = pyqtSignal()
-    releaseNotesChanged = pyqtSignal()
-    progressChanged = pyqtSignal()
-    errorMessageChanged = pyqtSignal()
+    stateChanged = Signal()
+    latestVersionChanged = Signal()
+    releaseNotesChanged = Signal()
+    progressChanged = Signal()
+    errorMessageChanged = Signal()
 
     def __init__(self, parent: Optional[QObject] = None) -> None:
         super().__init__(parent)
@@ -255,27 +255,27 @@ class UpdaterContext(QObject):
         self._download_worker: Optional[_DownloadWorker] = None
 
     # ── QML-facing properties ────────────────────────────────────────
-    @pyqtProperty(str, constant=True)
+    @Property(str, constant=True)
     def currentVersion(self) -> str:
         return VERSION
 
-    @pyqtProperty(str, notify=stateChanged)
+    @Property(str, notify=stateChanged)
     def state(self) -> str:
         return self._state
 
-    @pyqtProperty(str, notify=latestVersionChanged)
+    @Property(str, notify=latestVersionChanged)
     def latestVersion(self) -> str:
         return self._latest_version
 
-    @pyqtProperty(str, notify=releaseNotesChanged)
+    @Property(str, notify=releaseNotesChanged)
     def releaseNotes(self) -> str:
         return self._release_notes
 
-    @pyqtProperty(int, notify=progressChanged)
+    @Property(int, notify=progressChanged)
     def progress(self) -> int:
         return self._progress
 
-    @pyqtProperty(str, notify=errorMessageChanged)
+    @Property(str, notify=errorMessageChanged)
     def errorMessage(self) -> str:
         return self._error_message
 
@@ -286,7 +286,7 @@ class UpdaterContext(QObject):
             self.stateChanged.emit()
 
     # ── Slots callable from QML ──────────────────────────────────────
-    @pyqtSlot()
+    @Slot()
     def check(self) -> None:
         if self._state == "checking":
             return  # already running
@@ -305,7 +305,7 @@ class UpdaterContext(QObject):
         self._check_thread.finished.connect(self._check_thread.deleteLater)
         self._check_thread.start()
 
-    @pyqtSlot()
+    @Slot()
     def downloadAndInstall(self) -> None:
         if self._state != "available" or not self._asset_url:
             return
@@ -324,14 +324,14 @@ class UpdaterContext(QObject):
         self._download_thread.finished.connect(self._download_thread.deleteLater)
         self._download_thread.start()
 
-    @pyqtSlot()
+    @Slot()
     def openReleasesPage(self) -> None:
         import webbrowser
 
         webbrowser.open(RELEASES_PAGE_URL)
 
     # ── Worker callbacks ─────────────────────────────────────────────
-    @pyqtSlot(str, str, str, str)
+    @Slot(str, str, str, str)
     def _on_check_found(
         self, version: str, url: str, notes: str, sha256_url: str = ""
     ) -> None:
@@ -344,27 +344,27 @@ class UpdaterContext(QObject):
         self.releaseNotesChanged.emit()
         self._set_state("available")
 
-    @pyqtSlot()
+    @Slot()
     def _on_check_uptodate(self) -> None:
         self._set_state("uptodate")
 
-    @pyqtSlot(str)
+    @Slot(str)
     def _on_check_failed(self, msg: str) -> None:
         self._error_message = msg
         self.errorMessageChanged.emit()
         self._set_state("error")
 
-    @pyqtSlot(int)
+    @Slot(int)
     def _on_download_progress(self, pct: int) -> None:
         self._progress = pct
         self.progressChanged.emit()
 
-    @pyqtSlot(str)
+    @Slot(str)
     def _on_download_completed(self, path: str) -> None:
         self._set_state("ready")
         self._launch_installer(path)
 
-    @pyqtSlot(str)
+    @Slot(str)
     def _on_download_failed(self, msg: str) -> None:
         self._error_message = msg
         self.errorMessageChanged.emit()

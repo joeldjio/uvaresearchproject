@@ -74,7 +74,7 @@ class MemoryProfiler:
     def get_qt_objects(self) -> Dict[str, int]:
         """Get count of Qt objects in memory."""
         try:
-            from PyQt6.QtCore import QObject
+            from PySide6.QtCore import QObject
             counts = {}
             for obj in gc.get_objects():
                 if isinstance(obj, QObject):
@@ -88,7 +88,7 @@ class MemoryProfiler:
         """Show current Qt object counts."""
         counts = self.get_qt_objects()
         if not counts:
-            print("[Profiler] No Qt objects found (PyQt6 not available?)")
+            print("[Profiler] No Qt objects found (PySide6 not available?)")
             return
             
         print("\n[Profiler] Qt Object Counts:")

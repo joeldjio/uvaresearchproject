@@ -2,11 +2,11 @@
 Shared custom widgets used across all tabs.
 """
 import math
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QFrame, QLabel, QVBoxLayout, QHBoxLayout, QWidget, QSizePolicy
 )
-from PyQt6.QtGui import QPainter, QPen, QBrush, QColor, QFont, QPainterPath, QPolygonF
-from PyQt6.QtCore import Qt, QPointF, QRectF
+from PySide6.QtGui import QPainter, QPen, QBrush, QColor, QFont, QPainterPath, QPolygonF
+from PySide6.QtCore import Qt, QPointF, QRectF
 
 from tools.ui.style import Colors, STATE_COLORS, DRONE_COLORS
 

@@ -1,5 +1,5 @@
 """
-tools.ui — uavresearch gcs (PyQt6)
+tools.ui — uavresearch gcs (PySide6)
 
 Public API
 ----------

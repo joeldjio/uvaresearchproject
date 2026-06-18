@@ -1,0 +1,33 @@
+UAVResearch Ground Control Station
+Copyright (c) 2025 Joel Djio / Aerospace Research
+
+This product includes software developed by:
+- ArduPilot Dev Team (pymavlink)
+- Chris Liechti (pyserial)
+- Giampaolo Rodola (psutil)
+- The Qt Company Ltd. (PySide6)
+- Open Source Robotics Foundation (ROS2 - optional)
+- PX4 Development Team (px4_msgs - optional)
+
+This product implements algorithms described in:
+- Shibu et al., "SkySim: A ROS2-based Simulation Environment for Natural
+  Language Control of Drone Swarms using Large Language Models"
+  arXiv:2602.01226, 2025
+
+- Schilling et al., "Vision-based Drone Flocking in Outdoor Environments"
+  IEEE Robotics and Automation Letters (RA-L), 2021
+
+- Batinovic et al., "A Multi-resolution Frontier-Based Planner for
+  Autonomous 3D Exploration"
+  IEEE Robotics and Automation Letters (RA-L), 2021
+
+For full license information, see:
+- LICENSE (MIT License for UAVResearch code)
+- THIRD_PARTY_LICENSES.txt (Third-party component licenses)
+
+LGPL Compliance Notice:
+This software uses pymavlink and PySide6 under the GNU Lesser General Public
+License v3 (LGPL v3). These libraries are dynamically linked and can be
+replaced independently by users via pip install. No modifications have been
+made to these libraries. Source code for these libraries is available at
+their respective repositories listed in THIRD_PARTY_LICENSES.txt.

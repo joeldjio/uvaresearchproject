@@ -18,7 +18,7 @@ import traceback
 from datetime import datetime
 from pathlib import Path
 
-from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot, pyqtProperty
+from PySide6.QtCore import QObject, Signal, Slot, Property
 
 try:
     from droneresearch.experiment.scenario import (
@@ -175,17 +175,17 @@ class ExperimentContext(QObject):
     """QML-exposed experiment runner supporting both JSON scenarios and Python scripts."""
 
     # Signals
-    resultReady   = pyqtSignal("QVariant", arguments=["result"])
-    logMessage    = pyqtSignal(str,        arguments=["text"])
-    busyChanged   = pyqtSignal()
-    scriptFinished = pyqtSignal(bool, str,  arguments=["success", "message"])
-    progressChanged = pyqtSignal(int,       arguments=["percent"])
+    resultReady   = Signal("QVariant", arguments=["result"])
+    logMessage    = Signal(str,        arguments=["text"])
+    busyChanged   = Signal()
+    scriptFinished = Signal(bool, str,  arguments=["success", "message"])
+    progressChanged = Signal(int,       arguments=["percent"])
     
-    finished         = pyqtSignal()
+    finished         = Signal()
 
     # Script execution signals
-    scriptLogMessage = pyqtSignal(str,     arguments=["text"])
-    scriptLineNumber = pyqtSignal(int,     arguments=["line"])
+    scriptLogMessage = Signal(str,     arguments=["text"])
+    scriptLineNumber = Signal(int,     arguments=["line"])
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -199,17 +199,17 @@ class ExperimentContext(QObject):
         
     # ── Properties ─────────────────────────────────────────────────────────
     
-    @pyqtProperty(bool, notify=busyChanged)
+    @Property(bool, notify=busyChanged)
     def busy(self) -> bool:
         return self._busy
         
-    @pyqtProperty(int, notify=progressChanged)
+    @Property(int, notify=progressChanged)
     def progress(self) -> int:
         return self._progress
         
     # ── JSON Scenario Execution ────────────────────────────────────────────
 
-    @pyqtSlot(str, bool)
+    @Slot(str, bool)
     def run(self, scenario_json: str, use_sitl: bool = True) -> None:
         """Run a JSON-defined scenario experiment."""
         if _Scenario is None:
@@ -247,7 +247,7 @@ class ExperimentContext(QObject):
 
     # ── Python Script Execution ───────────────────────────────────────────
     
-    @pyqtSlot(str, "QVariant")
+    @Slot(str, "QVariant")
     def runPythonScript(self, code: str, globals_dict=None) -> None:
         """Execute Python code string with live log output."""
         if self._busy:
@@ -274,7 +274,7 @@ class ExperimentContext(QObject):
         )
         self._current_executor.start()
         
-    @pyqtSlot(str)
+    @Slot(str)
     def runPythonFile(self, file_path: str) -> None:
         """Execute a Python file (.py) with live log output."""
         try:
@@ -297,7 +297,7 @@ class ExperimentContext(QObject):
             self.scriptLogMessage.emit(f"[ERROR] Failed to load file: {e}")
             self.scriptFinished.emit(False, str(e))
             
-    @pyqtSlot(str, str)
+    @Slot(str, str)
     def saveAndRunScript(self, filename: str, code: str) -> None:
         """Save script to experiments/uploads/ and then execute it."""
         try:
@@ -310,7 +310,7 @@ class ExperimentContext(QObject):
             self.scriptLogMessage.emit(f"[ERROR] Failed to save script: {e}")
             self.scriptFinished.emit(False, str(e))
             
-    @pyqtSlot()
+    @Slot()
     def stopScript(self) -> None:
         """Cooperatively request the running script to stop."""
         if self._current_executor and self._current_executor.is_alive():
@@ -321,7 +321,7 @@ class ExperimentContext(QObject):
         else:
             self.scriptLogMessage.emit("[INFO] No script currently running")
 
-    @pyqtSlot()
+    @Slot()
     def forceStopScript(self) -> None:
         """Hard-interrupt the running script (best effort, unsafe)."""
         if self._current_executor and self._current_executor.is_alive():
@@ -332,12 +332,12 @@ class ExperimentContext(QObject):
         else:
             self.scriptLogMessage.emit("[INFO] No script currently running")
 
-    @pyqtSlot(float)
+    @Slot(float)
     def setScriptTimeout(self, seconds: float) -> None:
         """Set per-script execution timeout in seconds (0 disables)."""
         self._script_timeout_s = max(0.0, float(seconds))
             
-    @pyqtSlot(result="QVariant")
+    @Slot(result="QVariant")
     def listUploadedScripts(self) -> list:
         """Return list of uploaded script filenames."""
         try:
@@ -345,7 +345,7 @@ class ExperimentContext(QObject):
         except Exception:
             return []
             
-    @pyqtSlot(str)
+    @Slot(str)
     def deleteScript(self, filename: str) -> None:
         """Delete an uploaded script."""
         try:
@@ -356,7 +356,7 @@ class ExperimentContext(QObject):
         except Exception as e:
             self.scriptLogMessage.emit(f"[ERROR] Failed to delete: {e}")
             
-    @pyqtSlot(str, result=str)
+    @Slot(str, result=str)
     def readScript(self, filename: str) -> str:
         """Read an uploaded script's content."""
         try:

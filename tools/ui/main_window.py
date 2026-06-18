@@ -12,8 +12,8 @@ Tabs:
 
 import time
 
-from PyQt6.QtCore import QTimer, pyqtSlot
-from PyQt6.QtWidgets import (
+from PySide6.QtCore import QTimer, Slot
+from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -160,7 +160,7 @@ class MainWindow(QMainWindow):
         self._time_timer.timeout.connect(self._tick)
         self._time_timer.start()
 
-    @pyqtSlot()
+    @Slot()
     def _tick(self) -> None:
         self._ind_time.setText(time.strftime("%H:%M:%S"))
         backends = self._swarm.all_backends()
@@ -168,7 +168,7 @@ class MainWindow(QMainWindow):
         connected = sum(1 for b in backends.values() if b.is_connected)
         self._ind_count.setText(f"{connected}/{total} drones")
 
-    @pyqtSlot(str, str)
+    @Slot(str, str)
     def _on_log(self, level: str, msg: str) -> None:
         self._tab_log.append_log(level, msg)
         self._status.showMessage(f"[{level}] {msg}", 4000)

@@ -38,13 +38,13 @@ os.environ.setdefault("QT_LOGGING_RULES", "qt.qpa.fonts=false")
 # QtWebEngine MUST be initialised before QGuiApplication on some platforms.
 # We import it here but defer initialize() if possible. Some platforms
 # (Windows) do require initialize() pre-app — we keep that contract.
-from PyQt6.QtWebEngineQuick import QtWebEngineQuick
+from PySide6.QtWebEngineQuick import QtWebEngineQuick
 
 QtWebEngineQuick.initialize()
 profiler.mark("qtwebengine_init")
 
-from PyQt6.QtCore import QPointF, QRectF, Qt, QTimer, QUrl
-from PyQt6.QtGui import (
+from PySide6.QtCore import QPointF, QRectF, Qt, QTimer, QUrl
+from PySide6.QtGui import (
     QBrush,
     QColor,
     QFont,
@@ -56,8 +56,8 @@ from PyQt6.QtGui import (
     QPolygonF,
     QRadialGradient,
 )
-from PyQt6.QtQml import QQmlApplicationEngine
-from PyQt6.QtWidgets import QApplication, QSplashScreen
+from PySide6.QtQml import QQmlApplicationEngine
+from PySide6.QtWidgets import QApplication, QSplashScreen
 
 profiler.mark("qt_core_imports")
 

@@ -3,14 +3,14 @@ Safety Tab — APF filter visualizer, geofence editor, violation monitor.
 """
 import math
 
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGroupBox,
     QLabel, QPushButton, QDoubleSpinBox,
     QFormLayout, QTextEdit,
     QTableWidget, QTableWidgetItem, QHeaderView,
 )
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QPainter, QPen, QBrush, QColor, QFont
+from PySide6.QtCore import Qt, QTimer, Signal
+from PySide6.QtGui import QPainter, QPen, QBrush, QColor, QFont
 
 from tools.ui.widgets import section_header, h_separator, MetricCard
 from tools.ui.style import Colors, DRONE_COLORS
@@ -115,7 +115,7 @@ class SwarmTopView(QWidget):
 
 class SafetyTab(QWidget):
 
-    log_message = pyqtSignal(str, str)
+    log_message = Signal(str, str)
 
     def __init__(self, swarm_backend, parent=None):
         super().__init__(parent)

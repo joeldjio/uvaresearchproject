@@ -1,12 +1,12 @@
 """
 E2E Tests - Qt UI Workflows
 ----------------------------
-End-to-end tests for PyQt6/QML UI workflows.
+End-to-end tests for PySide6/QML UI workflows.
 Uses pytest-qt for Qt application testing.
 """
 import pytest
-from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtTest import QTest
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtTest import QTest
 
 
 @pytest.mark.e2e

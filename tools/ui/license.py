@@ -39,8 +39,8 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-from PyQt6.QtCore import (
-    QObject, QStandardPaths, pyqtProperty, pyqtSignal, pyqtSlot,
+from PySide6.QtCore import (
+    QObject, QStandardPaths, Property, Signal, Slot,
 )
 
 from tools.ui._version import LICENSE_CONTACT, LICENSE_SECRET, TRIAL_DAYS
@@ -115,10 +115,10 @@ class LicenseManager(QObject):
     deactivate()         — wipe stored key (for testing only)
     """
 
-    stateChanged      = pyqtSignal()
-    daysLeftChanged   = pyqtSignal()
-    expiryDateChanged = pyqtSignal()
-    lastErrorChanged  = pyqtSignal()
+    stateChanged      = Signal()
+    daysLeftChanged   = Signal()
+    expiryDateChanged = Signal()
+    lastErrorChanged  = Signal()
 
     def __init__(self, parent: Optional[QObject] = None) -> None:
         super().__init__(parent)
@@ -213,32 +213,32 @@ class LicenseManager(QObject):
             self.expiryDateChanged.emit()
 
     # ── Properties ───────────────────────────────────────────────────
-    @pyqtProperty(str, notify=stateChanged)
+    @Property(str, notify=stateChanged)
     def state(self) -> str:
         return self._state
 
-    @pyqtProperty(int, notify=daysLeftChanged)
+    @Property(int, notify=daysLeftChanged)
     def daysLeft(self) -> int:
         return self._days_left
 
-    @pyqtProperty(str, notify=expiryDateChanged)
+    @Property(str, notify=expiryDateChanged)
     def expiryDate(self) -> str:
         return self._expiry_date
 
-    @pyqtProperty(str, notify=lastErrorChanged)
+    @Property(str, notify=lastErrorChanged)
     def lastError(self) -> str:
         return self._last_error
 
-    @pyqtProperty(str, constant=True)
+    @Property(str, constant=True)
     def contactInfo(self) -> str:
         return LICENSE_CONTACT
 
-    @pyqtProperty(int, constant=True)
+    @Property(int, constant=True)
     def trialDays(self) -> int:
         return TRIAL_DAYS
 
     # ── Slots ────────────────────────────────────────────────────────
-    @pyqtSlot(str, result=bool)
+    @Slot(str, result=bool)
     def activate(self, key: str) -> bool:
         exp = validate_key(key)
         if exp is None:
@@ -256,7 +256,7 @@ class LicenseManager(QObject):
         self._evaluate()
         return self._state == "licensed"
 
-    @pyqtSlot()
+    @Slot()
     def deactivate(self) -> None:
         """Testing helper: clear stored key and reset trial baseline."""
         self._stored_key = ""

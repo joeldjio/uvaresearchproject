@@ -3,7 +3,7 @@ Entry point: python -m tools.ui
 
 Flags
 -----
---legacy    Use old PyQt6 QWidget UI (main_window.py) instead of QML.
+--legacy    Use old PySide6 QWidget UI (main_window.py) instead of QML.
 """
 
 import sys
@@ -19,8 +19,8 @@ def main():
             DeprecationWarning,
             stacklevel=1,
         )
-        from PyQt6.QtGui import QFont
-        from PyQt6.QtWidgets import QApplication, QMessageBox
+        from PySide6.QtGui import QFont
+        from PySide6.QtWidgets import QApplication, QMessageBox
 
         from tools.ui._version import VERSION
         from tools.ui.main_window import MainWindow

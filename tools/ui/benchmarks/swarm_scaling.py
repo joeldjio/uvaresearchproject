@@ -157,8 +157,8 @@ class Result:
 
 def _bench_telemetry(n: int, ticks: int, rng: random.Random) -> Tuple[float, int]:
     """Return (avg_ms_per_tick, dataChanged_emit_count)."""
-    # Local import: the model needs PyQt6 + a QCoreApplication context.
-    from PyQt6.QtCore import QCoreApplication
+    # Local import: the model needs PySide6 + a QCoreApplication context.
+    from PySide6.QtCore import QCoreApplication
 
     app = QCoreApplication.instance() or QCoreApplication([])
 

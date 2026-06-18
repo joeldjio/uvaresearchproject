@@ -4,7 +4,7 @@ Experiment Tab — Scenario runner, metrics, results viewer.
 import json
 import threading
 
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout,
     QGroupBox, QLabel, QPushButton, QLineEdit,
     QComboBox, QDoubleSpinBox, QSpinBox,
@@ -12,8 +12,8 @@ from PyQt6.QtWidgets import (
     QTextEdit, QCheckBox, QListWidget,
     QListWidgetItem, QFormLayout, QFileDialog,
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QObject
-from PyQt6.QtGui import QColor
+from PySide6.QtCore import Qt, Signal, QObject
+from PySide6.QtGui import QColor
 
 from tools.ui.widgets import section_header, h_separator, MetricCard
 
@@ -26,9 +26,9 @@ except ImportError:  # pragma: no cover
 
 class ExperimentWorker(QObject):
     """Runs ScenarioRunner in background thread and emits progress."""
-    result_ready  = pyqtSignal(dict)
-    log_message   = pyqtSignal(str)
-    finished      = pyqtSignal()
+    result_ready  = Signal(dict)
+    log_message   = Signal(str)
+    finished      = Signal()
 
     def __init__(self, scenario_dict: dict, use_sitl: bool):
         super().__init__()
@@ -59,7 +59,7 @@ class ExperimentWorker(QObject):
 
 class ExperimentTab(QWidget):
 
-    log_message = pyqtSignal(str, str)
+    log_message = Signal(str, str)
 
     def __init__(self, parent=None):
         super().__init__(parent)

@@ -2,7 +2,7 @@
 Tests for tools.ui.service_locator.ServiceLocator.
 
 Pure-Python DI container — no Qt needed for the basic API. The
-``build_default_locator()`` test does import the actual contexts; if PyQt6
+``build_default_locator()`` test does import the actual contexts; if PySide6
 is missing it's skipped.
 """
 from __future__ import annotations
@@ -120,7 +120,7 @@ def test_register_overrides_previous_instance():
 
 def test_build_default_locator_registers_expected_keys(qapp):
     """All five context factories must be registered."""
-    pytest.importorskip("PyQt6")
+    pytest.importorskip("PySide6")
     from tools.ui.service_locator import build_default_locator
 
     loc = build_default_locator()
@@ -130,7 +130,7 @@ def test_build_default_locator_registers_expected_keys(qapp):
 
 def test_build_default_locator_factories_are_lazy(qapp):
     """No service should be constructed before eager_init()."""
-    pytest.importorskip("PyQt6")
+    pytest.importorskip("PySide6")
     from tools.ui.service_locator import build_default_locator
 
     loc = build_default_locator()

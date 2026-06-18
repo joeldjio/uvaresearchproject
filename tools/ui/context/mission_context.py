@@ -10,7 +10,7 @@ import math
 import threading
 from typing import List, Tuple, Optional, TYPE_CHECKING
 
-from PyQt6.QtCore import QObject, pyqtProperty, pyqtSignal, pyqtSlot
+from PySide6.QtCore import QObject, Property, Signal, Slot
 
 from droneresearch.control.field_coverage import (
     FieldCoveragePlanner,
@@ -30,15 +30,15 @@ class MissionContext(QObject):
     """QML-callable wrapper for field coverage planning."""
 
     # Signals
-    logMessage = pyqtSignal(str, str, arguments=["level", "text"])
-    fieldBoundaryChanged = pyqtSignal()
-    coverageGenerated = pyqtSignal()
-    coverageCleared = pyqtSignal()
-    drawingModeChanged = pyqtSignal(bool, arguments=["active"])
-    missionLockChanged = pyqtSignal(bool, arguments=["locked"])
-    solarPanelRowsChanged = pyqtSignal()
-    solarStatsChanged = pyqtSignal()
-    solarRowDrawingModeChanged = pyqtSignal(bool, arguments=["active"])
+    logMessage = Signal(str, str, arguments=["level", "text"])
+    fieldBoundaryChanged = Signal()
+    coverageGenerated = Signal()
+    coverageCleared = Signal()
+    drawingModeChanged = Signal(bool, arguments=["active"])
+    missionLockChanged = Signal(bool, arguments=["locked"])
+    solarPanelRowsChanged = Signal()
+    solarStatsChanged = Signal()
+    solarRowDrawingModeChanged = Signal(bool, arguments=["active"])
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -118,7 +118,7 @@ class MissionContext(QObject):
         self._swarm_context: Optional["SwarmContext"] = None
         
         # Poll mission status every 500ms to update lock state
-        from PyQt6.QtCore import QTimer
+        from PySide6.QtCore import QTimer
         self._lock_poll_timer = QTimer(self)
         self._lock_poll_timer.timeout.connect(self._update_mission_lock)
         self._lock_poll_timer.start(500)  # 500ms polling interval
@@ -130,15 +130,15 @@ class MissionContext(QObject):
 
     # ── Properties ────────────────────────────────────────────────────────
 
-    @pyqtProperty(bool, notify=drawingModeChanged)
+    @Property(bool, notify=drawingModeChanged)
     def drawingMode(self):
         return self._drawing_mode
 
-    @pyqtProperty(int, notify=fieldBoundaryChanged)
+    @Property(int, notify=fieldBoundaryChanged)
     def fieldBoundaryPoints(self):
         return len(self._boundary_points)
 
-    @pyqtProperty(int, notify=fieldBoundaryChanged)
+    @Property(int, notify=fieldBoundaryChanged)
     def coveragePattern(self):
         return self._coverage_pattern
 
@@ -147,7 +147,7 @@ class MissionContext(QObject):
         self._coverage_pattern = value
         self.fieldBoundaryChanged.emit()
 
-    @pyqtProperty(float, notify=fieldBoundaryChanged)
+    @Property(float, notify=fieldBoundaryChanged)
     def coverageAltitude(self):
         return self._coverage_altitude
 
@@ -156,7 +156,7 @@ class MissionContext(QObject):
         self._coverage_altitude = value
         self.fieldBoundaryChanged.emit()
 
-    @pyqtProperty(float, notify=fieldBoundaryChanged)
+    @Property(float, notify=fieldBoundaryChanged)
     def coverageLineSpacing(self):
         return self._coverage_line_spacing
 
@@ -165,7 +165,7 @@ class MissionContext(QObject):
         self._coverage_line_spacing = value
         self.fieldBoundaryChanged.emit()
 
-    @pyqtProperty(float, notify=fieldBoundaryChanged)
+    @Property(float, notify=fieldBoundaryChanged)
     def coverageOverlap(self):
         return self._coverage_overlap
 
@@ -174,7 +174,7 @@ class MissionContext(QObject):
         self._coverage_overlap = value
         self.fieldBoundaryChanged.emit()
 
-    @pyqtProperty(float, notify=fieldBoundaryChanged)
+    @Property(float, notify=fieldBoundaryChanged)
     def coverageSpeed(self):
         return self._coverage_speed
 
@@ -183,23 +183,23 @@ class MissionContext(QObject):
         self._coverage_speed = value
         self.fieldBoundaryChanged.emit()
 
-    @pyqtProperty(int, notify=coverageGenerated)
+    @Property(int, notify=coverageGenerated)
     def coverageWaypointCount(self):
         return len(self._coverage_waypoints)
 
-    @pyqtProperty(float, notify=coverageGenerated)
+    @Property(float, notify=coverageGenerated)
     def coverageDistance(self):
         return self._coverage_distance
 
-    @pyqtProperty(float, notify=coverageGenerated)
+    @Property(float, notify=coverageGenerated)
     def coverageTime(self):
         return self._coverage_time
 
-    @pyqtProperty(bool, notify=coverageGenerated)
+    @Property(bool, notify=coverageGenerated)
     def fieldCoverageActive(self):
         return len(self._coverage_waypoints) > 0
 
-    @pyqtProperty(int, notify=fieldBoundaryChanged)
+    @Property(int, notify=fieldBoundaryChanged)
     def multiDroneStrategy(self):
         return self._multi_drone_strategy
 
@@ -208,7 +208,7 @@ class MissionContext(QObject):
         self._multi_drone_strategy = value
         self.fieldBoundaryChanged.emit()
 
-    @pyqtProperty(float, notify=fieldBoundaryChanged)
+    @Property(float, notify=fieldBoundaryChanged)
     def formationOffset(self):
         return self._formation_offset
 
@@ -217,7 +217,7 @@ class MissionContext(QObject):
         self._formation_offset = value
         self.fieldBoundaryChanged.emit()
 
-    @pyqtProperty(float, notify=fieldBoundaryChanged)
+    @Property(float, notify=fieldBoundaryChanged)
     def sequentialDelay(self):
         return self._sequential_delay
 
@@ -227,7 +227,7 @@ class MissionContext(QObject):
         self.fieldBoundaryChanged.emit()
         return len(self._coverage_waypoints) > 0
 
-    @pyqtProperty(bool, notify=missionLockChanged)
+    @Property(bool, notify=missionLockChanged)
     def missionLocked(self):
         """True if any drone is currently executing a mission (prevents editing)."""
         return self._mission_locked
@@ -329,7 +329,7 @@ class MissionContext(QObject):
         finally:
             self._poll_in_progress = False
 
-    @pyqtSlot(float, float)
+    @Slot(float, float)
     def setHomePosition(self, lat: float, lon: float):
         with self._lock:
             self._planner.set_home_position(lat, lon)
@@ -339,7 +339,7 @@ class MissionContext(QObject):
             self._home_lon = lon
             self.logMessage.emit("INFO", f"[MISSION] Home: {lat:.6f}, {lon:.6f}")
 
-    @pyqtSlot()
+    @Slot()
     def startDrawingBoundary(self):
         with self._lock:
             self._drawing_mode = True
@@ -360,7 +360,7 @@ class MissionContext(QObject):
                 self.fieldBoundaryChanged.emit()
                 self.logMessage.emit("WARN", "[MISSION] ⏱ Boundary drawing timed out (5min)")
 
-    @pyqtSlot()
+    @Slot()
     def cancelDrawingBoundary(self):
         """Cancel boundary drawing and clear points."""
         with self._lock:
@@ -371,7 +371,7 @@ class MissionContext(QObject):
             self.fieldBoundaryChanged.emit()
             self.logMessage.emit("INFO", "[MISSION] ❌ Boundary drawing cancelled")
 
-    @pyqtSlot(float, float)
+    @Slot(float, float)
     def addBoundaryPoint(self, lat: float, lon: float):
         """Add a boundary point during drawing mode."""
         try:
@@ -389,7 +389,7 @@ class MissionContext(QObject):
         except Exception as e:
             self.logMessage.emit("ERROR", f"[MISSION] Failed to add point: {e}")
 
-    @pyqtSlot()
+    @Slot()
     def finishDrawingBoundary(self):
         with self._lock:
             self._drawing_mode = False
@@ -400,7 +400,7 @@ class MissionContext(QObject):
             else:
                 self.logMessage.emit("WARNING", "[MISSION] Need ≥3 points")
 
-    @pyqtSlot()
+    @Slot()
     def clearFieldBoundary(self):
         with self._lock:
             self._boundary_points.clear()
@@ -412,7 +412,7 @@ class MissionContext(QObject):
         self.coverageCleared.emit()
         self.logMessage.emit("INFO", "[MISSION] Boundary cleared")
 
-    @pyqtSlot()
+    @Slot()
     def generateMission(self):
         """Unified generate method - calls coverage, seeding, or solar based on mode."""
         if self._mission_mode == 1:
@@ -422,7 +422,7 @@ class MissionContext(QObject):
         else:
             self.generateFieldCoverage()
     
-    @pyqtSlot()
+    @Slot()
     def generateFieldCoverage(self):
         try:
             with self._lock:
@@ -462,7 +462,7 @@ class MissionContext(QObject):
         """Inject SwarmContext reference for mission upload."""
         self._swarm_context = swarm_context
 
-    @pyqtSlot()
+    @Slot()
     def uploadMission(self):
         """Unified upload method - calls coverage, seeding, or solar based on mode."""
         if self._mission_mode == 1:
@@ -472,7 +472,7 @@ class MissionContext(QObject):
         else:
             self.uploadCoverageMission()
     
-    @pyqtSlot()
+    @Slot()
     def uploadCoverageMission(self):
         """Upload coverage mission to selected drones (via AppState.missionTargets)."""
         with self._lock:
@@ -698,7 +698,7 @@ class MissionContext(QObject):
         except Exception as e:
             self.logMessage.emit("ERROR", f"[MISSION] Upload worker error: {e}")
 
-    @pyqtSlot()
+    @Slot()
     def togglePreview(self):
         """Unified preview toggle - calls coverage or seeding based on mode."""
         if self._seeding_mode_enabled:
@@ -706,7 +706,7 @@ class MissionContext(QObject):
         else:
             self.toggleCoveragePreview()
     
-    @pyqtSlot()
+    @Slot()
     def toggleCoveragePreview(self):
         """Toggle coverage preview visibility on map."""
         with self._lock:
@@ -720,7 +720,7 @@ class MissionContext(QObject):
             self.coverageCleared.emit()  # Hide coverage
             self.logMessage.emit("INFO", "[MISSION] Preview disabled - coverage hidden")
 
-    @pyqtSlot(result="QVariantList")
+    @Slot(result="QVariantList")
     def getCoverageWaypoints(self):
         """Return coverage waypoints as list of dicts for QML/JavaScript."""
         try:
@@ -731,7 +731,7 @@ class MissionContext(QObject):
             self.logMessage.emit("ERROR", f"[MISSION] getCoverageWaypoints failed: {e}")
             return []
 
-    @pyqtSlot(result="QVariantList")
+    @Slot(result="QVariantList")
     def getBoundaryPoints(self):
         """Return boundary points as list of dicts for QML/JavaScript."""
         try:
@@ -743,7 +743,7 @@ class MissionContext(QObject):
 
     # ── Mission Mode Properties ───────────────────────────────────────────
     
-    @pyqtProperty(int, notify=fieldBoundaryChanged)
+    @Property(int, notify=fieldBoundaryChanged)
     def missionMode(self):
         """Mission mode: 0=Coverage, 1=Seeding, 2=Solar Inspection."""
         return self._mission_mode
@@ -762,7 +762,7 @@ class MissionContext(QObject):
             elif value == 2:
                 self.logMessage.emit("INFO", "[MISSION] ☀ Solar Inspection mode enabled")
     
-    @pyqtProperty(bool, notify=fieldBoundaryChanged)
+    @Property(bool, notify=fieldBoundaryChanged)
     def seedingModeEnabled(self):
         """Legacy property for backward compatibility. Use missionMode instead."""
         return self._seeding_mode_enabled
@@ -774,7 +774,7 @@ class MissionContext(QObject):
     
     # ── Seeding Mission Properties ────────────────────────────────────────
     
-    @pyqtProperty(float, notify=fieldBoundaryChanged)
+    @Property(float, notify=fieldBoundaryChanged)
     def seedSpacing(self):
         return self._seed_spacing
     
@@ -783,7 +783,7 @@ class MissionContext(QObject):
         self._seed_spacing = value
         self.fieldBoundaryChanged.emit()
     
-    @pyqtProperty(float, notify=fieldBoundaryChanged)
+    @Property(float, notify=fieldBoundaryChanged)
     def seedRowSpacing(self):
         return self._seed_row_spacing
     
@@ -792,7 +792,7 @@ class MissionContext(QObject):
         self._seed_row_spacing = value
         self.fieldBoundaryChanged.emit()
     
-    @pyqtProperty(float, notify=fieldBoundaryChanged)
+    @Property(float, notify=fieldBoundaryChanged)
     def seedAltitude(self):
         return self._seed_altitude
     
@@ -801,7 +801,7 @@ class MissionContext(QObject):
         self._seed_altitude = value
         self.fieldBoundaryChanged.emit()
     
-    @pyqtProperty(float, notify=fieldBoundaryChanged)
+    @Property(float, notify=fieldBoundaryChanged)
     def seedDropDuration(self):
         return self._seed_drop_duration
     
@@ -810,7 +810,7 @@ class MissionContext(QObject):
         self._seed_drop_duration = value
         self.fieldBoundaryChanged.emit()
     
-    @pyqtProperty(int, notify=fieldBoundaryChanged)
+    @Property(int, notify=fieldBoundaryChanged)
     def servoChannel(self):
         return self._servo_channel
     
@@ -819,7 +819,7 @@ class MissionContext(QObject):
         self._servo_channel = value
         self.fieldBoundaryChanged.emit()
     
-    @pyqtProperty(int, notify=fieldBoundaryChanged)
+    @Property(int, notify=fieldBoundaryChanged)
     def servoOpenPWM(self):
         return self._servo_open_pwm
     
@@ -828,7 +828,7 @@ class MissionContext(QObject):
         self._servo_open_pwm = value
         self.fieldBoundaryChanged.emit()
     
-    @pyqtProperty(int, notify=fieldBoundaryChanged)
+    @Property(int, notify=fieldBoundaryChanged)
     def servoClosePWM(self):
         return self._servo_close_pwm
     
@@ -837,29 +837,29 @@ class MissionContext(QObject):
         self._servo_close_pwm = value
         self.fieldBoundaryChanged.emit()
     
-    @pyqtProperty(int, notify=coverageGenerated)
+    @Property(int, notify=coverageGenerated)
     def seedingWaypointCount(self):
         return len(self._seeding_waypoints)
     
-    @pyqtProperty(int, notify=coverageGenerated)
+    @Property(int, notify=coverageGenerated)
     def seedingDropCount(self):
         return self._seeding_drop_count
     
-    @pyqtProperty(float, notify=coverageGenerated)
+    @Property(float, notify=coverageGenerated)
     def seedingDistance(self):
         return self._seeding_distance
     
-    @pyqtProperty(float, notify=coverageGenerated)
+    @Property(float, notify=coverageGenerated)
     def seedingTime(self):
         return self._seeding_time
     
-    @pyqtProperty(bool, notify=coverageGenerated)
+    @Property(bool, notify=coverageGenerated)
     def seedingMissionActive(self):
         return len(self._seeding_waypoints) > 0
     
     # ── Seeding Mission Methods ───────────────────────────────────────────
     
-    @pyqtSlot()
+    @Slot()
     def generateSeedingMission(self):
         """Generate seeding mission with servo commands for seed drops."""
         try:
@@ -920,7 +920,7 @@ class MissionContext(QObject):
         except Exception as e:
             self.logMessage.emit("ERROR", f"[SEEDING] Generation failed: {e}")
     
-    @pyqtSlot()
+    @Slot()
     def uploadSeedingMission(self):
         """Upload seeding mission to selected drones."""
         with self._lock:
@@ -1097,7 +1097,7 @@ class MissionContext(QObject):
         except Exception as e:
             self.logMessage.emit("ERROR", f"[SEEDING] Worker error: {e}")
     
-    @pyqtSlot()
+    @Slot()
     def toggleSeedingPreview(self):
         """Toggle seeding mission preview on map."""
         with self._lock:
@@ -1110,7 +1110,7 @@ class MissionContext(QObject):
             self.coverageCleared.emit()
             self.logMessage.emit("INFO", "[SEEDING] Preview disabled")
     
-    @pyqtSlot(result="QVariantList")
+    @Slot(result="QVariantList")
     def getSeedingWaypoints(self):
         """Return seeding waypoints for QML/JavaScript map display.
         
@@ -1134,15 +1134,15 @@ class MissionContext(QObject):
 
     # ── Solar Inspection Properties ────────────────────────────────────────
     
-    @pyqtProperty(bool, notify=solarStatsChanged)
+    @Property(bool, notify=solarStatsChanged)
     def solarInspectionActive(self):
         return self._mission_mode == 2 and len(self._solar_panel_rows) > 0
     
-    @pyqtProperty(int, notify=solarPanelRowsChanged)
+    @Property(int, notify=solarPanelRowsChanged)
     def solarPanelRowCount(self):
         return len(self._solar_panel_rows)
     
-    @pyqtProperty("QVariantList", notify=solarPanelRowsChanged)
+    @Property("QVariantList", notify=solarPanelRowsChanged)
     def solarPanelRows(self):
         """Return list of solar panel rows for QML/Map display."""
         # Convert to format expected by MapView JavaScript
@@ -1156,7 +1156,7 @@ class MissionContext(QObject):
             })
         return rows
     
-    @pyqtProperty(float, notify=solarStatsChanged)
+    @Property(float, notify=solarStatsChanged)
     def solarAltitude(self):
         return self._solar_altitude
     
@@ -1166,7 +1166,7 @@ class MissionContext(QObject):
             self._solar_altitude = value
             self.solarStatsChanged.emit()
     
-    @pyqtProperty(float, notify=solarStatsChanged)
+    @Property(float, notify=solarStatsChanged)
     def solarGimbalPitch(self):
         return self._solar_gimbal_pitch
     
@@ -1176,7 +1176,7 @@ class MissionContext(QObject):
             self._solar_gimbal_pitch = value
             self.solarStatsChanged.emit()
     
-    @pyqtProperty(float, notify=solarStatsChanged)
+    @Property(float, notify=solarStatsChanged)
     def solarTriggerDistance(self):
         return self._solar_trigger_distance
     
@@ -1186,7 +1186,7 @@ class MissionContext(QObject):
             self._solar_trigger_distance = value
             self.solarStatsChanged.emit()
     
-    @pyqtProperty(float, notify=solarStatsChanged)
+    @Property(float, notify=solarStatsChanged)
     def solarOverlap(self):
         return self._solar_overlap
     
@@ -1196,25 +1196,25 @@ class MissionContext(QObject):
             self._solar_overlap = value
             self.solarStatsChanged.emit()
     
-    @pyqtProperty(float, notify=solarStatsChanged)
+    @Property(float, notify=solarStatsChanged)
     def solarCoverageArea(self):
         return self._solar_coverage_area
     
-    @pyqtProperty(float, notify=solarStatsChanged)
+    @Property(float, notify=solarStatsChanged)
     def solarMissionTime(self):
         return self._solar_mission_time
     
-    @pyqtProperty(int, notify=solarStatsChanged)
+    @Property(int, notify=solarStatsChanged)
     def solarWaypointCount(self):
         return self._solar_waypoint_count
     
-    @pyqtProperty(int, notify=solarStatsChanged)
+    @Property(int, notify=solarStatsChanged)
     def solarPhotoCount(self):
         return self._solar_photo_count
     
     # ── Solar Inspection Methods ───────────────────────────────────────────
     
-    @pyqtSlot()
+    @Slot()
     def startAddingSolarRow(self):
         """Start interactive solar row addition on map."""
         self._adding_solar_row = True
@@ -1223,7 +1223,7 @@ class MissionContext(QObject):
         self.solarRowDrawingModeChanged.emit(True)
         self.logMessage.emit("INFO", "[SOLAR] Click two points on map to define panel row")
     
-    @pyqtSlot(float, float)
+    @Slot(float, float)
     def addSolarRowPoint(self, lat: float, lon: float):
         """Handle a click point for solar row drawing."""
         try:
@@ -1242,7 +1242,7 @@ class MissionContext(QObject):
         except Exception as e:
             self.logMessage.emit("ERROR", f"[SOLAR] addSolarRowPoint failed: {e}")
     
-    @pyqtSlot(float, float, float, float)
+    @Slot(float, float, float, float)
     def addSolarRow(self, start_lat: float, start_lon: float, end_lat: float, end_lon: float):
         """Add a solar panel row defined by start and end coordinates."""
         try:
@@ -1273,7 +1273,7 @@ class MissionContext(QObject):
         except Exception as e:
             self.logMessage.emit("ERROR", f"[SOLAR] Failed to add row: {e}")
     
-    @pyqtSlot()
+    @Slot()
     def clearSolarPanelRows(self):
         """Clear all solar panel rows and map visualization."""
         try:
@@ -1291,7 +1291,7 @@ class MissionContext(QObject):
         except Exception as e:
             self.logMessage.emit("ERROR", f"[SOLAR] clearSolarPanelRows failed: {e}")
     
-    @pyqtSlot(int)
+    @Slot(int)
     def removeSolarRow(self, index: int):
         """Remove a solar panel row by index."""
         try:
@@ -1303,7 +1303,7 @@ class MissionContext(QObject):
         except Exception as e:
             self.logMessage.emit("ERROR", f"[SOLAR] Failed to remove row: {e}")
     
-    @pyqtSlot()
+    @Slot()
     def generateSolarInspection(self):
         """Generate solar inspection mission waypoints."""
         try:
@@ -1361,7 +1361,7 @@ class MissionContext(QObject):
             import traceback
             traceback.print_exc()
     
-    @pyqtSlot(result="QVariantList")
+    @Slot(result="QVariantList")
     def getSolarWaypoints(self):
         """Return solar inspection waypoints for QML/JavaScript map display."""
         try:
@@ -1384,7 +1384,7 @@ class MissionContext(QObject):
             self.logMessage.emit("ERROR", f"[SOLAR] getSolarWaypoints failed: {e}")
             return []
     
-    @pyqtSlot()
+    @Slot()
     def uploadSolarMission(self):
         """Upload solar inspection mission to selected drones."""
         with self._lock:

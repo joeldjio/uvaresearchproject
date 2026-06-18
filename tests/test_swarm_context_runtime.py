@@ -9,7 +9,7 @@ import pytest
 @pytest.fixture(scope="module")
 def qcoreapp():
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-    from PyQt6.QtCore import QCoreApplication
+    from PySide6.QtCore import QCoreApplication
 
     app = QCoreApplication.instance()
     if app is None:

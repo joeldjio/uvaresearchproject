@@ -8,9 +8,9 @@ from pathlib import Path
 
 import pytest
 
-# Make sure license imports work even when PyQt6 isn't on the path
+# Make sure license imports work even when PySide6 isn't on the path
 # (LicenseManager test sets QT_QPA_PLATFORM=offscreen below).
-pytest.importorskip("PyQt6", reason="PyQt6 required for license tests")
+pytest.importorskip("PySide6", reason="PySide6 required for license tests")
 from tools.ui import license as lic
 
 pytestmark = pytest.mark.ui
@@ -65,7 +65,7 @@ def test_case_insensitive():
 def manager(tmp_path, monkeypatch):
     """Yield a fresh LicenseManager with isolated storage."""
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-    from PyQt6.QtCore import QCoreApplication, QStandardPaths
+    from PySide6.QtCore import QCoreApplication, QStandardPaths
     if QCoreApplication.instance() is None:
         QCoreApplication([])  # singleton, kept by Qt
     monkeypatch.setattr(
@@ -84,7 +84,7 @@ def test_first_launch_is_trial(manager):
 
 def test_trial_expires_after_window(tmp_path, monkeypatch):
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-    from PyQt6.QtCore import QCoreApplication, QStandardPaths
+    from PySide6.QtCore import QCoreApplication, QStandardPaths
     if QCoreApplication.instance() is None:
         QCoreApplication([])
     monkeypatch.setattr(
@@ -128,7 +128,7 @@ def test_activate_expired_key_rejected(manager):
 
 def test_state_persists_across_instances(tmp_path, monkeypatch):
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-    from PyQt6.QtCore import QCoreApplication, QStandardPaths
+    from PySide6.QtCore import QCoreApplication, QStandardPaths
     if QCoreApplication.instance() is None:
         QCoreApplication([])
     monkeypatch.setattr(

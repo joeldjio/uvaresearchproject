@@ -127,7 +127,7 @@ def test_launch_ui_imports_tools_ui_app(monkeypatch):
         return 0
 
     # Inject a fake module so the launcher's `from tools.ui.app import run`
-    # finds something importable even on systems without PyQt6 wired up.
+    # finds something importable even on systems without PySide6 wired up.
     import types
     fake_pkg = types.ModuleType("tools.ui.app")
     fake_pkg.run = fake_run
@@ -140,14 +140,14 @@ def test_launch_ui_imports_tools_ui_app(monkeypatch):
 
 
 def test_launch_ui_reports_helpful_error_when_pyqt_missing(monkeypatch, capsys):
-    """If the import fails (PyQt6 not installed), the user must see a
-    PyQt6-flavoured hint, not the old PySide6 message."""
+    """If the import fails (PySide6 not installed), the user must see a
+    PySide6-flavoured hint, not the old PySide6 message."""
     import builtins
     real_import = builtins.__import__
 
     def boom(name, *a, **kw):
         if name.startswith("tools.ui"):
-            raise ImportError("No module named 'PyQt6'")
+            raise ImportError("No module named 'PySide6'")
         return real_import(name, *a, **kw)
 
     monkeypatch.setattr(builtins, "__import__", boom)
@@ -155,5 +155,5 @@ def test_launch_ui_reports_helpful_error_when_pyqt_missing(monkeypatch, capsys):
         cli_main._launch_ui()
     assert exc_info.value.code == 1
     err = capsys.readouterr().err
-    assert "PyQt6" in err
-    assert "PySide6" not in err
+    assert "PySide6" in err
+    assert "requirements.txt" in err

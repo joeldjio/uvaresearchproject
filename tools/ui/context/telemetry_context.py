@@ -4,9 +4,9 @@ TelemetryContext — QAbstractListModel exposing per-drone telemetry to QML.
 QML accesses it as a ListModel with roles: droneId, lat, lon, alt, speed,
 heading, roll, pitch, armed, flightMode, battery, satellites, gpsFix.
 """
-from PyQt6.QtCore import (
-    QAbstractListModel, QModelIndex, Qt, pyqtSignal,
-    pyqtSlot, pyqtProperty, QObject
+from PySide6.QtCore import (
+    QAbstractListModel, QModelIndex, Qt, Signal,
+    Slot, Property, QObject
 )
 
 
@@ -80,7 +80,7 @@ class TelemetryModel(QAbstractListModel):
     Updated via update_all(snapshots: dict).
     """
 
-    countChanged = pyqtSignal()
+    countChanged = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -161,10 +161,10 @@ class TelemetryModel(QAbstractListModel):
                 else:
                     self.dataChanged.emit(idx, idx, changed_roles)
 
-    @pyqtSlot(str, result="QVariant")
+    @Slot(str, result="QVariant")
     def snapshotFor(self, drone_id: str) -> dict:
         return self._data.get(drone_id, {})
 
-    @pyqtProperty(int, notify=countChanged)
+    @Property(int, notify=countChanged)
     def count(self) -> int:
         return len(self._order)

@@ -6,11 +6,30 @@ loop. Anything that needs those is mocked here.
 """
 from __future__ import annotations
 
+import sys
 import threading
 from typing import Any, Dict, List, Callable
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
+
+
+# ── Mock ROS2 modules before any imports ────────────────────────────────────
+# This prevents ImportError when tests try to import ROS2-dependent modules
+
+def _mock_rclpy():
+    """Create a mock rclpy module with proper __spec__ attribute."""
+    mock_rclpy = MagicMock()
+    mock_rclpy.__spec__ = MagicMock()
+    mock_rclpy.__spec__.name = "rclpy"
+    return mock_rclpy
+
+
+# Install mocks early
+sys.modules['rclpy'] = _mock_rclpy()
+sys.modules['cv_bridge'] = MagicMock()
+sys.modules['px4_msgs'] = MagicMock()
+sys.modules['px4_msgs.msg'] = MagicMock()
 
 
 # ── Fake telemetry/connection for MissionEngine tests ──────────────────────
@@ -169,8 +188,8 @@ def qapp():
     to be set BEFORE any QtWebEngine imports.
     """
     try:
-        from PyQt6.QtWidgets import QApplication
-        from PyQt6.QtCore import Qt
+        from PySide6.QtWidgets import QApplication
+        from PySide6.QtCore import Qt
         import sys
         
         # CRITICAL: Set AA_ShareOpenGLContexts BEFORE importing QtWebEngine
@@ -180,12 +199,12 @@ def qapp():
         
         # Now safe to import QtWebEngine components
         try:
-            from PyQt6.QtWebEngineWidgets import QWebEngineView  # noqa: F401
+            from PySide6.QtWebEngineWidgets import QWebEngineView  # noqa: F401
         except ImportError:
             pass  # QtWebEngine not installed, tests will skip if needed
         
     except ImportError:
-        pytest.skip("PyQt6 not installed — skipping UI tests")
+        pytest.skip("PySide6 not installed — skipping UI tests")
 
     app = QApplication.instance()
     if app is None:
@@ -208,6 +227,7 @@ def snap_factory():
         }
         snap.update(overrides)
         return snap
+    return _make
 
 
 @pytest.fixture
@@ -225,4 +245,3 @@ def swarm_ctx(qapp):
     # Cleanup
     if ctx._swarm_algorithms_active:
         ctx.stopSwarmAlgorithms()
-    return _make

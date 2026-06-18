@@ -10,9 +10,9 @@ from __future__ import annotations
 
 import pytest
 
-pytest.importorskip("PyQt6")
+pytest.importorskip("PySide6")
 
-from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot, pyqtProperty
+from PySide6.QtCore import QObject, Signal, Slot, Property
 
 from tools.ui.service_locator import ServiceLocator, wire
 
@@ -47,12 +47,12 @@ class FakeDroneBackend:
 
 
 class FakeSwarm(QObject):
-    telemetryUpdated  = pyqtSignal("QVariant")
-    droneAdded        = pyqtSignal(str)
-    droneRemoved      = pyqtSignal(str)
-    countsChanged     = pyqtSignal()
-    connectedChanged  = pyqtSignal(str, bool)
-    logMessage        = pyqtSignal(str, str)
+    telemetryUpdated  = Signal("QVariant")
+    droneAdded        = Signal(str)
+    droneRemoved      = Signal(str)
+    countsChanged     = Signal()
+    connectedChanged  = Signal(str, bool)
+    logMessage        = Signal(str, str)
 
     def __init__(self):
         super().__init__()
@@ -73,11 +73,11 @@ class FakeTelemetryModel(QObject):
 
 
 class FakeSafety(QObject):
-    logMessage          = pyqtSignal(str, str)
-    apfLogMessage       = pyqtSignal(str)
-    geofenceBreached    = pyqtSignal(str, str)
-    avoidanceTriggered  = pyqtSignal(str, float, float, float)
-    apfActiveChanged    = pyqtSignal()
+    logMessage          = Signal(str, str)
+    apfLogMessage       = Signal(str)
+    geofenceBreached    = Signal(str, str)
+    avoidanceTriggered  = Signal(str, float, float, float)
+    apfActiveChanged    = Signal()
 
     def __init__(self):
         super().__init__()
@@ -86,34 +86,34 @@ class FakeSafety(QObject):
         self.disable_calls = 0
         self.position_updates: list = []
 
-    @pyqtProperty(bool, notify=apfActiveChanged)
+    @Property(bool, notify=apfActiveChanged)
     def apfActive(self):
         return self._apf_active
 
-    @pyqtSlot("QVariant")
+    @Slot("QVariant")
     def configureAPF(self, params=None):
         self.configured_with.append(params)
         self._apf_active = True
         self.apfActiveChanged.emit()
 
-    @pyqtSlot()
+    @Slot()
     def disableAPF(self):
         self.disable_calls += 1
         self._apf_active = False
         self.apfActiveChanged.emit()
 
-    @pyqtSlot("QVariant")
+    @Slot("QVariant")
     def updateDronePositions(self, snap):
         self.position_updates.append(snap)
 
 
 class FakeExperiment(QObject):
-    logMessage       = pyqtSignal(str)
-    scriptLogMessage = pyqtSignal(str)
+    logMessage       = Signal(str)
+    scriptLogMessage = Signal(str)
 
 
 class FakeROS2(QObject):
-    ros2LogMessage = pyqtSignal(str, str)
+    ros2LogMessage = Signal(str, str)
 
 
 # ── Fixtures ────────────────────────────────────────────────────────────────

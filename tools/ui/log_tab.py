@@ -6,14 +6,14 @@ import json
 import time
 from pathlib import Path
 
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGroupBox,
     QLabel, QPushButton, QLineEdit, QComboBox,
     QTextEdit, QFormLayout, QFileDialog, QCheckBox,
     QTableWidget, QTableWidgetItem, QHeaderView, QSplitter
 )
-from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QColor, QTextCharFormat, QFont
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QColor, QTextCharFormat, QFont
 
 from tools.ui.widgets import section_header, h_separator
 

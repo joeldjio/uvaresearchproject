@@ -15,7 +15,7 @@ SwarmBackend  — owns all DroneBackends, aggregates snapshots at 5 Hz,
 import threading
 from typing import Callable, Dict, List, Optional
 
-from PyQt6.QtCore import QObject, QTimer, pyqtSignal
+from PySide6.QtCore import QObject, QTimer, Signal
 
 # ── DroneResearch SDK — TRULY lazy ────────────────────────────────────
 # These imports were previously eager. They pull in MAVLink, asyncio
@@ -70,12 +70,12 @@ class DroneBackend(QObject):
     crosses the thread boundary back to the main (UI) thread.
     """
 
-    telemetry_updated = pyqtSignal(dict)  # full TelemetryState snapshot
-    state_changed = pyqtSignal(str)  # flight_mode string
-    connected_changed = pyqtSignal(bool)
-    log_message = pyqtSignal(str, str)  # (level, text)
-    fsm_state_changed = pyqtSignal(str, str)  # (drone_id, fsm_state_name)
-    _start_poll = pyqtSignal()  # internal: start timer from main thread
+    telemetry_updated = Signal(dict)  # full TelemetryState snapshot
+    state_changed = Signal(str)  # flight_mode string
+    connected_changed = Signal(bool)
+    log_message = Signal(str, str)  # (level, text)
+    fsm_state_changed = Signal(str, str)  # (drone_id, fsm_state_name)
+    _start_poll = Signal()  # internal: start timer from main thread
 
     _POLL_INTERVAL_MS = 100  # 10 Hz telemetry polling
 
@@ -375,11 +375,11 @@ class SwarmBackend(QObject):
     log_message(level, text)        — forwarded from every DroneBackend
     """
 
-    drone_added = pyqtSignal(str)
-    drone_removed = pyqtSignal(str)
-    swarm_telemetry_updated = pyqtSignal(dict)
-    log_message = pyqtSignal(str, str)
-    fsm_state_changed = pyqtSignal(str, str)  # (drone_id, fsm_state_name)
+    drone_added = Signal(str)
+    drone_removed = Signal(str)
+    swarm_telemetry_updated = Signal(dict)
+    log_message = Signal(str, str)
+    fsm_state_changed = Signal(str, str)  # (drone_id, fsm_state_name)
 
     _AGG_INTERVAL_MS = 200  # 5 Hz aggregation
 

@@ -4,16 +4,16 @@ Uses PyQtWebEngine to embed a Leaflet.js map (no Qt Location needed).
 """
 import json
 import math
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QSplitter,
     QPushButton, QLabel, QGroupBox, QCheckBox,
     QDoubleSpinBox, QFormLayout, QListWidget, QListWidgetItem,
     QFrame, QTextEdit
 )
-from PyQt6.QtCore import Qt, QUrl, pyqtSlot, QTimer
-from PyQt6.QtWebEngineWidgets import QWebEngineView
-from PyQt6.QtWebChannel import QWebChannel
-from PyQt6.QtCore import QObject, pyqtSignal
+from PySide6.QtCore import Qt, QUrl, Slot, QTimer
+from PySide6.QtWebEngineWidgets import QWebEngineView
+from PySide6.QtWebChannel import QWebChannel
+from PySide6.QtCore import QObject, Signal
 
 from tools.ui.style import DRONE_COLORS
 from tools.ui.widgets import section_header, h_separator
@@ -190,15 +190,15 @@ map.on('click', function(e) {
 
 class MapBridge(QObject):
     """Qt object exposed to JavaScript via WebChannel."""
-    updateDrones    = pyqtSignal(str)
-    updateWaypoints = pyqtSignal(str)
-    updateGeofence  = pyqtSignal(float, float, float)
-    clearTracks     = pyqtSignal()
-    centerMap       = pyqtSignal(float, float)
+    updateDrones    = Signal(str)
+    updateWaypoints = Signal(str)
+    updateGeofence  = Signal(float, float, float)
+    clearTracks     = Signal()
+    centerMap       = Signal(float, float)
 
-    map_clicked = pyqtSignal(float, float)   # from JS → Python
+    map_clicked = Signal(float, float)   # from JS → Python
 
-    @pyqtSlot(float, float)
+    @Slot(float, float)
     def mapClicked(self, lat: float, lon: float):   # called by JS
         self.map_clicked.emit(lat, lon)
 

@@ -12,9 +12,9 @@ from __future__ import annotations
 
 import pytest
 
-pytest.importorskip("PyQt6")
+pytest.importorskip("PySide6")
 
-from PyQt6.QtCore import QModelIndex, Qt
+from PySide6.QtCore import QModelIndex, Qt
 
 from tools.ui.context.telemetry_context import TelemetryModel, _ROLES
 

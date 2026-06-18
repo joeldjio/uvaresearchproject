@@ -23,7 +23,7 @@ import math
 from pathlib import Path
 from typing import Any, Dict, List, NamedTuple, Tuple
 
-from PyQt6.QtCore import QObject, QTimer, pyqtProperty, pyqtSignal, pyqtSlot
+from PySide6.QtCore import QObject, QTimer, Property, Signal, Slot
 
 try:
     from droneresearch.safety.apf import APFSafetyFilter as _APFSafetyFilter
@@ -62,27 +62,27 @@ class SafetyContext(QObject):
     """QML-exposed APF safety filter with real-time monitoring."""
 
     # ── Signals ─────────────────────────────────────────────────────────────
-    violationsChanged = pyqtSignal("QVariant", arguments=["violations"])
-    apfLogMessage = pyqtSignal(str, arguments=["text"])
-    geofenceBreached = pyqtSignal(str, str, arguments=["droneId", "reason"])
-    apfActiveChanged = pyqtSignal()
-    safetyStatusChanged = pyqtSignal()
-    logMessage = pyqtSignal(
+    violationsChanged = Signal("QVariant", arguments=["violations"])
+    apfLogMessage = Signal(str, arguments=["text"])
+    geofenceBreached = Signal(str, str, arguments=["droneId", "reason"])
+    apfActiveChanged = Signal()
+    safetyStatusChanged = Signal()
+    logMessage = Signal(
         str, str, arguments=["level", "text"]
     )  # For global system integration
     # Active collision-avoidance command: target_lat, target_lon, target_alt
-    avoidanceTriggered = pyqtSignal(
+    avoidanceTriggered = Signal(
         str, float, float, float, arguments=["droneId", "lat", "lon", "alt"]
     )
 
     # Collision prediction signal
-    collisionPredicted = pyqtSignal("QVariant", arguments=["predictions"])
-    predictionEnabledChanged = pyqtSignal()
+    collisionPredicted = Signal("QVariant", arguments=["predictions"])
+    predictionEnabledChanged = Signal()
 
     # Battery Monitor signals
-    batteryMonitorEnabledChanged = pyqtSignal()
-    batteryStatusChanged = pyqtSignal("QVariant", arguments=["status"])
-    rtlTriggered = pyqtSignal(str, str, arguments=["droneId", "reason"])
+    batteryMonitorEnabledChanged = Signal()
+    batteryStatusChanged = Signal("QVariant", arguments=["status"])
+    rtlTriggered = Signal(str, str, arguments=["droneId", "reason"])
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -125,24 +125,24 @@ class SafetyContext(QObject):
         self._poll_timer.timeout.connect(self._check_safety)
 
     # ── Properties ──────────────────────────────────────────────────────────
-    @pyqtProperty(bool, notify=apfActiveChanged)
+    @Property(bool, notify=apfActiveChanged)
     def apfActive(self) -> bool:
         return self._active
 
-    @pyqtProperty(int, notify=safetyStatusChanged)
+    @Property(int, notify=safetyStatusChanged)
     def violationCount(self) -> int:
         return len(self._last_violations)
 
-    @pyqtProperty(bool, notify=predictionEnabledChanged)
+    @Property(bool, notify=predictionEnabledChanged)
     def predictionEnabled(self) -> bool:
         return self._prediction_enabled
 
-    @pyqtProperty(int, notify=safetyStatusChanged)
+    @Property(int, notify=safetyStatusChanged)
     def predictionCount(self) -> int:
         return len(self._last_predictions)
 
     # ── APF Configuration ───────────────────────────────────────────────────
-    @pyqtSlot("QVariant")
+    @Slot("QVariant")
     def configureAPF(self, params=None) -> None:
         """Configure APF with parameters from QML.
 
@@ -212,7 +212,7 @@ class SafetyContext(QObject):
         except Exception as e:
             self.apfLogMessage.emit(f"[APF] Configuration error: {e}")
 
-    @pyqtSlot()
+    @Slot()
     def disableAPF(self) -> None:
         """Disable APF monitoring."""
         self._active = False
@@ -222,7 +222,7 @@ class SafetyContext(QObject):
         self.apfLogMessage.emit("[APF] Disabled")
 
     # ── Obstacle Management ─────────────────────────────────────────────────
-    @pyqtSlot(float, float, float)
+    @Slot(float, float, float)
     def addObstacle(self, x: float, y: float, z: float = 0.0) -> None:
         """Add static obstacle at local NED position."""
         if self._apf:
@@ -231,7 +231,7 @@ class SafetyContext(QObject):
                 f"[APF] Obstacle added at ({x:.1f}, {y:.1f}, {z:.1f})"
             )
 
-    @pyqtSlot()
+    @Slot()
     def clearObstacles(self) -> None:
         """Clear all static obstacles."""
         if self._apf:
@@ -239,7 +239,7 @@ class SafetyContext(QObject):
             self.apfLogMessage.emit("[APF] All obstacles cleared")
 
     # ── Geofence Management ─────────────────────────────────────────────────
-    @pyqtSlot(float, float, float)
+    @Slot(float, float, float)
     def setGeofence(self, radius: float, alt_min: float, alt_max: float) -> None:
         """Update geofence parameters."""
         if self._apf:
@@ -251,12 +251,12 @@ class SafetyContext(QObject):
             )
 
     # ── Separation Checking ───────────────────────────────────────────────────
-    @pyqtSlot()
+    @Slot()
     def checkSeparations(self) -> None:
         """Manual trigger for separation check."""
         self._check_safety()
 
-    @pyqtSlot("QVariant")
+    @Slot("QVariant")
     def updateDronePositions(self, positions: dict) -> None:
         """Update drone positions from telemetry.
 
@@ -288,7 +288,7 @@ class SafetyContext(QObject):
                     x=x, y=y, z=alt, armed=bool(armed)
                 )
 
-    @pyqtSlot(str, result="QVariant")
+    @Slot(str, result="QVariant")
     def getSafeWaypoint(self, drone_id: str) -> dict:
         """Get APF-filtered safe waypoint for a drone.
 
@@ -449,7 +449,7 @@ class SafetyContext(QObject):
         self.avoidanceTriggered.emit(mover, target_lat, target_lon, target_alt)
 
     # ── Collision Prediction ────────────────────────────────────────────────
-    @pyqtSlot(bool)
+    @Slot(bool)
     def enableCollisionPrediction(self, enabled: bool) -> None:
         """Enable or disable collision prediction."""
         if _CollisionPredictor is None or _DroneState is None:
@@ -474,7 +474,7 @@ class SafetyContext(QObject):
             self.collisionPredicted.emit([])
             self.apfLogMessage.emit("[Prediction] Disabled")
 
-    @pyqtSlot("QVariant")
+    @Slot("QVariant")
     def configureCollisionPredictor(self, params=None) -> None:
         """Configure collision predictor parameters.
 
@@ -531,7 +531,7 @@ class SafetyContext(QObject):
         except Exception as e:
             self.apfLogMessage.emit(f"[Prediction] Configuration error: {e}")
 
-    @pyqtSlot(bool)
+    @Slot(bool)
     def enableWaypointAwarePrediction(self, enabled: bool) -> None:
         """Enable or disable waypoint-aware collision prediction."""
         self._prediction_waypoint_aware = enabled
@@ -540,7 +540,7 @@ class SafetyContext(QObject):
         else:
             self.apfLogMessage.emit("[Prediction] Velocity-based mode enabled")
     
-    @pyqtSlot("QVariant")
+    @Slot("QVariant")
     def updateDroneWaypoints(self, waypoints_dict: dict) -> None:
         """Update waypoint data for collision prediction.
         
@@ -637,7 +637,7 @@ class SafetyContext(QObject):
                     )
 
     # ── Utility ─────────────────────────────────────────────────────────────
-    @pyqtSlot(result=str)
+    @Slot(result=str)
     def getAPFStatus(self) -> str:
         """Get human-readable APF status."""
         if not self._apf:
@@ -654,11 +654,11 @@ class SafetyContext(QObject):
 
 
     # ── Battery Monitor ─────────────────────────────────────────────────────
-    @pyqtProperty(bool, notify=batteryMonitorEnabledChanged)
+    @Property(bool, notify=batteryMonitorEnabledChanged)
     def batteryMonitorEnabled(self) -> bool:
         return self._battery_monitor_enabled
 
-    @pyqtSlot("QVariant")
+    @Slot("QVariant")
     def configureBatteryMonitor(self, params=None) -> None:
         """Configure battery monitor with parameters from QML.
         
@@ -716,7 +716,7 @@ class SafetyContext(QObject):
         except Exception as e:
             self.apfLogMessage.emit(f"[Battery] Configuration error: {e}")
 
-    @pyqtSlot()
+    @Slot()
     def disableBatteryMonitor(self) -> None:
         """Disable battery monitoring and save history."""
         if self._battery_monitor:
@@ -736,7 +736,7 @@ class SafetyContext(QObject):
         self.batteryMonitorEnabledChanged.emit()
         self.apfLogMessage.emit("[Battery] Disabled")
 
-    @pyqtSlot("QVariant")
+    @Slot("QVariant")
     def updateBatteryTelemetry(self, telemetry_dict: dict) -> None:
         """Update battery monitor with telemetry data.
         
@@ -800,24 +800,24 @@ class SafetyContext(QObject):
                         self._last_battery_status[drone_id] = status_dict
                         self.batteryStatusChanged.emit(status_dict)
 
-    @pyqtSlot(str, float, float, float)
+    @Slot(str, float, float, float)
     def setDroneHomePosition(self, drone_id: str, lat: float, lon: float, alt: float) -> None:
         """Set home position for a drone."""
         self._battery_home_positions[drone_id] = (lat, lon, alt)
 
-    @pyqtSlot(str)
+    @Slot(str)
     def resetRtlTrigger(self, drone_id: str) -> None:
         """Reset RTL trigger for a drone."""
         if self._battery_monitor:
             self._battery_monitor.reset_rtl_trigger(drone_id)
             self.apfLogMessage.emit(f"[Battery] RTL trigger reset for {drone_id}")
 
-    @pyqtSlot(str, result="QVariant")
+    @Slot(str, result="QVariant")
     def getBatteryStatus(self, drone_id: str) -> dict:
         """Get battery status for a specific drone."""
         return self._last_battery_status.get(drone_id, {})
 
-    @pyqtSlot(result="QVariant")
+    @Slot(result="QVariant")
     def getAllBatteryStatus(self) -> dict:
         """Get battery status for all monitored drones."""
         return self._last_battery_status.copy()

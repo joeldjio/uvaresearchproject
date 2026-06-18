@@ -214,7 +214,7 @@ def test_swarm_context_signals():
     
     ctx = SwarmContext()
     
-    # Should have signals (PyQt6 signals)
+    # Should have signals (PySide6 signals)
     # These are typically named like: droneAdded, droneRemoved, telemetryUpdated
     # We can't easily test signal emission without Qt event loop,
     # but we can check they exist
@@ -229,7 +229,7 @@ def test_safety_context_signals():
     ctx = SafetyContext()
     
     # SafetyContext should be a QObject (has signals)
-    from PyQt6.QtCore import QObject
+    from PySide6.QtCore import QObject
     assert isinstance(ctx, QObject)
 
 
@@ -250,7 +250,7 @@ def test_bag_playback_context_signals():
     ctx = BagPlaybackContext()
     
     # BagPlaybackContext should be a QObject (has signals)
-    from PyQt6.QtCore import QObject
+    from PySide6.QtCore import QObject
     assert isinstance(ctx, QObject)
 
 
@@ -318,7 +318,7 @@ def test_bag_playback_context_load_nonexistent():
 
 def test_ui_contexts_are_qobjects():
     """Test that all contexts inherit from QObject"""
-    from PyQt6.QtCore import QObject
+    from PySide6.QtCore import QObject
     from tools.ui.context.swarm_context import SwarmContext
     from tools.ui.context.safety_context import SafetyContext
     from tools.ui.context.ros2_context import ROS2Context

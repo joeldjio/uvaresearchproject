@@ -10,7 +10,7 @@ import math
 import threading
 from typing import Dict
 
-from PyQt6.QtCore import QObject, QTimer, pyqtProperty, pyqtSignal, pyqtSlot
+from PySide6.QtCore import QObject, QTimer, Property, Signal, Slot
 
 from tools.ui.backend import (
     DRONE_TYPE_GENERIC,
@@ -24,35 +24,35 @@ class SwarmContext(QObject):
     """
     Thin QML-callable wrapper around SwarmBackend.
     All heavy logic stays in SwarmBackend; this class only
-    translates pyqtSignal names and adds @pyqtSlot decorators
+    translates Signal names and adds @Slot decorators
     so QML JS can call them directly.
     """
 
     # ── Signals forwarded to QML ──────────────────────────────────────────
-    droneAdded = pyqtSignal(str, arguments=["droneId"])
-    droneRemoved = pyqtSignal(str, arguments=["droneId"])
-    telemetryUpdated = pyqtSignal("QVariant", arguments=["snapshot"])
-    logMessage = pyqtSignal(str, str, arguments=["level", "text"])
-    connectedChanged = pyqtSignal(str, bool, arguments=["droneId", "connected"])
-    fsmStateChanged = pyqtSignal(str, str, arguments=["droneId", "fsmState"])
-    countsChanged = pyqtSignal()
+    droneAdded = Signal(str, arguments=["droneId"])
+    droneRemoved = Signal(str, arguments=["droneId"])
+    telemetryUpdated = Signal("QVariant", arguments=["snapshot"])
+    logMessage = Signal(str, str, arguments=["level", "text"])
+    connectedChanged = Signal(str, bool, arguments=["droneId", "connected"])
+    fsmStateChanged = Signal(str, str, arguments=["droneId", "fsmState"])
+    countsChanged = Signal()
 
     # Swarm Algorithms signals
-    formationUpdated = pyqtSignal(str, "QVariant", arguments=["leaderId", "positions"])
-    consensusReached = pyqtSignal(str, str, arguments=["type", "result"])
-    missionStatusChanged = pyqtSignal(str, arguments=["status"])
-    missionFinished = pyqtSignal(
+    formationUpdated = Signal(str, "QVariant", arguments=["leaderId", "positions"])
+    consensusReached = Signal(str, str, arguments=["type", "result"])
+    missionStatusChanged = Signal(str, arguments=["status"])
+    missionFinished = Signal(
         str, bool, str, arguments=["droneId", "success", "reason"]
     )
 
     # State Confirmation Signals (Improvement 8)
     # Emitted when critical operations complete successfully
-    armConfirmed = pyqtSignal(str, arguments=["droneId"])
-    disarmConfirmed = pyqtSignal(str, arguments=["droneId"])
-    takeoffConfirmed = pyqtSignal(str, float, arguments=["droneId", "altitude"])
-    landConfirmed = pyqtSignal(str, arguments=["droneId"])
-    rtlConfirmed = pyqtSignal(str, arguments=["droneId"])
-    modeChangeConfirmed = pyqtSignal(str, str, arguments=["droneId", "mode"])
+    armConfirmed = Signal(str, arguments=["droneId"])
+    disarmConfirmed = Signal(str, arguments=["droneId"])
+    takeoffConfirmed = Signal(str, float, arguments=["droneId", "altitude"])
+    landConfirmed = Signal(str, arguments=["droneId"])
+    rtlConfirmed = Signal(str, arguments=["droneId"])
+    modeChangeConfirmed = Signal(str, str, arguments=["droneId", "mode"])
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -78,11 +78,11 @@ class SwarmContext(QObject):
 
     # ── QML-callable slots ────────────────────────────────────────────────
 
-    @pyqtSlot(str, str)
+    @Slot(str, str)
     def addDrone(self, drone_id: str, connection_string: str) -> None:
         self.addDroneTyped(drone_id, connection_string, DRONE_TYPE_GENERIC)
 
-    @pyqtSlot(str, str, str)
+    @Slot(str, str, str)
     def addDroneTyped(
         self, drone_id: str, connection_string: str, drone_type: str
     ) -> None:
@@ -137,14 +137,14 @@ class SwarmContext(QObject):
             if self._leader_drone_id == drone_id:
                 self._leader_drone_id = ""
 
-    @pyqtSlot(str)
+    @Slot(str)
     def removeDrone(self, drone_id: str) -> None:
         self.logMessage.emit("INFO", f"[{drone_id}] 🗑 Removing drone from swarm")
         self._clear_drone_runtime_state(drone_id)
         self._backend.remove_drone(drone_id)
         self.countsChanged.emit()
 
-    @pyqtSlot(str)
+    @Slot(str)
     def disconnectDrone(self, drone_id: str) -> None:
         b = self._backend.get_backend(drone_id)
         if b:
@@ -153,7 +153,7 @@ class SwarmContext(QObject):
 
             threading.Thread(target=b.disconnect, daemon=True).start()
 
-    @pyqtSlot(str)
+    @Slot(str)
     def reconnectDrone(self, drone_id: str) -> None:
         b = self._backend.get_backend(drone_id)
         if b:
@@ -164,27 +164,27 @@ class SwarmContext(QObject):
 
             threading.Thread(target=b.connect, daemon=True).start()
 
-    @pyqtSlot()
+    @Slot()
     def armAll(self) -> None:
         self._backend.arm_all()
 
-    @pyqtSlot()
+    @Slot()
     def disarmAll(self) -> None:
         self._backend.disarm_all()
 
-    @pyqtSlot(float)
+    @Slot(float)
     def takeoffAll(self, altitude: float) -> None:
         self._backend.takeoff_all(altitude)
 
-    @pyqtSlot()
+    @Slot()
     def landAll(self) -> None:
         self._backend.land_all()
 
-    @pyqtSlot()
+    @Slot()
     def rtlAll(self) -> None:
         self._backend.rtl_all()
 
-    @pyqtSlot(str)
+    @Slot(str)
     def armDrone(self, drone_id: str) -> None:
         b = self._backend.get_backend(drone_id)
         if b:
@@ -193,7 +193,7 @@ class SwarmContext(QObject):
             # Actual state change will be reflected via fsmStateChanged signal
             self.armConfirmed.emit(drone_id)
 
-    @pyqtSlot(str)
+    @Slot(str)
     def disarmDrone(self, drone_id: str) -> None:
         b = self._backend.get_backend(drone_id)
         if b:
@@ -201,7 +201,7 @@ class SwarmContext(QObject):
             # Emit confirmation signal immediately (UI feedback)
             self.disarmConfirmed.emit(drone_id)
 
-    @pyqtSlot(str, float)
+    @Slot(str, float)
     def takeoffDrone(self, drone_id: str, altitude: float) -> None:
         b = self._backend.get_backend(drone_id)
         if b:
@@ -209,7 +209,7 @@ class SwarmContext(QObject):
             # Emit confirmation signal immediately (UI feedback)
             self.takeoffConfirmed.emit(drone_id, altitude)
 
-    @pyqtSlot(str)
+    @Slot(str)
     def landDrone(self, drone_id: str) -> None:
         b = self._backend.get_backend(drone_id)
         if b:
@@ -217,7 +217,7 @@ class SwarmContext(QObject):
             # Emit confirmation signal immediately (UI feedback)
             self.landConfirmed.emit(drone_id)
 
-    @pyqtSlot(str)
+    @Slot(str)
     def rtlDrone(self, drone_id: str) -> None:
         b = self._backend.get_backend(drone_id)
         if b:
@@ -225,13 +225,13 @@ class SwarmContext(QObject):
             # Emit confirmation signal immediately (UI feedback)
             self.rtlConfirmed.emit(drone_id)
 
-    @pyqtSlot(str, float, float, float)
+    @Slot(str, float, float, float)
     def gotoDrone(self, drone_id: str, lat: float, lon: float, alt: float) -> None:
         b = self._backend.get_backend(drone_id)
         if b:
             b.goto(lat, lon, alt)
 
-    @pyqtSlot(str, float, float, float)
+    @Slot(str, float, float, float)
     def smartGotoDrone(self, drone_id: str, lat: float, lon: float, alt: float) -> None:
         """Arm + takeoff if needed, then goto. Safe to call in any FSM state."""
         import threading
@@ -299,7 +299,7 @@ class SwarmContext(QObject):
 
         threading.Thread(target=_run, daemon=True).start()
 
-    @pyqtSlot(str, float, float, float)
+    @Slot(str, float, float, float)
     def changeAltitude(self, drone_id: str, alt: float) -> None:
         self._backend.change_altitude(drone_id, alt)
 
@@ -371,7 +371,7 @@ class SwarmContext(QObject):
             out.append({"lat": lat + dlat, "lon": lon + dlon, "alt": alt})
         return out
 
-    @pyqtSlot(str, str)
+    @Slot(str, str)
     def runMission(self, drone_id: str, waypoints_json: str) -> None:
         """Upload a JSON waypoints list and start AUTO mission on one drone.
 
@@ -599,7 +599,7 @@ class SwarmContext(QObject):
             self._mission_threads[drone_id] = th
         th.start()
 
-    @pyqtSlot(str)
+    @Slot(str)
     def cancelMission(self, drone_id: str) -> None:
         """Cancel an active sequential-GOTO mission for one drone."""
         with self._state_lock:
@@ -612,7 +612,7 @@ class SwarmContext(QObject):
                 "INFO", f"[{drone_id}] cancelMission: no active mission"
             )
 
-    @pyqtSlot()
+    @Slot()
     def cancelAllMissions(self) -> None:
         with self._state_lock:
             ids = list(self._mission_active.keys())
@@ -623,7 +623,7 @@ class SwarmContext(QObject):
                 "INFO", f"cancelAllMissions: cancelled {len(ids)} mission(s)"
             )
 
-    @pyqtSlot(str, str)
+    @Slot(str, str)
     def runMissionMulti(self, drone_ids_json: str, waypoints_json: str) -> None:
         """Run the same waypoint mission on multiple drones in parallel."""
         import json
@@ -671,14 +671,14 @@ class SwarmContext(QObject):
             drone_wps = self._offset_waypoints_for_lane(wps, lane_index, len(ids))
             self.runMission(did, json.dumps(drone_wps))
 
-    @pyqtSlot(str, str)
+    @Slot(str, str)
     def setMode(self, drone_id: str, mode: str) -> None:
         """Switch flight mode for a single drone."""
         b = self._backend.get_backend(drone_id)
         if b:
             b.set_mode(mode)
 
-    @pyqtSlot(str)
+    @Slot(str)
     def setModeAll(self, mode: str) -> None:
         """Switch flight mode for every connected drone."""
         for b in self._backend.all_backends().values():
@@ -686,7 +686,7 @@ class SwarmContext(QObject):
                 b.set_mode(mode)
         self.logMessage.emit("INFO", f"[SWARM] MODE → {mode} (all)")
 
-    @pyqtSlot()
+    @Slot()
     def emergencyStopAll(self) -> None:
         """Force-disarm every drone immediately. Use only for emergencies."""
         n = 0
@@ -698,7 +698,7 @@ class SwarmContext(QObject):
             "ERROR", f"[SWARM] 🛑 EMERGENCY STOP — force-disarmed {n} drone(s)"
         )
 
-    @pyqtSlot(str)
+    @Slot(str)
     def emergencyStop(self, drone_id: str) -> None:
         """Force-disarm one drone immediately."""
         b = self._backend.get_backend(drone_id)
@@ -708,7 +708,7 @@ class SwarmContext(QObject):
                 "ERROR", f"[{drone_id}] 🛑 EMERGENCY STOP — force-disarmed"
             )
 
-    @pyqtSlot(str)
+    @Slot(str)
     def emergencyStopSelected(self, drone_id: str) -> None:
         """Stop mission and execute RTL for the specified drone."""
         if not drone_id:
@@ -733,21 +733,21 @@ class SwarmContext(QObject):
         else:
             self.logMessage.emit("WARNING", f"[{drone_id}] Not connected")
 
-    @pyqtSlot(str, result=str)
+    @Slot(str, result=str)
     def droneFsmState(self, drone_id: str) -> str:
         b = self._backend.get_backend(drone_id)
         return b.fsm_state if b else "DISCONNECTED"
 
-    @pyqtSlot(str, result="QVariant")
+    @Slot(str, result="QVariant")
     def droneFsmHistory(self, drone_id: str) -> list:
         return self._backend.get_fsm_history(drone_id)
 
-    @pyqtSlot(str, result=str)
+    @Slot(str, result=str)
     def droneType(self, drone_id: str) -> str:
         b = self._backend.get_backend(drone_id)
         return b.drone_type if b else DRONE_TYPE_GENERIC
 
-    @pyqtSlot(str, str)
+    @Slot(str, str)
     def setDroneType(self, drone_id: str, drone_type: str) -> None:
         b = self._backend.get_backend(drone_id)
         if b:
@@ -755,38 +755,38 @@ class SwarmContext(QObject):
             self.logMessage.emit("INFO", f"[{drone_id}] Typ gesetzt: {drone_type}")
             self.telemetryUpdated.emit({})
 
-    @pyqtSlot(str, result=str)
+    @Slot(str, result=str)
     def droneRole(self, drone_id: str) -> str:
         b = self._backend.get_backend(drone_id)
         return b.swarm_role if b else "none"
 
-    @pyqtSlot(str, str, str)
+    @Slot(str, str, str)
     def setDroneRole(self, drone_id: str, role: str, leader_id: str) -> None:
         self._backend.set_drone_role(drone_id, role, leader_id)
 
-    @pyqtSlot(str, float, float, float)
+    @Slot(str, float, float, float)
     def setFormationOffset(
         self, drone_id: str, north: float, east: float, alt: float
     ) -> None:
         self._backend.set_drone_formation_offset(drone_id, north, east, alt)
 
-    @pyqtSlot(str, float, float, float)
+    @Slot(str, float, float, float)
     def gimbalPoint(self, drone_id: str, pitch: float, roll: float, yaw: float) -> None:
         self._backend.gimbal_point(drone_id, pitch, roll, yaw)
 
-    @pyqtSlot(str)
+    @Slot(str)
     def gimbalHome(self, drone_id: str) -> None:
         self._backend.gimbal_home(drone_id)
 
-    @pyqtSlot(str, result="QVariant")
+    @Slot(str, result="QVariant")
     def gimbalState(self, drone_id: str) -> dict:
         return self._backend.get_gimbal_state(drone_id)
 
-    @pyqtSlot(result="QVariant")
+    @Slot(result="QVariant")
     def droneIds(self) -> list:
         return list(self._backend.all_backends().keys())
 
-    @pyqtSlot(result="QVariant")
+    @Slot(result="QVariant")
     def availableSerialPorts(self) -> list:
         try:
             import serial.tools.list_ports
@@ -795,12 +795,12 @@ class SwarmContext(QObject):
         except Exception:
             return []
 
-    @pyqtSlot(str, result=bool)
+    @Slot(str, result=bool)
     def isDroneConnected(self, drone_id: str) -> bool:
         b = self._backend.get_backend(drone_id)
         return bool(b and b.is_connected)
 
-    @pyqtSlot(str, result=str)
+    @Slot(str, result=str)
     def readFile(self, path: str) -> str:
         """Read a local file and return its contents as a string (for QML CSV loading)."""
         try:
@@ -815,7 +815,7 @@ class SwarmContext(QObject):
         except Exception as exc:
             return ""
 
-    @pyqtSlot(str, str, result=bool)
+    @Slot(str, str, result=bool)
     def appendFile(self, path: str, line: str) -> bool:
         """Append a single line to a file, creating it (and parent dirs) if needed.
 
@@ -840,7 +840,7 @@ class SwarmContext(QObject):
             # Do not emit logMessage here — would cause infinite recursion
             return False
 
-    @pyqtSlot(result=str)
+    @Slot(result=str)
     def syslogsDir(self) -> str:
         """Return the absolute path of the syslogs directory (creates it on first call)."""
         import os
@@ -858,7 +858,7 @@ class SwarmContext(QObject):
             fallback.mkdir(parents=True, exist_ok=True)
             return str(fallback)
 
-    @pyqtSlot(str, str, result=bool)
+    @Slot(str, str, result=bool)
     def writeFile(self, path: str, content: str) -> bool:
         """Write content to a local file (for log export from QML)."""
         try:
@@ -879,16 +879,16 @@ class SwarmContext(QObject):
             self.logMessage.emit("WARN", f"writeFile failed for {path}: {exc}")
             return False
 
-    @pyqtSlot(str, result="QVariant")
+    @Slot(str, result="QVariant")
     def droneSnapshot(self, drone_id: str) -> dict:
         b = self._backend.get_backend(drone_id)
         return b.get_telemetry_snapshot() or {} if b else {}
 
-    @pyqtProperty(int, notify=countsChanged)
+    @Property(int, notify=countsChanged)
     def totalDrones(self) -> int:
         return len(self._backend.all_backends())
 
-    @pyqtProperty(int, notify=countsChanged)
+    @Property(int, notify=countsChanged)
     def connectedDrones(self) -> int:
         return sum(1 for b in self._backend.all_backends().values() if b.is_connected)
 
@@ -904,7 +904,7 @@ class SwarmContext(QObject):
         """Initialize swarm algorithms state and timers"""
         import math
 
-        from PyQt6.QtCore import QTimer
+        from PySide6.QtCore import QTimer
 
         # Algorithm state
         self._swarm_algorithms_active = False
@@ -950,11 +950,11 @@ class SwarmContext(QObject):
 
     # ── Swarm Algorithms Properties ───────────────────────────────────────
 
-    @pyqtProperty(bool, notify=countsChanged)
+    @Property(bool, notify=countsChanged)
     def swarmAlgorithmsActive(self):
         return self._swarm_algorithms_active
 
-    @pyqtProperty(int, notify=countsChanged)
+    @Property(int, notify=countsChanged)
     def algorithmsUpdateRate(self):
         return self._algorithms_update_rate
 
@@ -965,7 +965,7 @@ class SwarmContext(QObject):
             self._algorithms_timer.setInterval(value)
 
     # Boids properties
-    @pyqtProperty(bool, notify=countsChanged)
+    @Property(bool, notify=countsChanged)
     def boidsEnabled(self):
         return self._boids_enabled
 
@@ -990,7 +990,7 @@ class SwarmContext(QObject):
         self._boids_enabled = new_val
         self.countsChanged.emit()
 
-    @pyqtProperty(float, notify=countsChanged)
+    @Property(float, notify=countsChanged)
     def separationWeight(self):
         return self._separation_weight
 
@@ -998,7 +998,7 @@ class SwarmContext(QObject):
     def separationWeight(self, value):
         self._separation_weight = value
 
-    @pyqtProperty(float, notify=countsChanged)
+    @Property(float, notify=countsChanged)
     def alignmentWeight(self):
         return self._alignment_weight
 
@@ -1006,7 +1006,7 @@ class SwarmContext(QObject):
     def alignmentWeight(self, value):
         self._alignment_weight = value
 
-    @pyqtProperty(float, notify=countsChanged)
+    @Property(float, notify=countsChanged)
     def cohesionWeight(self):
         return self._cohesion_weight
 
@@ -1014,7 +1014,7 @@ class SwarmContext(QObject):
     def cohesionWeight(self, value):
         self._cohesion_weight = value
 
-    @pyqtProperty(int, notify=countsChanged)
+    @Property(int, notify=countsChanged)
     def perceptionRadius(self):
         return self._perception_radius
 
@@ -1023,7 +1023,7 @@ class SwarmContext(QObject):
         self._perception_radius = value
 
     # Leader-Follower properties
-    @pyqtProperty(bool, notify=countsChanged)
+    @Property(bool, notify=countsChanged)
     def leaderFollowerEnabled(self):
         return self._leader_follower_enabled
 
@@ -1050,7 +1050,7 @@ class SwarmContext(QObject):
                 self._formation_cmd_ts.clear()
         self.countsChanged.emit()
 
-    @pyqtProperty(str, notify=countsChanged)
+    @Property(str, notify=countsChanged)
     def leaderDroneId(self):
         return self._leader_drone_id
 
@@ -1058,7 +1058,7 @@ class SwarmContext(QObject):
     def leaderDroneId(self, value):
         self._leader_drone_id = value
 
-    @pyqtProperty(int, notify=countsChanged)
+    @Property(int, notify=countsChanged)
     def followDistance(self):
         return self._follow_distance
 
@@ -1066,7 +1066,7 @@ class SwarmContext(QObject):
     def followDistance(self, value):
         self._follow_distance = value
 
-    @pyqtProperty(int, notify=countsChanged)
+    @Property(int, notify=countsChanged)
     def formationType(self):
         return self._formation_type
 
@@ -1077,7 +1077,7 @@ class SwarmContext(QObject):
         self._formation_type = int(value)
         self.countsChanged.emit()
 
-    @pyqtProperty(int, notify=countsChanged)
+    @Property(int, notify=countsChanged)
     def formationSize(self):
         return self._formation_size
 
@@ -1093,7 +1093,7 @@ class SwarmContext(QObject):
         )
 
     # Consensus properties
-    @pyqtProperty(bool, notify=countsChanged)
+    @Property(bool, notify=countsChanged)
     def consensusEnabled(self):
         return self._consensus_enabled
 
@@ -1101,7 +1101,7 @@ class SwarmContext(QObject):
     def consensusEnabled(self, value):
         self._consensus_enabled = value
 
-    @pyqtProperty(int, notify=countsChanged)
+    @Property(int, notify=countsChanged)
     def consensusAlgorithm(self):
         return self._consensus_algorithm
 
@@ -1109,7 +1109,7 @@ class SwarmContext(QObject):
     def consensusAlgorithm(self, value):
         self._consensus_algorithm = value
 
-    @pyqtProperty(int, notify=countsChanged)
+    @Property(int, notify=countsChanged)
     def byzantineTolerance(self):
         return self._byzantine_tolerance
 
@@ -1117,12 +1117,12 @@ class SwarmContext(QObject):
     def byzantineTolerance(self, value):
         self._byzantine_tolerance = value
 
-    @pyqtProperty(str, notify=countsChanged)
+    @Property(str, notify=countsChanged)
     def consensusState(self):
         return self._consensus_state
 
     # Behavior Trees properties
-    @pyqtProperty(bool, notify=countsChanged)
+    @Property(bool, notify=countsChanged)
     def behaviorTreesEnabled(self):
         return self._behavior_trees_enabled
 
@@ -1130,7 +1130,7 @@ class SwarmContext(QObject):
     def behaviorTreesEnabled(self, value):
         self._behavior_trees_enabled = value
 
-    @pyqtProperty(int, notify=countsChanged)
+    @Property(int, notify=countsChanged)
     def missionType(self):
         return self._mission_type
 
@@ -1138,7 +1138,7 @@ class SwarmContext(QObject):
     def missionType(self, value):
         self._mission_type = value
 
-    @pyqtProperty(int, notify=countsChanged)
+    @Property(int, notify=countsChanged)
     def missionPriority(self):
         return self._mission_priority
 
@@ -1146,13 +1146,13 @@ class SwarmContext(QObject):
     def missionPriority(self, value):
         self._mission_priority = value
 
-    @pyqtProperty(str, notify=missionStatusChanged)
+    @Property(str, notify=missionStatusChanged)
     def missionStatus(self):
         return self._mission_status
 
     # ── Swarm Algorithms Slots ─────────────────────────────────────────────
 
-    @pyqtSlot()
+    @Slot()
     def startSwarmAlgorithms(self):
         """Start all enabled swarm algorithms.
 
@@ -1210,7 +1210,7 @@ class SwarmContext(QObject):
         self.logMessage.emit("INFO", "[SWARM] Starting swarm algorithms...")
         self.countsChanged.emit()
 
-    @pyqtSlot()
+    @Slot()
     def stopSwarmAlgorithms(self):
         """Stop all swarm algorithms"""
         self._swarm_algorithms_active = False
@@ -1218,7 +1218,7 @@ class SwarmContext(QObject):
         self.logMessage.emit("INFO", "[SWARM] Stopping swarm algorithms...")
         self.countsChanged.emit()
 
-    @pyqtSlot()
+    @Slot()
     def resetSwarmAlgorithms(self):
         """Reset all swarm algorithms"""
         self.stopSwarmAlgorithms()
@@ -1229,7 +1229,7 @@ class SwarmContext(QObject):
         self.logMessage.emit("INFO", "[SWARM] Algorithms reset")
         self.countsChanged.emit()
 
-    @pyqtSlot()
+    @Slot()
     def startConsensusVote(self):
         """Start consensus voting"""
         if not self._consensus_enabled:
@@ -1252,7 +1252,7 @@ class SwarmContext(QObject):
 
         threading.Thread(target=_vote, daemon=True).start()
 
-    @pyqtSlot()
+    @Slot()
     def executeBehaviorTreeMission(self):
         """Execute behavior tree mission"""
         if not self._behavior_trees_enabled:
@@ -1688,7 +1688,7 @@ class SwarmContext(QObject):
             positions[drone_id] = (lat0 + dlat, lon0 + dlon, alt0)
 
         return positions
-    @pyqtSlot(str, int, float, result="QVariantList")
+    @Slot(str, int, float, result="QVariantList")
     def getFormationOffsets(self, shape: str, count: int, spacing: float) -> list:
         """
         Get formation offsets for preview visualization.

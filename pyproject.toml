@@ -27,8 +27,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Note: the graphical GCS lives on the `ui-dashboard` branch under
-# tools/ui/ and uses PyQt6 directly. It is intentionally not packaged
+# Note: the graphical GCS lives under tools/ui/ and uses PySide6 (LGPL v3).
+# PySide6 replaced PyQt6 (GPL v3) for commercial compatibility.
+# UI dependencies are in requirements.txt and intentionally not packaged
 # as an extra here so the core platform stays headless / Pi-deployable.
 ros = []       # rclpy installed separately via apt/pip
 test = ["pytest>=8.0"]

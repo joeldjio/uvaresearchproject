@@ -259,7 +259,7 @@ def _launch_ui():
     """Launch the QML-based GCS that lives in ``tools/ui``.
 
     The UI is intentionally NOT part of the ``droneresearch`` package — it
-    has a much heavier dependency footprint (PyQt6, QtQuick, pyqtgraph,
+    has a much heavier dependency footprint (PySide6, QtQuick,
     QtWebEngine for the map). Importing it on demand keeps the core CLI
     usable on headless boxes.
     """
@@ -267,8 +267,8 @@ def _launch_ui():
         from tools.ui.app import run as ui_run
     except ImportError as exc:
         print(
-            "UI requires PyQt6 (and friends). Install dev extras:\n"
-            "    pip install PyQt6 PyQt6-WebEngine pyqtgraph\n"
+            "UI requires PySide6 (and friends). Install from requirements.txt:\n"
+            "    pip install -r requirements.txt\n"
             f"Underlying error: {exc}",
             file=sys.stderr,
         )

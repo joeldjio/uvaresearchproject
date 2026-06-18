@@ -8,7 +8,7 @@ Provides Qt/QML integration for all ESCAPE framework features:
 - Distributed mapping consensus
 """
 from typing import Dict, List, Optional, Tuple
-from PyQt6.QtCore import QObject, pyqtSignal as Signal, pyqtSlot as Slot, pyqtProperty 
+from PySide6.QtCore import QObject, Signal as Signal, Slot as Slot, Property 
 from droneresearch.safety.apf import Pose3D
 
 # Optional ESCAPE imports
@@ -142,7 +142,7 @@ class ESCAPEContext(QObject):
     
     # ========== Perception Properties ==========
     
-    @pyqtProperty(list, notify=obstaclesChanged)
+    @Property(list, notify=obstaclesChanged)
     def obstacles(self) -> List[Dict]:
         """Get nearby obstacles from perception filter."""
         if not self._perception_apf or not self._drone_positions:
@@ -161,7 +161,7 @@ class ESCAPEContext(QObject):
             for x, y, z in nearby
         ]
     
-    @pyqtProperty(int, notify=obstaclesChanged)
+    @Property(int, notify=obstaclesChanged)
     def obstacleCount(self) -> int:
         """Get total number of obstacles."""
         return len(self.obstacles)
@@ -185,7 +185,7 @@ class ESCAPEContext(QObject):
     
     # ========== Task Allocation Properties ==========
     
-    @pyqtProperty(list, notify=tasksChanged)
+    @Property(list, notify=tasksChanged)
     def tasks(self) -> List[Dict]:
         """Get current task allocation status."""
         if not self._allocator:
@@ -202,7 +202,7 @@ class ESCAPEContext(QObject):
             for task_id, info in self._allocator._tasks.items()
         ]
     
-    @pyqtProperty(int, notify=tasksChanged)
+    @Property(int, notify=tasksChanged)
     def taskCount(self) -> int:
         """Get total number of tasks."""
         return len(self.tasks)
@@ -240,7 +240,7 @@ class ESCAPEContext(QObject):
     
     # ========== Adaptive Safety Properties ==========
     
-    @pyqtProperty(float, notify=windSpeedChanged)
+    @Property(float, notify=windSpeedChanged)
     def windSpeed(self) -> float:
         """Get current wind speed (m/s)."""
         return self._wind_speed
@@ -254,7 +254,7 @@ class ESCAPEContext(QObject):
         self.windSpeedChanged.emit()
         self.marginsChanged.emit()
     
-    @pyqtProperty(float, notify=gpsUncertaintyChanged)
+    @Property(float, notify=gpsUncertaintyChanged)
     def gpsUncertainty(self) -> float:
         """Get current GPS uncertainty (meters)."""
         return self._gps_uncertainty
@@ -268,7 +268,7 @@ class ESCAPEContext(QObject):
         self.gpsUncertaintyChanged.emit()
         self.marginsChanged.emit()
     
-    @pyqtProperty(list, notify=marginsChanged)
+    @Property(list, notify=marginsChanged)
     def droneMargins(self) -> List[Dict]:
         """Get current adaptive margins between all drone pairs."""
         if not self._adaptive_apf or not self._drone_positions:
@@ -291,7 +291,7 @@ class ESCAPEContext(QObject):
     
     # ========== Distributed Mapping Properties ==========
     
-    @pyqtProperty(list, notify=mapChanged)
+    @Property(list, notify=mapChanged)
     def occupiedVoxels(self) -> List[Dict]:
         """Get occupied voxels for visualization."""
         if not self._map:
@@ -316,21 +316,21 @@ class ESCAPEContext(QObject):
         
         return result
     
-    @pyqtProperty(int, notify=mapChanged)
+    @Property(int, notify=mapChanged)
     def voxelCount(self) -> int:
         """Get total number of voxels in map."""
         if not self._map:
             return 0
         return self._map.get_statistics()["voxel_count"]
     
-    @pyqtProperty(int, notify=mapChanged)
+    @Property(int, notify=mapChanged)
     def mergeCount(self) -> int:
         """Get number of map merges performed."""
         if not self._map:
             return 0
         return self._map.get_statistics()["merge_count"]
     
-    @pyqtProperty(int, notify=mapChanged)
+    @Property(int, notify=mapChanged)
     def consensusCount(self) -> int:
         """Get number of consensus operations."""
         if not self._map:
@@ -383,7 +383,7 @@ class ESCAPEContext(QObject):
     
     # ========== Enabled Properties ==========
     
-    @pyqtProperty(bool, notify=perceptionEnabledChanged)
+    @Property(bool, notify=perceptionEnabledChanged)
     def perceptionEnabled(self) -> bool:
         """Check if perception-based avoidance is enabled."""
         return self._perception_enabled
@@ -395,7 +395,7 @@ class ESCAPEContext(QObject):
             self.perceptionEnabledChanged.emit()
             self.logMessage.emit("INFO", f"[ESCAPE] Perception-based collision avoidance {'enabled' if enabled else 'disabled'}")
     
-    @pyqtProperty(bool, notify=taskAllocationEnabledChanged)
+    @Property(bool, notify=taskAllocationEnabledChanged)
     def taskAllocationEnabled(self) -> bool:
         """Check if task allocation is enabled."""
         return self._task_allocation_enabled
@@ -407,7 +407,7 @@ class ESCAPEContext(QObject):
             self.taskAllocationEnabledChanged.emit()
             self.logMessage.emit("INFO", f"[ESCAPE] Distributed task allocation {'enabled' if enabled else 'disabled'}")
     
-    @pyqtProperty(bool, notify=adaptiveMarginsEnabledChanged)
+    @Property(bool, notify=adaptiveMarginsEnabledChanged)
     def adaptiveMarginsEnabled(self) -> bool:
         """Check if adaptive margins are enabled."""
         return self._adaptive_margins_enabled
@@ -419,7 +419,7 @@ class ESCAPEContext(QObject):
             self.adaptiveMarginsEnabledChanged.emit()
             self.logMessage.emit("INFO", f"[ESCAPE] Adaptive safety margins {'enabled' if enabled else 'disabled'}")
     
-    @pyqtProperty(bool, notify=mappingEnabledChanged)
+    @Property(bool, notify=mappingEnabledChanged)
     def mappingEnabled(self) -> bool:
         """Check if distributed mapping is enabled."""
         return self._mapping_enabled
@@ -431,7 +431,7 @@ class ESCAPEContext(QObject):
             self.mappingEnabledChanged.emit()
             self.logMessage.emit("INFO", f"[ESCAPE] Distributed mapping consensus {'enabled' if enabled else 'disabled'}")
     
-    @pyqtProperty(bool, constant=True)
+    @Property(bool, constant=True)
     def available(self) -> bool:
         """Check if ESCAPE framework is available."""
         return _ESCAPE_OK

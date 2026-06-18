@@ -34,7 +34,7 @@ import threading
 import importlib.util
 from typing import Dict, Optional
 
-from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot, QTimer
+from PySide6.QtCore import QObject, Signal, Slot, QTimer
 
 # ── Detect ROS2 availability WITHOUT importing rclpy ──────────────────
 # Importing rclpy is expensive (1-3s on cold start). We only check if
@@ -64,19 +64,19 @@ class ROS2Context(QObject):
     """QML-callable wrapper around PX4ROS2Bridge."""
 
     # ── Signals ───────────────────────────────────────────────────────────
-    bridgeStatusChanged = pyqtSignal(str, bool,   arguments=["droneId", "active"])
-    telemetryReceived   = pyqtSignal(str, "QVariant", arguments=["droneId", "snapshot"])
-    ros2LogMessage      = pyqtSignal(str, str,    arguments=["level", "text"])
-    nodeStatusChanged   = pyqtSignal(str,          arguments=["status"])
-    missionStatusChanged = pyqtSignal(str, "QVariant", arguments=["droneId", "status"])
-    connectionStatusChanged = pyqtSignal(str, str, arguments=["droneId", "status"])
+    bridgeStatusChanged = Signal(str, bool,   arguments=["droneId", "active"])
+    telemetryReceived   = Signal(str, "QVariant", arguments=["droneId", "snapshot"])
+    ros2LogMessage      = Signal(str, str,    arguments=["level", "text"])
+    nodeStatusChanged   = Signal(str,          arguments=["status"])
+    missionStatusChanged = Signal(str, "QVariant", arguments=["droneId", "status"])
+    connectionStatusChanged = Signal(str, str, arguments=["droneId", "status"])
     
     # Confirmation signals for immediate UI feedback (Improvement 8)
-    armConfirmed = pyqtSignal(str, arguments=["droneId"])
-    disarmConfirmed = pyqtSignal(str, arguments=["droneId"])
-    takeoffConfirmed = pyqtSignal(str, float, arguments=["droneId", "altitude"])
-    landConfirmed = pyqtSignal(str, arguments=["droneId"])
-    rtlConfirmed = pyqtSignal(str, arguments=["droneId"])
+    armConfirmed = Signal(str, arguments=["droneId"])
+    disarmConfirmed = Signal(str, arguments=["droneId"])
+    takeoffConfirmed = Signal(str, float, arguments=["droneId", "altitude"])
+    landConfirmed = Signal(str, arguments=["droneId"])
+    rtlConfirmed = Signal(str, arguments=["droneId"])
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -121,7 +121,7 @@ class ROS2Context(QObject):
         else:
             self.nodeStatusChanged.emit("ok")
 
-    @pyqtSlot(result=str)
+    @Slot(result=str)
     def nodeStatus(self) -> str:
         if not _ROS2_AVAILABLE:
             return "no_ros2"
@@ -129,12 +129,12 @@ class ROS2Context(QObject):
             return "no_px4_msgs"
         return "ok"
 
-    @pyqtSlot(str, result=bool)
+    @Slot(str, result=bool)
     def isBridgeActive(self, drone_id: str) -> bool:
         return drone_id in self._active_drone_ids
 
-    @pyqtSlot(result="QVariant")
-    @pyqtSlot(str, result=str)
+    @Slot(result="QVariant")
+    @Slot(str, result=str)
     def getConnectionStatus(self, drone_id: str) -> str:
         """Get connection status for a drone."""
         bridge = self._bridges.get(drone_id)
@@ -146,7 +146,7 @@ class ROS2Context(QObject):
         except Exception:
             return "unknown"
     
-    @pyqtSlot(str, result="QVariant")
+    @Slot(str, result="QVariant")
     def getReconnectInfo(self, drone_id: str) -> dict:
         """Get reconnect information for a drone."""
         bridge = self._bridges.get(drone_id)
@@ -161,7 +161,7 @@ class ROS2Context(QObject):
 
     # ── Bridge lifecycle ──────────────────────────────────────────────────
 
-    @pyqtSlot(str, str)
+    @Slot(str, str)
     def startBridge(self, drone_id: str, namespace: str) -> None:
         """Start uXRCE-DDS bridge for a drone. Stops MAVLink if it was active."""
         if not _ROS2_AVAILABLE:
@@ -198,7 +198,7 @@ class ROS2Context(QObject):
 
         threading.Thread(target=_start, daemon=True).start()
 
-    @pyqtSlot(str)
+    @Slot(str)
     def stopBridge(self, drone_id: str) -> None:
         bridge = self._bridges.pop(drone_id, None)
         self._active_drone_ids.discard(drone_id)
@@ -213,7 +213,7 @@ class ROS2Context(QObject):
 
     # ── Offboard control ──────────────────────────────────────────────────
 
-    @pyqtSlot(str)
+    @Slot(str)
     def activateOffboardMode(self, drone_id: str) -> None:
         b = self._bridges.get(drone_id)
         if b:
@@ -222,7 +222,7 @@ class ROS2Context(QObject):
         else:
             self.ros2LogMessage.emit("WARN", f"[ROS2] No bridge for {drone_id}")
 
-    @pyqtSlot(str, float, float, float, float)
+    @Slot(str, float, float, float, float)
     def setOffboardPosition(self, drone_id: str, north: float, east: float,
                             down: float, yaw: float) -> None:
         b = self._bridges.get(drone_id)
@@ -231,7 +231,7 @@ class ROS2Context(QObject):
             self.ros2LogMessage.emit("INFO",
                 f"[ROS2] {drone_id} POSITION N={north:.1f} E={east:.1f} D={down:.1f} yaw={yaw:.1f}")
 
-    @pyqtSlot(str, float, float, float, float)
+    @Slot(str, float, float, float, float)
     def setOffboardVelocity(self, drone_id: str, vn: float, ve: float,
                             vd: float, yaw_rate: float) -> None:
         b = self._bridges.get(drone_id)
@@ -240,7 +240,7 @@ class ROS2Context(QObject):
             self.ros2LogMessage.emit("INFO",
                 f"[ROS2] {drone_id} VELOCITY vN={vn:.1f} vE={ve:.1f} vD={vd:.1f}")
 
-    @pyqtSlot(str)
+    @Slot(str)
     def stopOffboard(self, drone_id: str) -> None:
         b = self._bridges.get(drone_id)
         if b:
@@ -249,7 +249,7 @@ class ROS2Context(QObject):
 
     # ── Vehicle commands via bridge ───────────────────────────────────────
 
-    @pyqtSlot(str)
+    @Slot(str)
     def armBridge(self, drone_id: str) -> None:
         b = self._bridges.get(drone_id)
         if b:
@@ -258,7 +258,7 @@ class ROS2Context(QObject):
             # Emit confirmation signal for immediate UI feedback
             self.armConfirmed.emit(drone_id)
 
-    @pyqtSlot(str)
+    @Slot(str)
     def disarmBridge(self, drone_id: str) -> None:
         b = self._bridges.get(drone_id)
         if b:
@@ -267,7 +267,7 @@ class ROS2Context(QObject):
             # Emit confirmation signal for immediate UI feedback
             self.disarmConfirmed.emit(drone_id)
 
-    @pyqtSlot(str, float)
+    @Slot(str, float)
     def takeoffBridge(self, drone_id: str, altitude: float) -> None:
         b = self._bridges.get(drone_id)
         if b:
@@ -276,7 +276,7 @@ class ROS2Context(QObject):
             # Emit confirmation signal for immediate UI feedback
             self.takeoffConfirmed.emit(drone_id, altitude)
 
-    @pyqtSlot(str)
+    @Slot(str)
     def landBridge(self, drone_id: str) -> None:
         b = self._bridges.get(drone_id)
         if b:
@@ -285,7 +285,7 @@ class ROS2Context(QObject):
             # Emit confirmation signal for immediate UI feedback
             self.landConfirmed.emit(drone_id)
 
-    @pyqtSlot(str)
+    @Slot(str)
     def rtlBridge(self, drone_id: str) -> None:
         b = self._bridges.get(drone_id)
         if b:
@@ -296,12 +296,12 @@ class ROS2Context(QObject):
 
     # ── Topic snapshot ────────────────────────────────────────────────────
 
-    @pyqtSlot(str, result="QVariant")
+    @Slot(str, result="QVariant")
     def bridgeSnapshot(self, drone_id: str) -> dict:
         b = self._bridges.get(drone_id)
         return dict(b.telemetry) if b else {}
 
-    @pyqtSlot(str, result="QVariant")
+    @Slot(str, result="QVariant")
     def getBridgeTopics(self, drone_id: str) -> list:
         ns = self._namespaces.get(drone_id, "")
         prefix = f"{ns}/fmu" if ns else "/fmu"
@@ -345,59 +345,59 @@ class ROS2Context(QObject):
 
     # ── PX4 SITL Control ──────────────────────────────────────────────────
 
-    @pyqtSlot(result=bool)
+    @Slot(result=bool)
     def isSitlRunning(self) -> bool:
         """Check if SITL cluster is running."""
         return self._sitl_cluster is not None and self._sitl_cluster.is_running()
 
-    @pyqtSlot(result=str)
+    @Slot(result=str)
     def getSitlPx4Dir(self) -> str:
         """Get current PX4 directory."""
         return self._sitl_config.get('px4_dir', '')
 
-    @pyqtSlot(str)
+    @Slot(str)
     def setSitlPx4Dir(self, path: str) -> None:
         """Set PX4 directory."""
         self._sitl_config['px4_dir'] = path
 
-    @pyqtSlot(result=str)
+    @Slot(result=str)
     def getSitlModel(self) -> str:
         """Get current SITL model."""
         return self._sitl_config.get('model', 'x500')
 
-    @pyqtSlot(str)
+    @Slot(str)
     def setSitlModel(self, model: str) -> None:
         """Set SITL model."""
         self._sitl_config['model'] = model
 
-    @pyqtSlot(result=str)
+    @Slot(result=str)
     def getSitlNamespace(self) -> str:
         """Get current SITL namespace."""
         return self._sitl_config.get('namespace', 'uav_1')
 
-    @pyqtSlot(str)
+    @Slot(str)
     def setSitlNamespace(self, namespace: str) -> None:
         """Set SITL namespace."""
         self._sitl_config['namespace'] = namespace
 
-    @pyqtSlot(result="QVariant")
+    @Slot(result="QVariant")
     def getSitlRos2Setups(self) -> list:
         """Get ROS2 setup files."""
         return self._sitl_config.get('ros2_setups', [])
 
-    @pyqtSlot(str)
+    @Slot(str)
     def addSitlRos2Setup(self, path: str) -> None:
         """Add ROS2 setup file."""
         if path and path not in self._sitl_config['ros2_setups']:
             self._sitl_config['ros2_setups'].append(path)
 
-    @pyqtSlot(str)
+    @Slot(str)
     def removeSitlRos2Setup(self, path: str) -> None:
         """Remove ROS2 setup file."""
         if path in self._sitl_config['ros2_setups']:
             self._sitl_config['ros2_setups'].remove(path)
 
-    @pyqtSlot()
+    @Slot()
     def startSitl(self) -> None:
         """Start PX4 SITL + Gazebo + XRCE-DDS Agent."""
         
@@ -445,7 +445,7 @@ class ROS2Context(QObject):
 
         threading.Thread(target=_start, daemon=True).start()
 
-    @pyqtSlot()
+    @Slot()
     def stopSitl(self) -> None:
         """Stop PX4 SITL cluster."""
         if self._sitl_cluster is None:
@@ -465,7 +465,7 @@ class ROS2Context(QObject):
     
     # ── Mission Management ────────────────────────────────────────────────
     
-    @pyqtSlot(str, "QVariant", result=bool)
+    @Slot(str, "QVariant", result=bool)
     def uploadMission(self, drone_id: str, waypoints: list) -> bool:
         """
         Upload waypoint mission to PX4.
@@ -515,7 +515,7 @@ class ROS2Context(QObject):
             self.ros2LogMessage.emit("ERROR", f"[MISSION] Upload error: {e}")
             return False
     
-    @pyqtSlot(str, result=bool)
+    @Slot(str, result=bool)
     def clearMission(self, drone_id: str) -> bool:
         """Clear mission on PX4."""
         b = self._bridges.get(drone_id)
@@ -532,7 +532,7 @@ class ROS2Context(QObject):
             self.ros2LogMessage.emit("ERROR", f"[MISSION] Clear error: {e}")
             return False
     
-    @pyqtSlot(str)
+    @Slot(str)
     def startMission(self, drone_id: str) -> None:
         """Start mission execution (switch to AUTO.MISSION mode)."""
         b = self._bridges.get(drone_id)
@@ -546,7 +546,7 @@ class ROS2Context(QObject):
         except Exception as e:
             self.ros2LogMessage.emit("ERROR", f"[MISSION] Start error: {e}")
     
-    @pyqtSlot(str)
+    @Slot(str)
     def pauseMission(self, drone_id: str) -> None:
         """Pause mission execution (switch to AUTO.LOITER mode)."""
         b = self._bridges.get(drone_id)
@@ -560,7 +560,7 @@ class ROS2Context(QObject):
         except Exception as e:
             self.ros2LogMessage.emit("ERROR", f"[MISSION] Pause error: {e}")
     
-    @pyqtSlot(str, result="QVariant")
+    @Slot(str, result="QVariant")
     def getMissionStatus(self, drone_id: str) -> dict:
         """Get current mission status."""
         b = self._bridges.get(drone_id)
@@ -580,7 +580,7 @@ class ROS2Context(QObject):
             self.ros2LogMessage.emit("ERROR", f"[MISSION] Status error: {e}")
             return {}
     
-    @pyqtSlot(str, result="QVariant")
+    @Slot(str, result="QVariant")
     def getMissionWaypoints(self, drone_id: str) -> list:
         """Get uploaded mission waypoints."""
         b = self._bridges.get(drone_id)
@@ -619,12 +619,12 @@ class ROS2Context(QObject):
             self._FormationController = None
             return False
     
-    @pyqtSlot(result=bool)
+    @Slot(result=bool)
     def isFormationActive(self) -> bool:
         """Check if formation controller is running."""
         return hasattr(self, '_formation_controller') and self._formation_controller is not None
     
-    @pyqtSlot(str, "QVariant", str, float)
+    @Slot(str, "QVariant", str, float)
     def startFormation(self, leader_id: str, follower_ids: list, shape: str, spacing: float) -> None:
         """
         Start formation control.
@@ -673,7 +673,7 @@ class ROS2Context(QObject):
         
         threading.Thread(target=_start, daemon=True).start()
     
-    @pyqtSlot()
+    @Slot()
     def stopFormation(self) -> None:
         """Stop formation controller."""
         if not self.isFormationActive():
@@ -691,7 +691,7 @@ class ROS2Context(QObject):
         
         threading.Thread(target=_stop, daemon=True).start()
     
-    @pyqtSlot(float, float, float, float)
+    @Slot(float, float, float, float)
     def setFormationLeaderPosition(self, north: float, east: float, altitude: float, yaw: float) -> None:
         """
         Set leader position. Followers maintain formation offsets.
@@ -711,7 +711,7 @@ class ROS2Context(QObject):
         except Exception as e:
             self.ros2LogMessage.emit("ERROR", f"[FORMATION] Set position failed: {e}")
     
-    @pyqtSlot(result="QVariant")
+    @Slot(result="QVariant")
     def getFormationLeaderPosition(self) -> dict:
         """Get current leader position."""
         if not self.isFormationActive():
@@ -723,7 +723,7 @@ class ROS2Context(QObject):
             self.ros2LogMessage.emit("ERROR", f"[FORMATION] Get position failed: {e}")
             return {"north": 0.0, "east": 0.0, "altitude": 0.0}
     
-    @pyqtSlot(result="QVariant")
+    @Slot(result="QVariant")
     def getFormationFollowerPositions(self) -> dict:
         """Get current follower positions."""
         if not self.isFormationActive():
@@ -735,7 +735,7 @@ class ROS2Context(QObject):
             self.ros2LogMessage.emit("ERROR", f"[FORMATION] Get follower positions failed: {e}")
             return {}
     
-    @pyqtSlot()
+    @Slot()
     def armFormation(self) -> None:
         """Arm all vehicles in formation."""
         if not self.isFormationActive():
@@ -748,7 +748,7 @@ class ROS2Context(QObject):
         except Exception as e:
             self.ros2LogMessage.emit("ERROR", f"[FORMATION] Arm failed: {e}")
     
-    @pyqtSlot()
+    @Slot()
     def disarmFormation(self) -> None:
         """Disarm all vehicles in formation."""
         if not self.isFormationActive():
@@ -761,7 +761,7 @@ class ROS2Context(QObject):
         except Exception as e:
             self.ros2LogMessage.emit("ERROR", f"[FORMATION] Disarm failed: {e}")
     
-    @pyqtSlot()
+    @Slot()
     def enableOffboardFormation(self) -> None:
         """Enable offboard mode for all vehicles in formation."""
         if not self.isFormationActive():
@@ -777,7 +777,7 @@ class ROS2Context(QObject):
     # BAG RECORDING
     # ═══════════════════════════════════════════════════════════════════════
     
-    @pyqtSlot("QVariant", str, str, result=bool)
+    @Slot("QVariant", str, str, result=bool)
     def startBagRecording(self, topics: list, bag_name: str = "", compression: str = "zstd") -> bool:
         """
         Start recording ROS2 bag.
@@ -836,7 +836,7 @@ class ROS2Context(QObject):
             self.ros2LogMessage.emit("ERROR", f"[BAG] Start recording error: {e}")
             return False
     
-    @pyqtSlot(result=bool)
+    @Slot(result=bool)
     def stopBagRecording(self) -> bool:
         """
         Stop current bag recording.
@@ -862,7 +862,7 @@ class ROS2Context(QObject):
             self.ros2LogMessage.emit("ERROR", f"[BAG] Stop recording error: {e}")
             return False
     
-    @pyqtSlot(result=bool)
+    @Slot(result=bool)
     def isBagRecording(self) -> bool:
         """Check if currently recording."""
         if not hasattr(self, '_bag_recorder') or self._bag_recorder is None:
@@ -873,7 +873,7 @@ class ROS2Context(QObject):
         except Exception:
             return False
     
-    @pyqtSlot(result="QVariantMap")
+    @Slot(result="QVariantMap")
     def getBagRecordingStatus(self) -> dict:
         """
         Get current recording status.
@@ -900,7 +900,7 @@ class ROS2Context(QObject):
                 "size_mb": 0.0
             }
     
-    @pyqtSlot(result="QVariantList")
+    @Slot(result="QVariantList")
     def listBags(self) -> list:
         """
         List all recorded bags.
@@ -936,7 +936,7 @@ class ROS2Context(QObject):
             self.ros2LogMessage.emit("ERROR", f"[BAG] List bags error: {e}")
             return []
     
-    @pyqtSlot(str, float, result=bool)
+    @Slot(str, float, result=bool)
     def playBag(self, bag_path: str, rate: float = 1.0) -> bool:
         """
         Play back a recorded bag.
@@ -973,7 +973,7 @@ class ROS2Context(QObject):
     
     # ── Frame Conversion Debug ─────────────────────────────────────────────
     
-    @pyqtSlot(str, result="QVariant")
+    @Slot(str, result="QVariant")
     def getFrameData(self, drone_id: str) -> dict:
         """
         Get NED and ENU frame data for visualization.

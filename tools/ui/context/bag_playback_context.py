@@ -12,7 +12,7 @@ import time
 from pathlib import Path
 from typing import Optional
 
-from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot, pyqtProperty
+from PySide6.QtCore import QObject, Signal, Slot, Property
 
 
 class BagPlaybackContext(QObject):
@@ -26,11 +26,11 @@ class BagPlaybackContext(QObject):
         errorOccurred: Error during playback
     """
     
-    stateChanged = pyqtSignal(str)  # "stopped", "playing", "paused"
-    progressChanged = pyqtSignal(float)  # 0.0 to 1.0
-    durationChanged = pyqtSignal(float)  # seconds
-    playbackRateChanged = pyqtSignal(float)  # playback speed
-    errorOccurred = pyqtSignal(str)
+    stateChanged = Signal(str)  # "stopped", "playing", "paused"
+    progressChanged = Signal(float)  # 0.0 to 1.0
+    durationChanged = Signal(float)  # seconds
+    playbackRateChanged = Signal(float)  # playback speed
+    errorOccurred = Signal(str)
     
     def __init__(self, parent: Optional[QObject] = None):
         super().__init__(parent)
@@ -43,22 +43,22 @@ class BagPlaybackContext(QObject):
         self._monitor_thread: Optional[threading.Thread] = None
         self._stop_monitoring = False
     
-    @pyqtProperty(str, notify=stateChanged)
+    @Property(str, notify=stateChanged)
     def state(self) -> str:
         """Current playback state: stopped/playing/paused"""
         return self._state
     
-    @pyqtProperty(float, notify=progressChanged)
+    @Property(float, notify=progressChanged)
     def progress(self) -> float:
         """Playback progress (0.0 to 1.0)"""
         return self._progress
     
-    @pyqtProperty(float, notify=durationChanged)
+    @Property(float, notify=durationChanged)
     def duration(self) -> float:
         """Total duration in seconds"""
         return self._duration
     
-    @pyqtProperty(float, notify=playbackRateChanged)
+    @Property(float, notify=playbackRateChanged)
     def playbackRate(self) -> float:
         """Playback speed multiplier"""
         return self._playback_rate
@@ -71,7 +71,7 @@ class BagPlaybackContext(QObject):
             self._playback_rate = new_rate
             self.playbackRateChanged.emit(self._playback_rate)
     
-    @pyqtSlot(str)
+    @Slot(str)
     def loadBag(self, path: str) -> None:
         """
         Load a ROS2 bag file.
@@ -128,7 +128,7 @@ class BagPlaybackContext(QObject):
         except Exception as e:
             self.errorOccurred.emit(f"Error parsing bag info: {e}")
     
-    @pyqtSlot()
+    @Slot()
     def play(self) -> None:
         """Start or resume playback"""
         if not self._bag_path:
@@ -167,13 +167,13 @@ class BagPlaybackContext(QObject):
         except Exception as e:
             self.errorOccurred.emit(f"Failed to start playback: {e}")
     
-    @pyqtSlot()
+    @Slot()
     def pause(self) -> None:
         """Pause playback (not supported by ros2 bag play - will stop instead)"""
         # Note: ros2 bag play doesn't support pause, so we stop
         self.stop()
     
-    @pyqtSlot()
+    @Slot()
     def stop(self) -> None:
         """Stop playback"""
         if self._process:
@@ -194,7 +194,7 @@ class BagPlaybackContext(QObject):
         self.stateChanged.emit(self._state)
         self.progressChanged.emit(self._progress)
     
-    @pyqtSlot(float)
+    @Slot(float)
     def seek(self, position: float) -> None:
         """
         Seek to position (0.0 to 1.0).

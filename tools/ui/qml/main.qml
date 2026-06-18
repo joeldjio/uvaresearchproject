@@ -994,7 +994,7 @@ Window {
             Row {
                 anchors { right: parent.right; rightMargin: 16; verticalCenter: parent.verticalCenter }
                 spacing: 16
-                Text { text: "PyQt6 + QML"; color: "#2d3748"; font.pixelSize: 9 }
+                Text { text: "PySide6 + QML"; color: "#2d3748"; font.pixelSize: 9 }
                 Text {
                     text: "uavresearch gcs " + ((typeof updater !== "undefined" && updater) ? "v" + updater.currentVersion : "v?")
                     color: "#2d3748"; font.pixelSize: 9

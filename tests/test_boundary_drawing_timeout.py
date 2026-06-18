@@ -9,8 +9,8 @@ from unittest.mock import Mock
 import time
 
 import pytest
-from PyQt6.QtWidgets import QApplication
-from PyQt6.QtCore import QTimer
+from PySide6.QtWidgets import QApplication
+from PySide6.QtCore import QTimer
 
 # Ensure QApplication exists for QTimer tests
 @pytest.fixture(scope="module")

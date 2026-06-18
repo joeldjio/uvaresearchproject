@@ -3,12 +3,12 @@ Dashboard Tab — Live telemetry overview for a single drone.
 """
 import time
 
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QGroupBox, QLabel, QComboBox, QPushButton, QSizePolicy,
     QFrame,
 )
-from PyQt6.QtCore import Qt
+from PySide6.QtCore import Qt
 
 import pyqtgraph as pg
 
