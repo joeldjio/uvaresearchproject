@@ -105,15 +105,25 @@ class _CheckWorker(QObject):
         notes = str(payload.get("body") or "").strip()
         assets = payload.get("assets") or []
 
+        # Detect platform-specific assets
         asset_url: Optional[str] = None
         sha256_url: Optional[str] = None
+        
+        # Determine platform suffix
+        if sys.platform == "win32":
+            platform_suffix = ".exe"
+        elif sys.platform == "darwin":
+            platform_suffix = ".dmg"
+        else:  # Linux
+            platform_suffix = ".AppImage"
+        
         for a in assets:
             name = str(a.get("name") or "")
             if name.startswith(INSTALLER_ASSET_PREFIX) and name.lower().endswith(
-                ".exe"
+                platform_suffix
             ):
                 asset_url = a.get("browser_download_url")
-            elif name.endswith(".sha256") and INSTALLER_ASSET_PREFIX in name:
+            elif name.endswith(".sha256") and INSTALLER_ASSET_PREFIX in name and platform_suffix.replace(".", "") in name:
                 sha256_url = a.get("browser_download_url")
 
         if not latest_tag:
@@ -121,8 +131,9 @@ class _CheckWorker(QObject):
         elif not _is_newer(latest_tag, VERSION):
             self.uptodate.emit()
         elif asset_url is None:
+            platform_name = {"win32": "Windows", "darwin": "macOS", "linux": "Linux"}.get(sys.platform, sys.platform)
             self.failed.emit(
-                f"Release {latest_tag} has no '{INSTALLER_ASSET_PREFIX}*.exe' asset."
+                f"Release {latest_tag} has no '{INSTALLER_ASSET_PREFIX}*{platform_suffix}' asset for {platform_name}."
             )
         else:
             self.found.emit(latest_tag.lstrip("v"), asset_url, notes, sha256_url or "")
@@ -373,15 +384,11 @@ class UpdaterContext(QObject):
     # ── Installer launch ─────────────────────────────────────────────
     def _launch_installer(self, installer_path: str) -> None:
         """
-        Launch the freshly downloaded installer with Inno Setup's
-        upgrade flags, then quit this app so the installer can replace
-        in-use files in ``_internal/``.
-
-        Flags:
-          /SILENT              minimal UI, still shows progress
-          /CLOSEAPPLICATIONS   gracefully ask the running app to exit
-          /RESTARTAPPLICATIONS relaunch after upgrade
-          /NORESTART           never reboot Windows even if needed
+        Launch the freshly downloaded installer for the current platform.
+        
+        Windows (.exe): Inno Setup with silent upgrade flags
+        macOS (.dmg): Open DMG for manual installation
+        Linux (.AppImage): Make executable and launch, or open .deb with package manager
         """
         if not os.path.isfile(installer_path):
             self._error_message = f"Installer not found at {installer_path}"
@@ -390,22 +397,48 @@ class UpdaterContext(QObject):
             return
 
         try:
-            subprocess.Popen(
-                [
-                    installer_path,
-                    "/SILENT",
-                    "/CLOSEAPPLICATIONS",
-                    "/RESTARTAPPLICATIONS",
-                    "/NORESTART",
-                ],
-                creationflags=_DETACHED_PROCESS if sys.platform == "win32" else 0,
-                close_fds=True,
-            )
+            if sys.platform == "win32":
+                # Windows: Inno Setup silent upgrade
+                subprocess.Popen(
+                    [
+                        installer_path,
+                        "/SILENT",
+                        "/CLOSEAPPLICATIONS",
+                        "/RESTARTAPPLICATIONS",
+                        "/NORESTART",
+                    ],
+                    creationflags=_DETACHED_PROCESS,
+                    close_fds=True,
+                )
+                # Give the installer a moment to start before this process exits
+                QTimer.singleShot(800, QApplication.quit)
+                
+            elif sys.platform == "darwin":
+                # macOS: Open DMG for user to drag to Applications
+                subprocess.Popen(["open", installer_path])
+                self._error_message = "Please drag the app to your Applications folder to complete the update."
+                self.errorMessageChanged.emit()
+                self._set_state("ready")
+                
+            else:  # Linux
+                if installer_path.endswith(".AppImage"):
+                    # Make AppImage executable and launch
+                    os.chmod(installer_path, 0o755)
+                    subprocess.Popen([installer_path])
+                    QTimer.singleShot(800, QApplication.quit)
+                elif installer_path.endswith(".deb"):
+                    # Open with default package manager
+                    subprocess.Popen(["xdg-open", installer_path])
+                    self._error_message = "Please install the .deb package using your package manager."
+                    self.errorMessageChanged.emit()
+                    self._set_state("ready")
+                else:
+                    self._error_message = f"Unsupported installer format: {installer_path}"
+                    self.errorMessageChanged.emit()
+                    self._set_state("error")
+                    
         except OSError as exc:
             self._error_message = f"Could not launch installer: {exc}"
             self.errorMessageChanged.emit()
             self._set_state("error")
             return
-
-        # Give the installer a moment to start before this process exits.
-        QTimer.singleShot(800, QApplication.quit)

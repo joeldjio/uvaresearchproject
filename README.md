@@ -204,7 +204,19 @@ All cross-thread communication uses Qt signals/slots for thread safety.
 
 ## 🚀 Quick Start
 
-### Installation
+### Download Pre-built Binaries
+
+**Latest Release:** [Download from GitHub Releases](https://github.com/joeldjio/rz-gcs-releases/releases/latest)
+
+| Platform | Download | Installation |
+|----------|----------|--------------|
+| **Windows** | [uavresearch-gcs-setup-*.exe](https://github.com/joeldjio/rz-gcs-releases/releases/latest) | Run the installer |
+| **macOS** | [uavresearch-gcs-macos.tar.gz](https://github.com/joeldjio/rz-gcs-releases/releases/latest) | Extract and drag to Applications |
+| **Linux (Ubuntu 22.04)** | [*.deb](https://github.com/joeldjio/rz-gcs-releases/releases/latest) | `sudo dpkg -i *.deb` |
+
+> **Note:** Windows Defender / macOS Gatekeeper may warn about unsigned binaries. Click *More info → Run anyway* (Windows) or right-click → Open (macOS).
+
+### Install from Source
 
 ```bash
 # Clone repository
