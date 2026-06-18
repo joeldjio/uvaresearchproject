@@ -83,17 +83,18 @@ def test_plan_seeding_mission_basic():
     planner = SeedingMissionPlanner()
     planner.set_home_position(48.137, 11.575)
     
+    # Use smaller field with larger seed spacing to stay under 700 waypoint limit
     boundary = FieldBoundary(corners=[
         (48.137, 11.575),
-        (48.138, 11.575),
-        (48.138, 11.576),
-        (48.137, 11.576)
+        (48.1375, 11.575),
+        (48.1375, 11.5755),
+        (48.137, 11.5755)
     ])
     
     waypoints = planner.plan_seeding_mission(
         boundary=boundary,
-        seed_spacing=2.0,
-        row_spacing=5.0,
+        seed_spacing=8.0,  # Increased from 2.0 to reduce waypoint count
+        row_spacing=10.0,  # Increased from 5.0
         altitude=10.0,
         add_rtl=False
     )
@@ -122,15 +123,18 @@ def test_plan_seeding_mission_with_rtl():
     planner = SeedingMissionPlanner()
     planner.set_home_position(48.137, 11.575)
     
+    # Use smaller field with larger seed spacing
     boundary = FieldBoundary(corners=[
         (48.137, 11.575),
-        (48.138, 11.575),
-        (48.138, 11.576),
-        (48.137, 11.576)
+        (48.1375, 11.575),
+        (48.1375, 11.5755),
+        (48.137, 11.5755)
     ])
     
     waypoints = planner.plan_seeding_mission(
         boundary=boundary,
+        seed_spacing=8.0,
+        row_spacing=10.0,
         add_rtl=True
     )
     
@@ -146,15 +150,18 @@ def test_servo_command_parameters():
     planner = SeedingMissionPlanner()
     planner.set_home_position(48.137, 11.575)
     
+    # Use smaller field with larger seed spacing
     boundary = FieldBoundary(corners=[
         (48.137, 11.575),
-        (48.138, 11.575),
-        (48.138, 11.576),
-        (48.137, 11.576)
+        (48.1375, 11.575),
+        (48.1375, 11.5755),
+        (48.137, 11.5755)
     ])
     
     waypoints = planner.plan_seeding_mission(
         boundary=boundary,
+        seed_spacing=8.0,
+        row_spacing=10.0,
         servo_channel=9,
         servo_open_pwm=1900,
         servo_close_pwm=1100,
@@ -178,16 +185,19 @@ def test_delay_command_duration():
     planner = SeedingMissionPlanner()
     planner.set_home_position(48.137, 11.575)
     
+    # Use smaller field with larger seed spacing
     boundary = FieldBoundary(corners=[
         (48.137, 11.575),
-        (48.138, 11.575),
-        (48.138, 11.576),
-        (48.137, 11.576)
+        (48.1375, 11.575),
+        (48.1375, 11.5755),
+        (48.137, 11.5755)
     ])
     
     drop_duration = 0.75
     waypoints = planner.plan_seeding_mission(
         boundary=boundary,
+        seed_spacing=8.0,
+        row_spacing=10.0,
         drop_duration=drop_duration,
         add_rtl=False
     )
@@ -258,24 +268,27 @@ def test_different_seed_spacings():
     planner = SeedingMissionPlanner()
     planner.set_home_position(48.137, 11.575)
     
+    # Use smaller field to stay under waypoint limit
     boundary = FieldBoundary(corners=[
         (48.137, 11.575),
-        (48.138, 11.575),
-        (48.138, 11.576),
-        (48.137, 11.576)
+        (48.1375, 11.575),
+        (48.1375, 11.5755),
+        (48.137, 11.5755)
     ])
     
     # Test with small spacing (more seeds)
     waypoints_small = planner.plan_seeding_mission(
         boundary=boundary,
-        seed_spacing=1.0,
+        seed_spacing=5.0,  # Increased from 1.0
+        row_spacing=10.0,
         add_rtl=False
     )
     
     # Test with large spacing (fewer seeds)
     waypoints_large = planner.plan_seeding_mission(
         boundary=boundary,
-        seed_spacing=5.0,
+        seed_spacing=10.0,  # Increased from 5.0
+        row_spacing=15.0,
         add_rtl=False
     )
     
@@ -291,15 +304,18 @@ def test_waypoint_sequence():
     planner = SeedingMissionPlanner()
     planner.set_home_position(48.137, 11.575)
     
+    # Use smaller field with larger seed spacing
     boundary = FieldBoundary(corners=[
         (48.137, 11.575),
-        (48.138, 11.575),
-        (48.138, 11.576),
-        (48.137, 11.576)
+        (48.1375, 11.575),
+        (48.1375, 11.5755),
+        (48.137, 11.5755)
     ])
     
     waypoints = planner.plan_seeding_mission(
         boundary=boundary,
+        seed_spacing=8.0,
+        row_spacing=10.0,
         add_rtl=False
     )
     
@@ -320,16 +336,19 @@ def test_custom_servo_channel():
     planner = SeedingMissionPlanner()
     planner.set_home_position(48.137, 11.575)
     
+    # Use smaller field with larger seed spacing
     boundary = FieldBoundary(corners=[
         (48.137, 11.575),
-        (48.138, 11.575),
-        (48.138, 11.576),
-        (48.137, 11.576)
+        (48.1375, 11.575),
+        (48.1375, 11.5755),
+        (48.137, 11.5755)
     ])
     
     # Test with channel 10
     waypoints = planner.plan_seeding_mission(
         boundary=boundary,
+        seed_spacing=8.0,
+        row_spacing=10.0,
         servo_channel=10,
         add_rtl=False
     )
